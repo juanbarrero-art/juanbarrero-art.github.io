@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">03 oct 2026 &middot; 17 min de lectura</p>
+        <p class="post__meta">03 oct 2026 &middot; 18 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -324,6 +324,11 @@ bin\Kagemusha.exe --trace       :: una llamada por syscall, con su NTSTATUS</cod
 <h2>Glosario de la Fase 5</h2>
 <table><thead><tr><th>Término</th><th>Significado en esta fase</th></tr></thead><tbody><tr><td><strong>Slot</strong></td><td>Índice de una syscall en las tablas (<code>g_SsnTable</code>/<code>g_GadgetTable</code>)</td></tr><tr><td><strong>Aridad</strong></td><td>Número de argumentos de una función (0, 1, 4, 5, 6…)</td></tr><tr><td><strong>Registro central</strong></td><td>La tabla del core que define qué syscalls existen y en qué orden</td></tr><tr><td><strong>Macro <code>KAGE_STUB</code></strong></td><td>Template ASM que genera un <code>PROC</code> por slot</td></tr><tr><td><strong>Wrapper <code>_I</code></strong></td><td>Función C tipada que llama al stub y devuelve el <code>NTSTATUS</code></td></tr><tr><td><strong>Round-trip</strong></td><td>Probar reservar+liberar (o proteger+liberar) sobre memoria real</td></tr><tr><td><strong>Caso negativo</strong></td><td>Comprobar que <strong>falla</strong> cuando debe (clase inválida)</td></tr><tr><td><strong>FreshyCalls</strong></td><td>Resolver SSN por orden de exports (sin leer el stub)</td></tr></tbody></table>
 <p>La lección de la Fase 5 es de <strong>ingeniería</strong>: generalizar no es "añadir funciones", es <strong>diseñar para que añadir funciones sea trivial y seguro</strong>. La macro y el registro lo consiguen.</p>
+<hr>
+<h2>Para profundizar en el repositorio</h2>
+<ul><li><code>tests/run_tests.c</code> (T12/T18): los 15 experimentos del catálogo.</li><li><code>src/asm/syscalls.asm</code>: la macro <code>KAGE_STUB</code> instanciada por slot.</li><li><code>src/core/core.c</code>: el registro y las tablas (<code>g_SsnTable</code>, <code>g_GadgetTable</code>).</li><li><code>src/wrappers/wrappers.c</code>: los 8 wrappers tipados.</li><li><code>docs/research/experimentos-fase5.md</code>: el detalle de los 15 experimentos.</li><li><code>docs/evidencias/m5.txt</code>: el transcript de <code>cdb</code>.</li><li><code>bin\Kagemusha.exe --dump</code>: la tabla viva, generada en runtime.</li></ul>
+<h2>Cierre de la fase</h2>
+<p>La Fase 5 convierte una prueba de concepto en un <strong>sistema</strong>: un template, un registro y ocho funciones verificadas. El valor no está en "ocho", sino en que <strong>la novena cuesta casi lo mismo que la octava</strong>. Esa propiedad —escalar sin dolor— es la que hace posibles las fases siguientes sin rehacer nada. Y el hallazgo del <code>Nt*</code> que no era stub recuerda que, en este terreno, <strong>siempre</strong> hay un caso raro esperando: mejor documentarlo que sorprenderse.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

@@ -557,6 +557,26 @@ para que añadir funciones sea trivial y seguro**. La macro y el registro lo con
 
 ---
 
+## Para profundizar en el repositorio
+
+- `tests/run_tests.c` (T12/T18): los 15 experimentos del catálogo.
+- `src/asm/syscalls.asm`: la macro `KAGE_STUB` instanciada por slot.
+- `src/core/core.c`: el registro y las tablas (`g_SsnTable`, `g_GadgetTable`).
+- `src/wrappers/wrappers.c`: los 8 wrappers tipados.
+- `docs/research/experimentos-fase5.md`: el detalle de los 15 experimentos.
+- `docs/evidencias/m5.txt`: el transcript de `cdb`.
+- `bin\Kagemusha.exe --dump`: la tabla viva, generada en runtime.
+
+## Cierre de la fase
+
+La Fase 5 convierte una prueba de concepto en un **sistema**: un template, un registro y ocho
+funciones verificadas. El valor no está en "ocho", sino en que **la novena cuesta casi lo mismo que
+la octava**. Esa propiedad —escalar sin dolor— es la que hace posibles las fases siguientes sin
+rehacer nada. Y el hallazgo del `Nt*` que no era stub recuerda que, en este terreno, **siempre**
+hay un caso raro esperando: mejor documentarlo que sorprenderse.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

@@ -504,6 +504,24 @@ Con esto, la Fase 6 queda como el **escudo**: no promete invisibilidad, promete 
 
 ---
 
+## Para profundizar en el repositorio
+
+- `src/resolver/gadget.c`: `KageIsStubHooked` y la validación del gadget.
+- `tests/run_tests.c` (T13–T17, T24): los 12 experimentos + endurecimiento.
+- `docs/research/experimentos-fase6.md` y `experimentos-extendidos.md` (hook `FF 25`).
+- `docs/evidencias/m5.txt`: cobertura **488/488**.
+- `bin\Kagemusha_tests.exe`: la suite completa.
+
+## Cierre de la fase
+
+La Fase 6 no busca "ganar" a un EDR: busca **saber dónde estás parado**. Y lo hace **midiendo**, no
+prometiendo: el sistema resiste hooks de user-mode (demostrado, con `E9` y `FF 25`), pero sigue
+siendo visible al kernel (declarado, sin esconderlo). Esa honestidad es lo que convierte el
+resultado en **investigación** y no en publicidad. El siguiente paso —herramientas y análisis de
+detección— se apoya justo en esta base: ya sabes qué **no** te tumba y qué **sí** te ve.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

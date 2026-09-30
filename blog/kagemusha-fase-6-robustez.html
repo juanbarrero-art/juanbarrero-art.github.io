@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 17 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 18 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -297,6 +297,11 @@ bin\Kagemusha.exe --trace   :: el ledger confirma que las llamadas llegan al ker
 <h2>Glosario de la Fase 6</h2>
 <table><thead><tr><th>Término</th><th>Significado en esta fase</th></tr></thead><tbody><tr><td><strong>Hook</strong></td><td>Desvío colocado en el código para observar/alterar llamadas</td></tr><tr><td><strong>Inline hook</strong></td><td>Parchear el inicio del stub (<code>E9</code>/<code>FF 25</code>)</td></tr><tr><td><strong>IAT hook</strong></td><td>Parchear la <em>Import Address Table</em> del proceso</td></tr><tr><td><strong>COW (Copy-On-Write)</strong></td><td>Al escribir en una página compartida, el SO crea una copia privada</td></tr><tr><td><strong>Callback de kernel</strong></td><td>Notificación del kernel a drivers (procesos, hilos, imágenes)</td></tr><tr><td><strong>ETW</strong></td><td>Sistema de trazas del sistema (telemetría independiente)</td></tr><tr><td><strong>Fuzz</strong></td><td>Alimentar con entradas adversas para buscar crashes</td></tr><tr><td><strong>Idempotente</strong></td><td>Que repetir una operación no cambie el resultado</td></tr><tr><td><strong>Auto-hospedaje</strong></td><td>Usar el propio sistema para operar sobre <code>ntdll</code></td></tr></tbody></table>
 <p>Con esto, la Fase 6 queda como el <strong>escudo</strong>: no promete invisibilidad, promete que el sistema <strong>no se rompe</strong> cuando el mundo se pone hostil. Y lo demuestra con pruebas, no con titulares.</p>
+<hr>
+<h2>Para profundizar en el repositorio</h2>
+<ul><li><code>src/resolver/gadget.c</code>: <code>KageIsStubHooked</code> y la validación del gadget.</li><li><code>tests/run_tests.c</code> (T13–T17, T24): los 12 experimentos + endurecimiento.</li><li><code>docs/research/experimentos-fase6.md</code> y <code>experimentos-extendidos.md</code> (hook <code>FF 25</code>).</li><li><code>docs/evidencias/m5.txt</code>: cobertura <strong>488/488</strong>.</li><li><code>bin\Kagemusha_tests.exe</code>: la suite completa.</li></ul>
+<h2>Cierre de la fase</h2>
+<p>La Fase 6 no busca "ganar" a un EDR: busca <strong>saber dónde estás parado</strong>. Y lo hace <strong>midiendo</strong>, no prometiendo: el sistema resiste hooks de user-mode (demostrado, con <code>E9</code> y <code>FF 25</code>), pero sigue siendo visible al kernel (declarado, sin esconderlo). Esa honestidad es lo que convierte el resultado en <strong>investigación</strong> y no en publicidad. El siguiente paso —herramientas y análisis de detección— se apoya justo en esta base: ya sabes qué <strong>no</strong> te tumba y qué <strong>sí</strong> te ve.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
