@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="KANON UFO - Blog personal de ciberseguridad: notas, writeups y laboratorio sobre malware analysis y Windows internals.">
+  <meta name="theme-color" content="#060810">
+  <title>KANON UFO | Blog de ciberseguridad</title>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="KANON UFO | Blog de ciberseguridad">
+  <meta property="og:description" content="Notas, writeups y laboratorio sobre ciberseguridad, malware analysis y Windows internals.">
+
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <!-- Enlace para saltar al contenido (teclado) -->
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <!-- ===================== CABECERA ===================== -->
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="#inicio" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú">
+        <span class="nav-toggle__barra"></span>
+        <span class="nav-toggle__barra"></span>
+        <span class="nav-toggle__barra"></span>
+      </button>
+
+      <nav class="nav" id="menu" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="#inicio">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="#blog">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="#sobre-mi">Sobre mí</a></li>
+          <li class="nav__item"><a class="nav__enlace nav__enlace--cta" href="#contacto">Contacto</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" id="inicio" aria-labelledby="hero-titulo">
+      <div class="hero__fondo" aria-hidden="true"></div>
+      <div class="contenedor hero__interior">
+        <div class="hero__texto">
+          <p class="hero__prompt" aria-hidden="true">root&commat;kanon-ufo:~$&nbsp;cat about.txt</p>
+          <h1 class="hero__titulo" id="hero-titulo">
+            Seguridad informática,<br><span class="hero__neon">a bajo nivel</span>
+          </h1>
+          <p class="hero__subtitulo">
+            Blog personal de <strong>ciberseguridad</strong>: notas, writeups y laboratorio
+            sobre <strong>análisis de malware</strong> y <strong>Windows internals</strong>.
+          </p>
+          <div class="hero__acciones">
+            <a class="boton boton--primario" href="#blog">Leer el blog</a>
+            <a class="boton boton--fantasma" href="#sobre-mi">Sobre mí</a>
+          </div>
+        </div>
+
+        <div class="terminal" role="img" aria-label="Ventana de terminal con información del blog">
+          <div class="terminal__barra">
+            <span class="terminal__punto terminal__punto--rojo"></span>
+            <span class="terminal__punto terminal__punto--ambar"></span>
+            <span class="terminal__punto terminal__punto--verde"></span>
+            <span class="terminal__ruta">kanon-ufo: ~/blog</span>
+          </div>
+          <pre class="terminal__cuerpo"><span class="t-verde">kanon@ufo:~$</span> whoami
+<span class="t-cian">KANON UFO</span>
+<span class="t-verde">kanon@ufo:~$</span> cat focus.txt
+[+] malware analysis
+[+] windows internals
+[+] blue team <span class="t-gris">(base red team)</span>
+<span class="t-verde">kanon@ufo:~$</span> status
+<span class="t-magenta">[ BLOG: iniciando... ]</span>
+<span class="t-verde">kanon@ufo:~$</span> <span class="cursor">_</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== BLOG ===================== -->
+    <section class="blog" id="blog" aria-labelledby="blog-titulo">
+      <div class="contenedor">
+        <h2 class="seccion__titulo" id="blog-titulo"><span class="seccion__marca">&gt;_</span> &Uacute;ltimas entradas</h2>
+        <p class="seccion__subtitulo">Notas y writeups. Contenido en camino.</p>
+
+        <ul class="entradas" role="list">
+          <li class="entrada">
+            <p class="entrada__fecha">// pr&oacute;ximamente</p>
+            <h3 class="entrada__titulo">An&aacute;lisis de malware: primeros pasos</h3>
+            <p class="entrada__resumen">Un recorrido por el an&aacute;lisis est&aacute;tico y din&aacute;mico de una muestra.</p>
+            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          </li>
+          <li class="entrada">
+            <p class="entrada__fecha">// pr&oacute;ximamente</p>
+            <h3 class="entrada__titulo">Windows internals: procesos y memoria</h3>
+            <p class="entrada__resumen">C&oacute;mo funcionan los procesos, hilos y la memoria virtual por dentro.</p>
+            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          </li>
+          <li class="entrada">
+            <p class="entrada__fecha">// pr&oacute;ximamente</p>
+            <h3 class="entrada__titulo">Blue Team: detecci&oacute;n y respuesta</h3>
+            <p class="entrada__resumen">Fundamentos de monitorizaci&oacute;n, hunting y respuesta a incidentes.</p>
+            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===================== SOBRE MI ===================== -->
+    <section class="sobre" id="sobre-mi" aria-labelledby="sobre-titulo">
+      <div class="contenedor sobre__interior">
+        <h2 class="seccion__titulo" id="sobre-titulo"><span class="seccion__marca">&gt;_</span> Sobre m&iacute;</h2>
+        <p class="sobre__texto">
+          Soy <strong>estudiante</strong> apasionado por la ciberseguridad, enfocado en
+          <strong>Blue Team</strong> con base en <strong>Red Team</strong>. Me especializo en
+          <strong>an&aacute;lisis de malware</strong> y <strong>Windows internals</strong>,
+          y me gusta entender los sistemas a bajo nivel para defenderlos mejor.
+        </p>
+        <a class="boton boton--fantasma" href="https://github.com/juanbarrero-art" rel="me">Ver GitHub</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="pie" id="contacto">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__texto">Aprendiendo a romper para defender.</p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+</body>
+</html>
