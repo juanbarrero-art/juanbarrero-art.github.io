@@ -3,6 +3,7 @@ title: "Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, C
 date: 2026-10-05
 tags: windows internals, red team, syscalls, investigacion, cet
 serie: Kagemusha
+orden: 9
 summary: Documentación de la Fase 7 y las baterías de verificación del repositorio: T19 (diferencial vs ntdll), T20 (pesada + auto-hospedaje), T21 (global/multi-proceso/rendimiento), T22 (CET/Shadow Stack), ledger de syscalls, CLI y endurecimiento A1/A2.
 ---
 

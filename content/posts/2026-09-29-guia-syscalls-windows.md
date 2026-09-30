@@ -3,6 +3,7 @@ title: "Guía completa: syscalls en Windows para investigadores"
 date: 2026-09-29
 tags: guia, windows internals, syscalls, principiantes, malware
 serie: Kagemusha
+orden: 3
 summary: Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.
 ---
 

@@ -3,6 +3,7 @@ title: "Kagemusha: visión general, tesis y metodología"
 date: 2026-09-30
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
+orden: 4
 summary: Documento maestro de la serie. El problema de los hooks y los EDR, el panorama de técnicas de syscalls (direct, indirect, Hell's Gate, Halo's Gate, FreshyCalls), la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6).
 ---
 

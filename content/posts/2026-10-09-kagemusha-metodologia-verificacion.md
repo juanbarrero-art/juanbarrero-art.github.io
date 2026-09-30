@@ -3,6 +3,7 @@ title: "Kagemusha — Metodología de verificación (oráculos independientes)"
 date: 2026-10-09
 tags: windows internals, investigacion, metodologia, informe
 serie: Kagemusha
+orden: 13
 summary: Documentación del informe metodológico del repositorio (docs/research/metodologia.md): la regla de los oráculos independientes, la tabla de oráculos, el protocolo por hito, los criterios de aceptación y la reproducibilidad.
 ---
 

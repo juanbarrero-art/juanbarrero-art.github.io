@@ -5,93 +5,93 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 18:03:06 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 18:07:54 +0000</lastBuildDate>
   <item>
-    <title>&quot;Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)&quot;</title>
+    <title>Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html</guid>
     <pubDate>Mon, 12 Oct 2026 00:00:00 +0000</pubDate>
     <description>Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot;</title>
+    <title>Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html</guid>
     <pubDate>Sun, 11 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot;</title>
+    <title>Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html</guid>
     <pubDate>Sat, 10 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Metodología de verificación (oráculos independientes)&quot;</title>
+    <title>Kagemusha — Metodología de verificación (oráculos independientes)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-metodologia-verificacion.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-metodologia-verificacion.html</guid>
     <pubDate>Fri, 09 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación del informe metodológico del repositorio (docs/research/metodologia.md): la regla de los oráculos independientes, la tabla de oráculos, el protocolo por hito, los criterios de aceptación y la reproducibilidad.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones&quot;</title>
+    <title>Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html</guid>
     <pubDate>Thu, 08 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)&quot;</title>
+    <title>Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html</guid>
     <pubDate>Wed, 07 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)&quot;</title>
+    <title>Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html</guid>
     <pubDate>Tue, 06 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la cara de detección/evasión del repositorio: experimento con Microsoft Defender (0 detecciones), instrumentation callbacks / ETW-TI (E2, T25), firma residual en el call-stack (E3, T26) y evasión bajo CET/Shadow Stack (E4c, T27).</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</title>
+    <title>Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</guid>
     <pubDate>Mon, 05 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la Fase 7 y las baterías de verificación del repositorio: T19 (diferencial vs ntdll), T20 (pesada + auto-hospedaje), T21 (global/multi-proceso/rendimiento), T22 (CET/Shadow Stack), ledger de syscalls, CLI y endurecimiento A1/A2.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</title>
+    <title>Kagemusha — Fase 6: robustez, hooks y límites reales</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</guid>
     <pubDate>Sun, 04 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Fase 5: generalización y aridad&quot;</title>
+    <title>Kagemusha — Fase 5: generalización y aridad</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html</guid>
     <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.</description>
   </item>
   <item>
-    <title>&quot;Análisis de malware 101: por dónde empezar&quot;</title>
+    <title>Análisis de malware 101: por dónde empezar</title>
     <link>https://juanbarrero-art.github.io/blog/analisis-malware-101.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/analisis-malware-101.html</guid>
     <pubDate>Fri, 02 Oct 2026 00:00:00 +0000</pubDate>
     <description>Una ruta de entrada al análisis de malware y qué necesitas en tu laboratorio.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</title>
+    <title>Kagemusha — Fase 4: ejecución indirecta real</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</guid>
     <pubDate>Fri, 02 Oct 2026 00:00:00 +0000</pubDate>
     <description>Documentación de la Fase 4 (M4) del repositorio Kagemusha: trampolín ASM, wrapper NtClose_I, pruebas T9/T10, evidencia m4.txt/m4_return.txt/m4_falsify.txt y el workflow de verificación de 6 puntos del plan de arquitectura.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</title>
+    <title>Kagemusha — Fases 0 a 3: del toolchain al gadget</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</guid>
     <pubDate>Thu, 01 Oct 2026 00:00:00 +0000</pubDate>
@@ -105,21 +105,21 @@
     <description>Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha: visión general, tesis y metodología&quot;</title>
+    <title>Kagemusha: visión general, tesis y metodología</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</guid>
     <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
     <description>Documento maestro de la serie. El problema de los hooks y los EDR, el panorama de técnicas de syscalls (direct, indirect, Hell&#x27;s Gate, Halo&#x27;s Gate, FreshyCalls), la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6).</description>
   </item>
   <item>
-    <title>&quot;Guía completa: syscalls en Windows para investigadores&quot;</title>
+    <title>Guía completa: syscalls en Windows para investigadores</title>
     <link>https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</guid>
     <pubDate>Tue, 29 Sep 2026 00:00:00 +0000</pubDate>
     <description>Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.</description>
   </item>
   <item>
-    <title>&quot;Cómo leer esta serie + Misión 0: ve una syscall con tus ojos&quot;</title>
+    <title>Cómo leer esta serie + Misión 0: ve una syscall con tus ojos</title>
     <link>https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html</guid>
     <pubDate>Mon, 28 Sep 2026 00:00:00 +0000</pubDate>

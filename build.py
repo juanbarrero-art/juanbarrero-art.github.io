@@ -176,7 +176,11 @@ def parse_front_matter(text):
             for raw in fm.splitlines():
                 if ":" in raw:
                     k, v = raw.split(":", 1)
-                    meta[k.strip().lower()] = v.strip()
+                    v = v.strip()
+                    # Quitar comillas envolventes ("..." o '...')
+                    if len(v) >= 2 and ((v[0] == '"' and v[-1] == '"') or (v[0] == "'" and v[-1] == "'")):
+                        v = v[1:-1]
+                    meta[k.strip().lower()] = v
             text = text[end + 4:]
     return meta, text.lstrip("\n")
 
@@ -225,6 +229,7 @@ def load_posts():
             "tags": meta.get("tags", ""),
             "summary": meta.get("summary", ""),
             "serie": meta.get("serie", ""),
+            "orden": int(meta["orden"]) if meta.get("orden", "").strip().isdigit() else None,
             "slug": slug,
             "draft": meta.get("draft", "").lower() in ("true", "1", "yes"),
             "body": body,
@@ -422,7 +427,7 @@ def build():
     if series:
         os.makedirs(os.path.join(BLOG_DIR, "serie"), exist_ok=True)
     for nombre, items in series.items():
-        items.sort(key=lambda x: x["date"])
+        items.sort(key=lambda x: (x.get("orden") if x.get("orden") is not None else 10 ** 9, x["date"]))
         s_cards = "\n".join(card_html(p, "../") for p in items)
         s_canonical = f"{SITE_URL}/blog/serie/{slugify(nombre)}.html"
         s_jsonld = json.dumps({

@@ -3,6 +3,7 @@ title: "Kagemusha — Fase 5: generalización y aridad"
 date: 2026-10-03
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
+orden: 7
 summary: Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.
 ---
 

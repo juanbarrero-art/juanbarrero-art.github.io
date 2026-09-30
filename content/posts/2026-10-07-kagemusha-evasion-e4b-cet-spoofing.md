@@ -3,6 +3,7 @@ title: "Kagemusha — Evasión en acción: supresión de telemetría (E4b), buil
 date: 2026-10-07
 tags: windows internals, red team, syscalls, investigacion, evasión, etw, cet
 serie: Kagemusha
+orden: 11
 summary: Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).
 ---
 

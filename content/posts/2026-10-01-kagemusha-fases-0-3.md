@@ -3,6 +3,7 @@ title: "Kagemusha — Fases 0 a 3: del toolchain al gadget"
 date: 2026-10-01
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
+orden: 5
 summary: Documentación de las fases M0–M3 del repositorio: toolchain C+MASM y debugger por CLI, utilidades (PEB walk, hash DJB2, exports, rangos), resolución de SSN por FreshyCalls (sort-by-RVA) y validación del gadget syscall;ret.
 ---
 

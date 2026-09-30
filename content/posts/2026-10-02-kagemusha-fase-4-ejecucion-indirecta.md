@@ -3,6 +3,7 @@ title: "Kagemusha — Fase 4: ejecución indirecta real"
 date: 2026-10-02
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
+orden: 6
 summary: Documentación de la Fase 4 (M4) del repositorio Kagemusha: trampolín ASM, wrapper NtClose_I, pruebas T9/T10, evidencia m4.txt/m4_return.txt/m4_falsify.txt y el workflow de verificación de 6 puntos del plan de arquitectura.
 ---
 

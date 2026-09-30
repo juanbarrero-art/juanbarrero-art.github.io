@@ -3,6 +3,7 @@ title: "Cómo leer esta serie + Misión 0: ve una syscall con tus ojos"
 date: 2026-09-28
 tags: guia, introduccion, principiantes, windows internals, syscalls
 serie: Kagemusha
+orden: 1
 summary: El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.
 ---
 

@@ -3,6 +3,7 @@ title: "Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa 
 date: 2026-10-10
 tags: windows internals, red team, blue team, kernel, investigacion, informe
 serie: Kagemusha
+orden: 14
 summary: Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.
 ---
 

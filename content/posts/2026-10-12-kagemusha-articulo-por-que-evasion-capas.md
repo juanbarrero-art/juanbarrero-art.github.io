@@ -3,6 +3,7 @@ title: "Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por
 date: 2026-10-12
 tags: edr, evasion, windows internals, investigacion, principiantes, articulo
 serie: Kagemusha
+orden: 2
 summary: Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.
 ---
 

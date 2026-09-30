@@ -3,6 +3,7 @@ title: "Kagemusha — Visibilidad y evasión: Defender, instrumentation callback
 date: 2026-10-06
 tags: windows internals, red team, syscalls, investigacion, deteccion, edr
 serie: Kagemusha
+orden: 10
 summary: Documentación de la cara de detección/evasión del repositorio: experimento con Microsoft Defender (0 detecciones), instrumentation callbacks / ETW-TI (E2, T25), firma residual en el call-stack (E3, T26) y evasión bajo CET/Shadow Stack (E4c, T27).
 ---
 

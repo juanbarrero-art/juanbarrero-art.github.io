@@ -3,6 +3,7 @@ title: "Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscal
 date: 2026-10-11
 tags: windows internals, red team, blue team, edr, evasion, investigacion, informe
 serie: Kagemusha
+orden: 15
 summary: Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta>ejecución>mecanismo, la matriz de evasión y las recomendaciones para el lado azul.
 ---
 

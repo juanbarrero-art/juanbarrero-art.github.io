@@ -3,6 +3,7 @@ title: "Kagemusha — Informe de investigación (paper): tesis, diseño y contri
 date: 2026-10-08
 tags: windows internals, red team, syscalls, investigacion, informe
 serie: Kagemusha
+orden: 12
 summary: Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.
 ---
 

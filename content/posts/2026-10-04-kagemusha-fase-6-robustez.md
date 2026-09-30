@@ -3,6 +3,7 @@ title: "Kagemusha — Fase 6: robustez, hooks y límites reales"
 date: 2026-10-04
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
+orden: 8
 summary: Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).
 ---
 
