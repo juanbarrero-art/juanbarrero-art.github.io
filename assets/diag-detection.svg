@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="400" viewBox="0 0 760 400" role="img" aria-label="Superficie de deteccion del indirect syscall segun el mecanismo del EDR">
+  <rect width="760" height="400" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Superficie de deteccion del indirect puro</text>
+
+  <g font-family="Consolas,monospace" font-size="12">
+    <rect x="24" y="56" width="712" height="34" fill="#111a2e" stroke="#1c2440"/>
+    <text x="40" y="78" fill="#8b93b8">Mecanismo del EDR</text>
+    <text x="560" y="78" fill="#8b93b8">Ve el indirect?</text>
+
+    <rect x="24" y="90" width="712" height="48" fill="#101a22" stroke="#39ff14"/>
+    <text x="40" y="112" fill="#c9d1e0">Hooks inline en stubs Nt* (user-mode)</text>
+    <text x="560" y="120" fill="#39ff14">NO  (FreshyCalls no lee el stub; salta al gadget)</text>
+
+    <rect x="24" y="138" width="712" height="48" fill="#101a22" stroke="#ff2d95"/>
+    <text x="40" y="160" fill="#c9d1e0">Instrumentation callback / ETW-TI (kernel)</text>
+    <text x="560" y="168" fill="#ff2d95">SI  (dispara en cada transicion de syscall)</text>
+
+    <rect x="24" y="186" width="712" height="48" fill="#101a22" stroke="#ff2d95"/>
+    <text x="40" y="208" fill="#c9d1e0">Inspeccion de pila (call stack)</text>
+    <text x="560" y="216" fill="#ff2d95">SI  (RIP mid-stub + llamador de usuario)</text>
+
+    <rect x="24" y="234" width="712" height="48" fill="#101a22" stroke="#39ff14"/>
+    <text x="40" y="256" fill="#c9d1e0">Microsoft Defender (estatico + conductual)</text>
+    <text x="560" y="264" fill="#39ff14">NO  (0 amenazas, 0 eventos; no inline-hookea)</text>
+  </g>
+
+  <rect x="24" y="300" width="712" height="72" rx="10" fill="#0f1424" stroke="#a855f7"/>
+  <text x="40" y="326" font-family="Consolas,monospace" font-size="12" fill="#a855f7">Conclusion del repo: la defensa moderna no es el hook de user-mode,</text>
+  <text x="40" y="348" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">sino la telemetria de kernel (ETW-TI / callbacks) y la inspeccion de pila.</text>
+</svg>

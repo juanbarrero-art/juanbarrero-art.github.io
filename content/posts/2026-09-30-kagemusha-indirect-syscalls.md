@@ -245,7 +245,7 @@ la build, se registra el build junto al resultado.
 
 Resultados de la build de referencia (Windows 11):
 
-- **166 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T0–T24.
+- **171 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T0–T27 (E2/E3/E4c).
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 
@@ -313,6 +313,7 @@ Entender la técnica es requisito para **detectarla**.
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
+8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
 
 ## Diseño en profundidad: por qué cada decisión
 

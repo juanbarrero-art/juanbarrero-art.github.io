@@ -158,6 +158,7 @@ puedas ejecutar y comparar. La idea es que no seas espectador, sino que **hagas 
 4. [Fases 0 a 3](/blog/kagemusha-fases-0-3.html) · [Fase 4](/blog/kagemusha-fase-4-ejecucion-indirecta.html) ·
    [Fase 5](/blog/kagemusha-fase-5-generalizacion.html) · [Fase 6](/blog/kagemusha-fase-6-robustez.html) ·
    [Fase 7 y baterías](/blog/kagemusha-fase-7-baterias-cet.html).
+9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
 
 ---
 

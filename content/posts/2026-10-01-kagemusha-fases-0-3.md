@@ -282,6 +282,7 @@ de verdad** una `Nt*` de forma indirecta: la [Fase 4](/blog/kagemusha-fase-4-eje
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
+8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
 
 ## Módulos y contratos (vista de implementación)
 

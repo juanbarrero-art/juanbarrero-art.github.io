@@ -195,6 +195,7 @@ Del plan de arquitectura, para esta fase y el indirecto "puro":
 6. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 8. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
+9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
 
 ---
 

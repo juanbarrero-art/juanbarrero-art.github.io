@@ -5,7 +5,14 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 15:20:57 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 15:53:22 +0000</lastBuildDate>
+  <item>
+    <title>&quot;Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html</guid>
+    <pubDate>Tue, 06 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Documentación de la cara de detección/evasión del repositorio: experimento con Microsoft Defender (0 detecciones), instrumentation callbacks / ETW-TI (E2, T25), firma residual en el call-stack (E3, T26) y evasión bajo CET/Shadow Stack (E4c, T27).</description>
+  </item>
   <item>
     <title>&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</link>
