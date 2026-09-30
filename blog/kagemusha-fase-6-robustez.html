@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 8 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 10 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -176,6 +176,32 @@
 <hr>
 <h2>Errores comunes (Fase 6)</h2>
 <ul><li><strong>Modificar el stub sin <code>VirtualProtect</code></strong>: la escritura falla (página de solo lectura).</li><li><strong>Creer que el hook real es igual al simulado</strong>: es una <strong>emulación</strong> controlada, útil y segura.</li><li><strong>No manejar entradas adversas</strong>: un PE malformado no debe tumbar el analizador.</li><li><strong>Ignorar la concurrencia</strong>: condiciones de carrera silenciosas son las más peligrosas.</li><li><strong>Ocultar los límites</strong>: un informe sin limitaciones no es un informe, es publicidad.</li></ul>
+<hr>
+<h2>🧪 Experimenta tú — rompe tu propio sistema</h2>
+<p><em>(Nivel 🔴, en VM. Con el proyecto compilado.)</em></p>
+<p>El experimento 5 de la batería es el más vistoso: <strong>hookea</strong> el stub de <code>NtClose</code> (en una copia privada, segura) y luego llama a <code>NtClose_I</code>. Verás que <strong>sigue funcionando</strong>.</p>
+<pre><code class="lang-text">bin\Kagemusha_tests.exe      :: la bateria T13-T17 incluye el hook simulado y su restauracion</code></pre>
+<p>Puedes seguir la idea en <code>cdb</code>:</p>
+<pre><code class="lang-text">bp Kagemusha!KageIsStubHooked
+g
+; (al instalar el hook) -&gt; TRUE
+; (tras restaurar)       -&gt; FALSE</code></pre>
+<p><strong>Qué deberías concluir:</strong> aunque el stub esté modificado, FreshyCalls <strong>no se inmuta</strong> (no lo lee) y el gadget se localiza <strong>fuera</strong> del stub hookeado. La técnica sobrevive a un hook de user-mode.</p>
+<blockquote><p><strong>Mini-reto:</strong> instala un hook <code>FF 25</code> (jmp indirecto a un puntero) en lugar de <code>E9</code> y comprueba que <code>KageIsStubHooked</code> también lo detecta y que la ejecución indirecta sigue en pie (es el experimento de la batería extendida T19).</p></blockquote>
+<hr>
+<h2>Fondo: cómo hookea un EDR (y por qué nos afecta o no)</h2>
+<p>Existen varias formas de interceptar llamadas. Conocerlas explica por qué la técnica elegida importa:</p>
+<table><thead><tr><th>Tipo de hook</th><th>Dónde</th><th>Efecto sobre nosotros</th></tr></thead><tbody><tr><td><strong>Inline (byte patching)</strong></td><td>Al inicio del stub <code>Nt*</code> (<code>E9</code>/<code>FF 25</code>)</td><td><strong>No</strong> nos afecta: no ejecutamos el stub</td></tr><tr><td><strong>IAT hook</strong></td><td>En la <em>Import Address Table</em> del proceso</td><td><strong>No</strong> nos afecta: no usamos la IAT</td></tr><tr><td><strong>Kernel callbacks</strong></td><td>En el kernel (procesos, hilos, imágenes)</td><td><strong>Sí</strong> nos observa, pero no en user-mode</td></tr><tr><td><strong>ETW</strong></td><td>Trazas del kernel y componentes</td><td><strong>Sí</strong>: es telemetría independiente</td></tr></tbody></table>
+<p>La clave de la Fase 6 es la primera fila: si un EDR <strong>reescribe el stub</strong>, Hell's Gate / Halo's Gate leerían bytes equivocados. Nosotros <strong>no leemos el stub</strong>, así que seguimos enteros.</p>
+<blockquote><p>Un defensor serio no depende de <strong>un</strong> hook: combina callbacks y ETW. Por eso la serie <strong>no</strong> promete invisibilidad; mide la correlación.</p></blockquote>
+<hr>
+<h2>El hook no es "el enemigo": es un sensor</h2>
+<p>Conviene cambiar el marco mental. Un hook no es "algo malo que hay que evitar": es un <strong>sensor</strong> que un defensor colocó. Los hooks de user-mode son <strong>baratos y potentes</strong>, pero <strong>frágiles ante código que no ejecuta el stub</strong>. Y los sensores de kernel son <strong>más robustos</strong>, pero <strong>más costosos</strong> y <strong>más genéricos</strong>.</p>
+<p>Entender este intercambio es la mitad de la investigación defensiva. La serie <strong>documenta ambos</strong> lados: cómo se evita el sensor de user-mode (Fase 6) y qué queda visible (Fase 8).</p>
+<hr>
+<h2>Fondo: por qué el parser PE es un objetivo</h2>
+<p>Un analizador que confía ciegamente en un PE es un analizador <strong>atacable</strong>. Si un atacante puede convencerte de que "el export A está en tal dirección", puede desviar tu resolución. Por eso el endurecimiento <strong>A1</strong> valida las <strong>RVAs del export directory contra <code>SizeOfImage</code></strong>: si una RVA apunta fuera de la imagen, se rechaza.</p>
+<p>El fuzz (9 PE malformados en T13–T17, y un <strong>export directory malicioso</strong> en el endurecimiento) no busca "encontrar un bug por diversión": busca <strong>garantizar</strong> que el sistema no crashea ni se desvía con basura. Un analizador fiable es aquel que <strong>no se cree</strong> la entrada.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

@@ -17,7 +17,7 @@
   <meta property="og:title" content="&quot;Cómo leer esta serie + Misión 0: ve una syscall con tus ojos&quot;">
   <meta property="og:description" content="El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-09-28">
@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="&quot;Cómo leer esta serie + Misión 0: ve una syscall con tus ojos&quot;">
   <meta name="twitter:description" content="El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
@@ -54,7 +54,7 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "image": "https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg",
   "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, introduccion, principiantes",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
@@ -92,7 +92,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">28 sep 2026 &middot; 5 min de lectura</p>
+        <p class="post__meta">28 sep 2026 &middot; 8 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Cómo leer esta serie + Misión 0: ve una syscall con tus ojos&quot;</h1>
         <p class="post__tags"><span class="tag">#guia</span> <span class="tag">#introduccion</span> <span class="tag">#principiantes</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span></p>
@@ -157,6 +157,38 @@ g</code></pre>
 <h3>Lo que viene</h3>
 <ol><li><strong>Esta entrada</strong> — el mapa y la Misión 0.</li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a> — los conceptos, bien explicados.</li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a> — el proyecto.</li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3</a> · <a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4</a> ·</li></ol>
 <p><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5</a> · <a href="/blog/kagemusha-fase-6-robustez.html">Fase 6</a> · <a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías</a>.</p>
+<hr>
+<h2>Qué necesitas (y qué NO)</h2>
+<ul><li>✅ <strong>Un Windows</strong> cualquiera (10 u 11).</li><li>✅ <strong>Process Monitor</strong> (Sysinternals, gratis) para el experimento principal.</li><li>✅ <strong>Curiosidad</strong> y 20 minutos.</li><li>❌ <strong>NO</strong> necesitas programar.</li><li>❌ <strong>NO</strong> necesitas permisos de administrador para los experimentos 0.A y 0.B.</li><li>⚠️ Para el experimento 0.C (debugger), <strong>usa una máquina virtual</strong>; nunca el PC del trabajo.</li></ul>
+<hr>
+<h2>El mapa, en una imagen</h2>
+<p><img src="../assets/diag-syscall-flow.svg" alt="Diagrama: flujo de una system call" loading="lazy"></p>
+<p>Léelo de izquierda a derecha: tu programa (<code>user-mode</code>) pide algo; la petición baja por las capas; la instrucción <code>syscall</code> entra al kernel; el kernel hace el trabajo y devuelve un resultado. En la serie estudiaremos <strong>dónde</strong> se ejecuta esa instrucción <code>syscall</code> y <strong>por qué</strong> importa.</p>
+<hr>
+<h2>Más experimentos (sigue jugando)</h2>
+<h3>0.D — ¿Cuántas DLLs carga el Bloc de notas? (5 min)</h3>
+<p>Con <strong>Process Explorer</strong>: abre el Bloc de notas, selecciónalo y mira <em>View → Lower Pane → DLLs</em>. Verás decenas de DLLs. <strong><code>ntdll.dll</code> aparecerá siempre</strong>, en todos los procesos. Es el "mesero" obligatorio de todo el mundo.</p>
+<h3>0.E — Cada proceso es una conversación (5 min)</h3>
+<p>Abre el <strong>Administrador de tareas</strong> y mira cuántos procesos hay. Piénsalo así: <strong>cada uno</strong> está manteniendo una conversación constante con Windows (peticiones, respuestas). Cuando tomes conciencia de esa conversación, "leerás" los artículos de la serie de otra manera.</p>
+<h3>0.F (opcional) — El nombre del proyecto</h3>
+<p><strong>Kagemusha</strong> (影武者, "guerrero sombra") es el <strong>doble</strong> que actúa en lugar del original. En nuestro caso, el "doble" es un fragmento de código que ya está en <code>ntdll</code> y ejecuta la orden en lugar de nuestro programa. Un nombre, una idea.</p>
+<hr>
+<h2>Glosario en lenguaje llano</h2>
+<table><thead><tr><th>Palabra</th><th>Qué significa (sin jerga)</th></tr></thead><tbody><tr><td><strong>Programa</strong></td><td>Lo que ejecutas (juego, navegador, Bloc de notas)</td></tr><tr><td><strong>Kernel</strong></td><td>El "jefe" del sistema; nadie le da órdenes, solo se las pide</td></tr><tr><td><strong>user-mode</strong></td><td>El lado "sin privilegios" donde corren los programas</td></tr><tr><td><strong>syscall</strong></td><td>La "comanda" que un programa le pasa al kernel</td></tr><tr><td><strong>ntdll.dll</strong></td><td>El archivo que contiene las funciones que hacen esas comandas</td></tr><tr><td><strong>stub</strong></td><td>El "trozo" dentro de <code>ntdll</code> que prepara la comanda</td></tr><tr><td><strong>SSN</strong></td><td>El número con el que el kernel identifica cada comanda</td></tr><tr><td><strong>hook</strong></td><td>Una trampa que un antivirus pone en la puerta para ver la comanda</td></tr></tbody></table>
+<hr>
+<h2>Preguntas frecuentes (para quien empieza)</h2>
+<p><strong>¿De verdad puedo entender esto sin programar?</strong> Sí. Las partes 🟢 (Misión 0 y la guía) no asumen programación. Las 🔴 sí; pero puedes saltarlas y quedarte con la idea.</p>
+<p><strong>¿Es peligroso hacer los experimentos?</strong> 0.A y 0.B, no: solo <strong>miras</strong>. 0.C usa un debugger; hazlo en una VM. Nunca ejecutes binarios de investigación en tu PC diario.</p>
+<p><strong>¿Cuánto tarda aprender esto?</strong> La Misión 0, 20 minutos. La idea general, una tarde. La serie completa es para quien de verdad quiera entrar en el tema.</p>
+<p><strong>¿Por qué tanto rigor (oráculos, transcripciones)?</strong> Porque en seguridad, "creo que funciona" no sirve. Si no puedes <strong>demostrarlo</strong>, no lo sabes.</p>
+<p><strong>¿Esto es para atacar?</strong> No. Es para <strong>entender y, con ello, detectar</strong>. Lo dice el lema de la serie: <em>aprender a romper para poder defender</em>.</p>
+<hr>
+<h2>Si algo no funciona</h2>
+<ul><li><strong>Process Monitor muestra demasiado ruido:</strong> usa el botón de filtro (<em>Filter → Filter…</em>) y</li></ul>
+<p>escribe el nombre del proceso (<code>notepad.exe</code>).</p>
+<ul><li><strong>No encuentro <code>ntdll.dll</code>:</strong> en el Explorador, activa <em>Ver → Elementos ocultos</em> y</li></ul>
+<p><em>Opciones de carpeta → Ver → Mostrar archivos, carpetas… del sistema</em>.</p>
+<ul><li><strong>El debugger me abruma:</strong> sáltalo. La Misión 0 se cumple con 0.A y 0.B.</li></ul>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Sysinternals — <em>Process Monitor</em> (<code>learn.microsoft.com/sysinternals/downloads/procmon</code>).</li><li>Microsoft Learn — <em>Ntdll</em> y <em>System Calls</em>.</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (Microsoft Press).</li></ul>

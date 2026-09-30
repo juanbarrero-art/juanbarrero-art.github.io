@@ -161,6 +161,93 @@ puedas ejecutar y comparar. La idea es que no seas espectador, sino que **hagas 
 
 ---
 
+## Qué necesitas (y qué NO)
+
+- ✅ **Un Windows** cualquiera (10 u 11).
+- ✅ **Process Monitor** (Sysinternals, gratis) para el experimento principal.
+- ✅ **Curiosidad** y 20 minutos.
+- ❌ **NO** necesitas programar.
+- ❌ **NO** necesitas permisos de administrador para los experimentos 0.A y 0.B.
+- ⚠️ Para el experimento 0.C (debugger), **usa una máquina virtual**; nunca el PC del trabajo.
+
+---
+
+## El mapa, en una imagen
+
+![Diagrama: flujo de una system call](../assets/diag-syscall-flow.svg)
+
+Léelo de izquierda a derecha: tu programa (`user-mode`) pide algo; la petición baja por las capas;
+la instrucción `syscall` entra al kernel; el kernel hace el trabajo y devuelve un resultado. En la
+serie estudiaremos **dónde** se ejecuta esa instrucción `syscall` y **por qué** importa.
+
+---
+
+## Más experimentos (sigue jugando)
+
+### 0.D — ¿Cuántas DLLs carga el Bloc de notas? (5 min)
+
+Con **Process Explorer**: abre el Bloc de notas, selecciónalo y mira *View → Lower Pane → DLLs*.
+Verás decenas de DLLs. **`ntdll.dll` aparecerá siempre**, en todos los procesos. Es el "mesero"
+obligatorio de todo el mundo.
+
+### 0.E — Cada proceso es una conversación (5 min)
+
+Abre el **Administrador de tareas** y mira cuántos procesos hay. Piénsalo así: **cada uno** está
+manteniendo una conversación constante con Windows (peticiones, respuestas). Cuando tomes
+conciencia de esa conversación, "leerás" los artículos de la serie de otra manera.
+
+### 0.F (opcional) — El nombre del proyecto
+
+**Kagemusha** (影武者, "guerrero sombra") es el **doble** que actúa en lugar del original. En
+nuestro caso, el "doble" es un fragmento de código que ya está en `ntdll` y ejecuta la orden en
+lugar de nuestro programa. Un nombre, una idea.
+
+---
+
+## Glosario en lenguaje llano
+
+| Palabra | Qué significa (sin jerga) |
+| --- | --- |
+| **Programa** | Lo que ejecutas (juego, navegador, Bloc de notas) |
+| **Kernel** | El "jefe" del sistema; nadie le da órdenes, solo se las pide |
+| **user-mode** | El lado "sin privilegios" donde corren los programas |
+| **syscall** | La "comanda" que un programa le pasa al kernel |
+| **ntdll.dll** | El archivo que contiene las funciones que hacen esas comandas |
+| **stub** | El "trozo" dentro de `ntdll` que prepara la comanda |
+| **SSN** | El número con el que el kernel identifica cada comanda |
+| **hook** | Una trampa que un antivirus pone en la puerta para ver la comanda |
+
+---
+
+## Preguntas frecuentes (para quien empieza)
+
+**¿De verdad puedo entender esto sin programar?** Sí. Las partes 🟢 (Misión 0 y la guía) no
+asumen programación. Las 🔴 sí; pero puedes saltarlas y quedarte con la idea.
+
+**¿Es peligroso hacer los experimentos?** 0.A y 0.B, no: solo **miras**. 0.C usa un debugger;
+hazlo en una VM. Nunca ejecutes binarios de investigación en tu PC diario.
+
+**¿Cuánto tarda aprender esto?** La Misión 0, 20 minutos. La idea general, una tarde. La serie
+completa es para quien de verdad quiera entrar en el tema.
+
+**¿Por qué tanto rigor (oráculos, transcripciones)?** Porque en seguridad, "creo que funciona" no
+sirve. Si no puedes **demostrarlo**, no lo sabes.
+
+**¿Esto es para atacar?** No. Es para **entender y, con ello, detectar**. Lo dice el lema de la
+serie: *aprender a romper para poder defender*.
+
+---
+
+## Si algo no funciona
+
+- **Process Monitor muestra demasiado ruido:** usa el botón de filtro (*Filter → Filter…*) y
+  escribe el nombre del proceso (`notepad.exe`).
+- **No encuentro `ntdll.dll`:** en el Explorador, activa *Ver → Elementos ocultos* y
+  *Opciones de carpeta → Ver → Mostrar archivos, carpetas… del sistema*.
+- **El debugger me abruma:** sáltalo. La Misión 0 se cumple con 0.A y 0.B.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Sysinternals — *Process Monitor* (`learn.microsoft.com/sysinternals/downloads/procmon`).

@@ -92,7 +92,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">05 oct 2026 &middot; 6 min de lectura</p>
+        <p class="post__meta">05 oct 2026 &middot; 10 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span> <span class="tag">#cet</span></p>
@@ -181,6 +181,49 @@ NtClose_I(handle)                   ==   ntdll!NtClose(handle)</code></pre>
 <ul><li><strong>CET no es un enemigo.</strong> El <code>jmp</code> (<em>tail call</em>) es, además de correcto, <strong>seguro</strong>.</li><li><strong>Documentar límites es parte del resultado.</strong> <code>STRICT_MODE</code> no aplica aquí; se dice.</li></ul>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><strong>Fase 7 y baterías (T19–T22): ledger, CLI y CET</strong> (esta entrada)</li></ol>
+<hr>
+<h2>🧪 Experimenta tú — usa las herramientas nuevas</h2>
+<p><em>(Nivel 🟡. Con el proyecto compilado.)</em></p>
+<pre><code class="lang-text">bin\Kagemusha.exe --dump     :: ver la tabla slot / syscall / SSN / gadget
+bin\Kagemusha.exe --trace    :: ejecutar y volcar el ledger
+bin\Kagemusha.exe --json     :: la tabla en JSON (para tus propios scripts)</code></pre>
+<p><strong>Qué deberías ver</strong> (<code>--trace</code>): una línea por llamada, con su <code>SSN</code>, su gadget y el <code>NTSTATUS</code>. Eso es literalmente la <strong>caja negra</strong> del sistema: qué se llamó, con qué número y qué devolvió.</p>
+<blockquote><p><strong>Mini-reto:</strong> exporta con <code>--json</code> y ordena las entradas por SSN en PowerShell. Compararás tu tabla con la del README; si difieren, tienes una build distinta… y un hallazgo.</p></blockquote>
+<hr>
+<h2>El ledger: por qué una "caja negra" cambia el juego</h2>
+<p>El <strong>ledger</strong> (<code>src/core/ledger.c</code>) es un <strong>ring buffer de 256 entradas</strong> que registra <code>slot</code>, <code>SSN</code>, <code>gadget</code>, <code>NTSTATUS</code> y timestamp. Tres decisiones de diseño importan:</p>
+<ol><li><strong>Deshabilitado por defecto.</strong> Registrar cada syscall tiene coste. Activarlo solo cuando</li></ol>
+<p>investigas mantiene el rendimiento intacto (medido en T20: ~0.08 µs/llamada).</p>
+<ol><li><strong>Ring buffer.</strong> No crece sin límite: cuando se llena, sobrescribe lo más antiguo. Ideal para</li></ol>
+<p>"las últimas N llamadas", que es lo que quieres al depurar.</p>
+<ol><li><strong>Thread-safe con interlocked.</strong> Se puede consultar/llenar desde varios hilos sin corromperse</li></ol>
+<p>(probado con 4 hilos).</p>
+<p>Es la diferencia entre "creo que llamó a <code>NtClose</code>" y "<strong>aquí está la lista exacta</strong> de lo que llamó, con números".</p>
+<hr>
+<h2>La prueba diferencial, a fondo (el estándar de oro)</h2>
+<p>La batería T19 hace algo que debería ser obligatorio en cualquier implementación de syscalls: <strong>comparar con la función nativa de <code>ntdll</code></strong>, con los <strong>mismos argumentos</strong>.</p>
+<pre><code class="lang-text">nuestro wrapper _I(args)   --(indirecto)--&gt;  kernel
+ntdll!Nt...(args)          --(nativo)-----&gt;  kernel
+                    ¿mismo NTSTATUS? ¿mismos out-args?</code></pre>
+<p>Si el indirecto tuviera un error sutil (un argumento mal copiado, un registro equivocado), aquí se vería. La batería confirma identidad en: <code>NtQueryInformationProcess</code>, <code>NtQuerySystemInformation</code>, <code>NtQuerySystemTime</code>, <code>NtClose</code>, <code>NtProtectVirtualMemory</code>. También comprueba <strong>argumentos de salida</strong> (<code>OldProt</code>, <code>ReturnLength</code>, <code>PebBaseAddress</code>), que son donde más falla el paso de punteros en la pila.</p>
+<hr>
+<h2>Auto-hospedaje: el día que el sistema se salvó a sí mismo</h2>
+<p>Este es mi momento favorito del proyecto. En la batería pesada (T20) <strong>hookeo los 8 stubs</strong> para probar la resiliencia… y el programa <strong>se cuelga</strong>. Tras un rato de confusión, el motivo era precioso:</p>
+<blockquote><p><code>VirtualProtect()</code> (la API de Windows) usa internamente <code>NtProtectVirtualMemory</code>. Y ese stub <strong>acababa de ser hookeado</strong>. Así que la propia función que quería <em>restaurar</em> los hooks pasaba por un stub roto.</p></blockquote>
+<p>La solución: <strong>usar nuestro <code>NtProtectVirtualMemory_I</code></strong> (que ejecuta por el gadget, ajeno al stub hookeado) para manejar los hooks sobre <code>ntdll</code>. El sistema <strong>se usó a sí mismo</strong> para operar sobre el sistema. Eso es <strong>auto-hospedaje</strong>, y no aparece hasta que llevas el diseño al límite.</p>
+<hr>
+<h2>CET: cuando creí que rompía el shadow stack</h2>
+<p><strong>CET</strong> (Control-flow Enforcement Technology) añade un <strong>shadow stack</strong>: una copia protegida por hardware de las direcciones de retorno, para impedir que un <code>ret</code> vuelva a donde no debe (la base de los ataques <em>ROP</em>). Mi primera reacción fue: <em>"un gadget con <code>ret</code>… esto lo va a romper"</em>.</p>
+<p>La medición dijo lo contrario. El <code>call</code> del wrapper empuja <strong>una</strong> entrada; el stub hace <code>jmp</code> (<strong>no</strong> empuja); el <code>ret</code> del gadget <strong>consume exactamente esa entrada</strong>. Coinciden → el shadow stack <strong>no se desalinea</strong>. El proceso corría con <code>EnableUserShadowStack = 1</code> y 1000 syscalls funcionaron; el binario se marcó <code>/CETCOMPAT</code>.</p>
+<blockquote><p>Moraleja: <strong>mide antes de temer.</strong> Una intuición (a veces un prejuicio) no vale lo que un test.</p></blockquote>
+<hr>
+<h2>Qué sigue</h2>
+<ul><li><strong>Fase 7 pendiente:</strong> la extensión de debugger <strong><code>!kage</code></strong> para volcar la tabla y el ledger</li></ul>
+<p>desde <code>cdb</code> (sin salir del debugger).</p>
+<ul><li><strong>Fase 8 (visibilidad):</strong> el informe publicable y el <strong>análisis de detección</strong>: qué ve *de</li></ul>
+<p>verdad* un EDR con el indirecto puro (stack walk, ETIM, callbacks). Sin esconder nada: midiendo.</p>
+<ul><li><strong>Endurecimiento continuo:</strong> cada revisión añade pruebas (T0, T24) que impiden que un fallo</li></ul>
+<p>vuelva. Ese es el ritmo de un laboratorio vivo.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>Control-flow Enforcement Technology (CET)</em> y <em>Shadow Stack</em>.</li><li>Microsoft Learn — <em>Process mitigation policies</em> (<code>PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY</code>).</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>); jthuraisamy — <em>SysWhispers</em>.</li><li>Fuentes primarias: <code>docs/research/experimentos-extendidos.md</code>, <code>experimentos-pesados.md</code>,</li></ul>

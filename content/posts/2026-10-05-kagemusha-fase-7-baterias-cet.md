@@ -204,6 +204,102 @@ revisión no solo arregla, **añade pruebas que impiden que el fallo vuelva**.
 
 ---
 
+## 🧪 Experimenta tú — usa las herramientas nuevas
+
+*(Nivel 🟡. Con el proyecto compilado.)*
+
+```text
+bin\Kagemusha.exe --dump     :: ver la tabla slot / syscall / SSN / gadget
+bin\Kagemusha.exe --trace    :: ejecutar y volcar el ledger
+bin\Kagemusha.exe --json     :: la tabla en JSON (para tus propios scripts)
+```
+
+**Qué deberías ver** (`--trace`): una línea por llamada, con su `SSN`, su gadget y el `NTSTATUS`.
+Eso es literalmente la **caja negra** del sistema: qué se llamó, con qué número y qué devolvió.
+
+> **Mini-reto:** exporta con `--json` y ordena las entradas por SSN en PowerShell. Compararás tu
+> tabla con la del README; si difieren, tienes una build distinta… y un hallazgo.
+
+---
+
+## El ledger: por qué una "caja negra" cambia el juego
+
+El **ledger** (`src/core/ledger.c`) es un **ring buffer de 256 entradas** que registra
+`slot`, `SSN`, `gadget`, `NTSTATUS` y timestamp. Tres decisiones de diseño importan:
+
+1. **Deshabilitado por defecto.** Registrar cada syscall tiene coste. Activarlo solo cuando
+   investigas mantiene el rendimiento intacto (medido en T20: ~0.08 µs/llamada).
+2. **Ring buffer.** No crece sin límite: cuando se llena, sobrescribe lo más antiguo. Ideal para
+   "las últimas N llamadas", que es lo que quieres al depurar.
+3. **Thread-safe con interlocked.** Se puede consultar/llenar desde varios hilos sin corromperse
+   (probado con 4 hilos).
+
+Es la diferencia entre "creo que llamó a `NtClose`" y "**aquí está la lista exacta** de lo que
+llamó, con números".
+
+---
+
+## La prueba diferencial, a fondo (el estándar de oro)
+
+La batería T19 hace algo que debería ser obligatorio en cualquier implementación de syscalls:
+**comparar con la función nativa de `ntdll`**, con los **mismos argumentos**.
+
+```text
+nuestro wrapper _I(args)   --(indirecto)-->  kernel
+ntdll!Nt...(args)          --(nativo)----->  kernel
+                    ¿mismo NTSTATUS? ¿mismos out-args?
+```
+
+Si el indirecto tuviera un error sutil (un argumento mal copiado, un registro equivocado), aquí
+se vería. La batería confirma identidad en: `NtQueryInformationProcess`, `NtQuerySystemInformation`,
+`NtQuerySystemTime`, `NtClose`, `NtProtectVirtualMemory`. También comprueba **argumentos de
+salida** (`OldProt`, `ReturnLength`, `PebBaseAddress`), que son donde más falla el paso de
+punteros en la pila.
+
+---
+
+## Auto-hospedaje: el día que el sistema se salvó a sí mismo
+
+Este es mi momento favorito del proyecto. En la batería pesada (T20) **hookeo los 8 stubs** para
+probar la resiliencia… y el programa **se cuelga**. Tras un rato de confusión, el motivo era
+precioso:
+
+> `VirtualProtect()` (la API de Windows) usa internamente `NtProtectVirtualMemory`. Y ese stub
+> **acababa de ser hookeado**. Así que la propia función que quería *restaurar* los hooks pasaba
+> por un stub roto.
+
+La solución: **usar nuestro `NtProtectVirtualMemory_I`** (que ejecuta por el gadget, ajeno al
+stub hookeado) para manejar los hooks sobre `ntdll`. El sistema **se usó a sí mismo** para operar
+sobre el sistema. Eso es **auto-hospedaje**, y no aparece hasta que llevas el diseño al límite.
+
+---
+
+## CET: cuando creí que rompía el shadow stack
+
+**CET** (Control-flow Enforcement Technology) añade un **shadow stack**: una copia protegida por
+hardware de las direcciones de retorno, para impedir que un `ret` vuelva a donde no debe (la base
+de los ataques *ROP*). Mi primera reacción fue: *"un gadget con `ret`… esto lo va a romper"*.
+
+La medición dijo lo contrario. El `call` del wrapper empuja **una** entrada; el stub hace `jmp`
+(**no** empuja); el `ret` del gadget **consume exactamente esa entrada**. Coinciden → el shadow
+stack **no se desalinea**. El proceso corría con `EnableUserShadowStack = 1` y 1000 syscalls
+funcionaron; el binario se marcó `/CETCOMPAT`.
+
+> Moraleja: **mide antes de temer.** Una intuición (a veces un prejuicio) no vale lo que un test.
+
+---
+
+## Qué sigue
+
+- **Fase 7 pendiente:** la extensión de debugger **`!kage`** para volcar la tabla y el ledger
+  desde `cdb` (sin salir del debugger).
+- **Fase 8 (visibilidad):** el informe publicable y el **análisis de detección**: qué ve *de
+  verdad* un EDR con el indirecto puro (stack walk, ETIM, callbacks). Sin esconder nada: midiendo.
+- **Endurecimiento continuo:** cada revisión añade pruebas (T0, T24) que impiden que un fallo
+  vuelva. Ese es el ritmo de un laboratorio vivo.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *Control-flow Enforcement Technology (CET)* y *Shadow Stack*.

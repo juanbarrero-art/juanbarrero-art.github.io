@@ -207,6 +207,81 @@ Documentarlo es la diferencia entre "creo que es fiable" y "sé exactamente cuá
 
 ---
 
+## 🧪 Experimenta tú — rompe tu propio sistema
+
+*(Nivel 🔴, en VM. Con el proyecto compilado.)*
+
+El experimento 5 de la batería es el más vistoso: **hookea** el stub de `NtClose` (en una copia
+privada, segura) y luego llama a `NtClose_I`. Verás que **sigue funcionando**.
+
+```text
+bin\Kagemusha_tests.exe      :: la bateria T13-T17 incluye el hook simulado y su restauracion
+```
+
+Puedes seguir la idea en `cdb`:
+
+```text
+bp Kagemusha!KageIsStubHooked
+g
+; (al instalar el hook) -> TRUE
+; (tras restaurar)       -> FALSE
+```
+
+**Qué deberías concluir:** aunque el stub esté modificado, FreshyCalls **no se inmuta** (no lo
+lee) y el gadget se localiza **fuera** del stub hookeado. La técnica sobrevive a un hook de
+user-mode.
+
+> **Mini-reto:** instala un hook `FF 25` (jmp indirecto a un puntero) en lugar de `E9` y comprueba
+> que `KageIsStubHooked` también lo detecta y que la ejecución indirecta sigue en pie (es el
+> experimento de la batería extendida T19).
+
+---
+
+## Fondo: cómo hookea un EDR (y por qué nos afecta o no)
+
+Existen varias formas de interceptar llamadas. Conocerlas explica por qué la técnica elegida
+importa:
+
+| Tipo de hook | Dónde | Efecto sobre nosotros |
+| --- | --- | --- |
+| **Inline (byte patching)** | Al inicio del stub `Nt*` (`E9`/`FF 25`) | **No** nos afecta: no ejecutamos el stub |
+| **IAT hook** | En la *Import Address Table* del proceso | **No** nos afecta: no usamos la IAT |
+| **Kernel callbacks** | En el kernel (procesos, hilos, imágenes) | **Sí** nos observa, pero no en user-mode |
+| **ETW** | Trazas del kernel y componentes | **Sí**: es telemetría independiente |
+
+La clave de la Fase 6 es la primera fila: si un EDR **reescribe el stub**, Hell's Gate / Halo's
+Gate leerían bytes equivocados. Nosotros **no leemos el stub**, así que seguimos enteros.
+
+> Un defensor serio no depende de **un** hook: combina callbacks y ETW. Por eso la serie **no**
+> promete invisibilidad; mide la correlación.
+
+---
+
+## El hook no es "el enemigo": es un sensor
+
+Conviene cambiar el marco mental. Un hook no es "algo malo que hay que evitar": es un **sensor**
+que un defensor colocó. Los hooks de user-mode son **baratos y potentes**, pero **frágiles ante
+código que no ejecuta el stub**. Y los sensores de kernel son **más robustos**, pero **más
+costosos** y **más genéricos**.
+
+Entender este intercambio es la mitad de la investigación defensiva. La serie **documenta ambos**
+lados: cómo se evita el sensor de user-mode (Fase 6) y qué queda visible (Fase 8).
+
+---
+
+## Fondo: por qué el parser PE es un objetivo
+
+Un analizador que confía ciegamente en un PE es un analizador **atacable**. Si un atacante puede
+convencerte de que "el export A está en tal dirección", puede desviar tu resolución. Por eso el
+endurecimiento **A1** valida las **RVAs del export directory contra `SizeOfImage`**: si una RVA
+apunta fuera de la imagen, se rechaza.
+
+El fuzz (9 PE malformados en T13–T17, y un **export directory malicioso** en el endurecimiento)
+no busca "encontrar un bug por diversión": busca **garantizar** que el sistema no crashea ni se
+desvía con basura. Un analizador fiable es aquel que **no se cree** la entrada.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.
