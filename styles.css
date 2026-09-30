@@ -290,6 +290,7 @@ body::before {
 .post { max-width: 780px; padding-top: var(--esp-lg); padding-bottom: var(--esp-xl); }
 .post__volver { font-family: var(--f-mono); font-size: 0.85rem; margin: 0 0 var(--esp-md); }
 .post__meta { font-family: var(--f-mono); font-size: 0.85rem; color: var(--texto-suave); margin: 0 0 0.5rem; }
+.post__serie { font-family: var(--f-mono); font-size: 0.85rem; margin: 0 0 0.6rem; color: var(--magenta); }
 .post__titulo { margin: 0 0 0.6rem; font-family: var(--f-mono); font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.15; }
 .post__tags { margin: 0 0 var(--esp-lg); }
 .post__cuerpo { color: var(--texto); font-size: 1.05rem; }

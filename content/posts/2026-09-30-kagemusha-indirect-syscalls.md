@@ -2,6 +2,7 @@
 title: "Kagemusha: indirect syscalls en Windows x64"
 date: 2026-09-30
 tags: windows internals, red team, syscalls, investigacion
+serie: Kagemusha
 summary: Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.
 ---
 

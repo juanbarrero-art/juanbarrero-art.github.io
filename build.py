@@ -209,6 +209,7 @@ def load_posts():
             "date_h": fmt_date(date),
             "tags": meta.get("tags", ""),
             "summary": meta.get("summary", ""),
+            "serie": meta.get("serie", ""),
             "slug": slug,
             "draft": meta.get("draft", "").lower() in ("true", "1", "yes"),
             "body": body,
@@ -242,6 +243,14 @@ def card_html(post, prefix):
     )
 
 
+def serie_html(post):
+    """Devuelve el enlace a la serie del post (o vacio)."""
+    if not post.get("serie"):
+        return ""
+    s = slugify(post["serie"])
+    return f'<p class="post__serie">Serie: <a href="serie/{s}.html">{html.escape(post["serie"])}</a></p>'
+
+
 def build():
     os.makedirs(BLOG_DIR, exist_ok=True)
     posts = load_posts()
@@ -255,6 +264,7 @@ def build():
             "date": p["date_h"],
             "reading": str(p["reading"]),
             "tags": tags_html(p["tags"]),
+            "serie": serie_html(p),
             "content": content,
             "site": SITE,
         })
@@ -268,6 +278,24 @@ def build():
     index_page = render_template("blog-index.html", {"posts": cards, "site": SITE})
     with open(os.path.join(BLOG_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(index_page)
+
+    # Paginas de serie (investigacion) - orden cronologico
+    series = {}
+    for p in posts:
+        if p.get("serie"):
+            series.setdefault(p["serie"], []).append(p)
+    if series:
+        os.makedirs(os.path.join(BLOG_DIR, "serie"), exist_ok=True)
+    for nombre, items in series.items():
+        items.sort(key=lambda x: x["date"])
+        s_cards = "\n".join(card_html(p, "../") for p in items)
+        s_page = render_template("serie.html", {
+            "titulo": html.escape(nombre),
+            "posts": s_cards,
+            "site": SITE,
+        })
+        with open(os.path.join(BLOG_DIR, "serie", slugify(nombre) + ".html"), "w", encoding="utf-8") as f:
+            f.write(s_page)
 
     # Portada: ultimas entradas entre marcadores
     if os.path.exists(INDEX):
