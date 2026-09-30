@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha: indirect syscalls en Windows x64&quot; | KANON UFO</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">30 sep 2026 &middot; 4 min de lectura</p>
+        <h1 class="post__titulo">&quot;Kagemusha: indirect syscalls en Windows x64&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha: indirect syscalls en Windows x64</h1>
+<blockquote><p><code>Kagemusha</code> (影武者, "guerrero sombra") es el doble que actúa en lugar del original: nuestro código <strong>no ejecuta</strong> la instrucción <code>syscall</code>; salta al gadget <code>syscall;ret</code> que ya vive en <code>ntdll</code>, de modo que el <code>syscall</code> ocurre <strong>dentro de ntdll</strong> y nunca en nuestro módulo.</p></blockquote>
+<p>Este es el primer writeup de una investigación en curso: un <strong>laboratorio</strong> con fases, evidencia y pruebas reproducibles sobre <strong>indirect syscalls</strong> en Windows x64, escrito en <strong>C + MASM</strong>. La idea es sencilla de enunciar y difícil de hacer bien: <strong>una sola técnica</strong>, auditable, y cada afirmación contrastada con una fuente independiente.</p>
+<h2>¿Por qué indirect syscalls?</h2>
+<p>En user-mode, los EDR suelen colocar <strong>hooks</strong> en los <em>stubs</em> de <code>ntdll</code> (<code>Nt*</code>). Cuando llamas a la API Win32 o a <code>Nt*</code> directamente, pasas por ese código potencialmente instrumentado. El <em>direct syscall</em> evita el stub cargando el SSN y ejecutando <code>syscall</code> tú mismo… pero deja una firma: una instrucción <code>0F 05</code> en <strong>tu</strong> binario.</p>
+<p>El <em>indirect syscall</em> busca el término medio:</p>
+<ul><li>El <code>syscall</code> se ejecuta en <code>ntdll</code> (no en tu módulo), así que el <code>RIP</code> durante la</li></ul>
+<p>transición apunta a memoria legítima de <code>ntdll</code>.</p>
+<ul><li>Tu código solo <strong>prepara</strong> <code>EAX</code> = SSN y <strong>salta</strong> al gadget.</li></ul>
+<h2>Tesis y principios de diseño</h2>
+<blockquote><p>Es posible construir un sistema de syscalls indirecto <strong>puro</strong>, de <strong>una sola técnica</strong>, resoluble en runtime y verificable con oráculos independientes.</p></blockquote>
+<ol><li><strong>Solo indirect syscalls.</strong> Ninguna <code>0F 05</code> en nuestro binario (verificable en el debugger).</li><li><strong>Una sola técnica</strong> de resolución de SSN: <em>FreshyCalls</em>. Sin híbridos ni fallbacks.</li><li><strong>Resolución en runtime</strong>: los SSN dependen de la build de Windows; nada <em>hardcodeado</em>.</li><li><strong>Código real y medido.</strong> Cero pseudocódigo; cada función tiene un test.</li><li><strong>Fallar de forma ruidosa.</strong> Ante una inconsistencia se aborta; nunca se "adivina".</li></ol>
+<h2>Estado de la investigación</h2>
+<table><thead><tr><th>Fase</th><th>Hito</th><th>Estado</th></tr></thead><tbody><tr><td>0</td><td>Toolchain + debugger + hola-ASM</td><td>verificado</td></tr><tr><td>1</td><td><code>util/</code> (PEB, exports por hash, rangos, log)</td><td>verificado</td></tr><tr><td>2</td><td>Resolución de SSN (FreshyCalls)</td><td>verificado</td></tr><tr><td>3</td><td>Gadget <code>syscall;ret</code> validado</td><td>verificado</td></tr><tr><td>4</td><td>Ejecución indirecta real + wrapper <code>NtClose_I</code></td><td>pendiente</td></tr><tr><td>5</td><td>Generalización a ≥ 8 syscalls</td><td>pendiente</td></tr><tr><td>6</td><td>Robustez multi-build + hook simulado</td><td>pendiente</td></tr></tbody></table>
+<h2>Resolución de SSN: FreshyCalls</h2>
+<p><strong>FreshyCalls</strong> obtiene el número de servicio <strong>sin leer bytes del stub</strong> (lo que lo hace inmune a hooks), explotando un invariante de Windows 10/11: los stubs <code>Nt*</code> residen en <code>.text</code> <strong>en orden de SSN</strong>. Basta con enumerar los exports <code>Nt*</code>, ordenarlos por dirección virtual y usar el <strong>índice como SSN</strong>.</p>
+<pre><code class="lang-c">/* idea: ordenar exports Nt* por VA; el indice es el SSN */
+qsort(entries, count, sizeof(*entries), cmp_by_va);
+for (i = 0; i &lt; count; i++)
+    entries[i].ssn = (DWORD)i;</code></pre>
+<p>Tabla resuelta en la build de referencia (coincide con el stub real):</p>
+<table><thead><tr><th>Función</th><th>SSN</th><th>Función</th><th>SSN</th></tr></thead><tbody><tr><td>NtClose</td><td>0x00F</td><td>NtAllocateVirtualMemory</td><td>0x018</td></tr><tr><td>NtCreateFile</td><td>0x055</td><td>NtProtectVirtualMemory</td><td>0x050</td></tr><tr><td>NtOpenProcess</td><td>0x026</td><td>NtReadFile</td><td>0x006</td></tr><tr><td>NtQuerySystemInformation</td><td>0x036</td><td>NtOpenKey</td><td>0x012</td></tr><tr><td>NtCreateThreadEx</td><td>0x0C9</td><td>NtWaitForSingleObject</td><td>0x004</td></tr></tbody></table>
+<h2>El gadget <code>syscall;ret</code></h2>
+<p>La otra mitad es localizar la instrucción real <code>syscall;ret</code> (<code>0F 05 C3</code>) <strong>dentro de <code>ntdll</code></strong> y validar que está en <code>.text</code>. Nada de gadgets en regiones raras: bytes + rango.</p>
+<pre><code class="lang-text">db poi(Kagemusha!g_Entries+0x18) L3
+00007ffc`48540fa2  0f 05 c3        ; syscall; ret
+? poi(Kagemusha!g_Entries+0x18) - ntdll = 0x160fa2</code></pre>
+<h2>Metodología: oráculos independientes</h2>
+<blockquote><p>Ninguna afirmación se comprueba contra el propio sistema. Siempre hay un <strong>oráculo independiente</strong>.</p></blockquote>
+<table><thead><tr><th>Afirmación</th><th>Oráculo independiente</th></tr></thead><tbody><tr><td>PEB walk correcto</td><td><code>GetModuleHandleW</code></td></tr><tr><td>Export resuelto correcto</td><td><code>GetProcAddress</code></td></tr><tr><td>Hash DJB2 correcto</td><td>vectores calculados con herramienta aparte</td></tr><tr><td>SSN correcto</td><td>bytes reales del stub (<code>4C 8B D1 B8 &amp;lt;ssn&amp;gt;</code>)</td></tr><tr><td>Gadget correcto</td><td>bytes <code>0F 05 C3</code> + rango <code>.text</code> de <code>ntdll</code></td></tr><tr><td><code>syscall</code> en ntdll (Fase 4)</td><td><code>RIP</code> dentro de <code>ntdll</code> en cdb</td></tr></tbody></table>
+<p>Cada hito produce <strong>dos</strong> formatos de evidencia: un <strong>test automatizado</strong> (PASS/FAIL) y un <strong>transcript del debugger</strong> (<code>cdb</code>) reproducible con un script.</p>
+<h2>Resultados</h2>
+<ul><li>Suite completa: <strong>57 PASS / 0 FAIL</strong> (<code>Kagemusha_tests.exe</code>, exit 0).</li><li>Demo M0–M3: <strong><code>RESULTADO: OK</code></strong>.</li><li><code>NtClose</code> resuelto por PEB/hash = <code>ntdll!NtClose</code> (diferencia 0).</li></ul>
+<h2>Limitaciones y superficie de detección</h2>
+<p>Ser honesto sobre el alcance importa:</p>
+<ul><li><strong>Sin stack spoofing (v1):</strong> en un <em>stack walk</em>, el <em>caller</em> visible sigue siendo el</li></ul>
+<p>módulo propio. Queda <strong>fuera de alcance</strong> y se cuantificará en un experimento aparte.</p>
+<ul><li>El indirect "puro" <strong>no es invisible</strong>: hay que medir qué ve un EDR (call-stack, retorno,</li></ul>
+<p>consistencia de <code>RIP</code>/<code>EAX</code>). Eso es, precisamente, parte de la investigación.</p>
+<h2>Próximos pasos</h2>
+<ul><li><strong>Fase 4:</strong> trampolín ASM + wrapper <code>NtClose_I</code>. Criterio: <code>RIP</code> en <code>ntdll</code>, <code>EAX</code>==SSN,</li></ul>
+<p>retorno al wrapper y <strong>cero <code>0F 05</code></strong> en Kagemusha.</p>
+<ul><li><strong>Fase 5–6:</strong> generalizar a ≥ 8 syscalls, matriz multi-build y test de hook simulado.</li><li><strong>Fase 7:</strong> núcleo propio (macro MASM + generador), <em>ledger</em> de syscalls y extensión <code>!kage</code>.</li></ul>
+<h2>Cierre</h2>
+<p><code>Kagemusha</code> es un ejemplo de <strong>investigación medida</strong>: una técnica, un invariante, y una metodología que se niega a creerse a sí misma sin un oráculo externo. Esa disciplina —verificar siempre— es más valiosa que la técnica en sí.</p>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote>
+<p><em>(Investigación en curso. Repositorio-laboratorio con evidencia reproducible.)</em></p></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
