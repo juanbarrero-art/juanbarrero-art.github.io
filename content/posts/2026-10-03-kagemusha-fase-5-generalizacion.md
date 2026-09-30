@@ -577,6 +577,16 @@ hay un caso raro esperando: mejor documentarlo que sorprenderse.
 
 ---
 
+## Nota final
+
+Un catálogo se mantiene no por su tamaño, sino por su **disciplina**: cada función nueva pasa por
+las **mismas** pruebas que las ocho originales. Sin esa disciplina, "generalizar" se convierte en
+acumular deuda técnica. Aquí, el **registro** (una línea por syscall) y la **macro** (`KAGE_STUB`)
+son el contrato que evita que eso ocurra: el sistema crece, pero la superficie de confianza **no**
+se dispara.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

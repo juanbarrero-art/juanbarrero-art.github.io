@@ -330,6 +330,9 @@ bin\Kagemusha.exe --trace       :: una llamada por syscall, con su NTSTATUS</cod
 <h2>Cierre de la fase</h2>
 <p>La Fase 5 convierte una prueba de concepto en un <strong>sistema</strong>: un template, un registro y ocho funciones verificadas. El valor no está en "ocho", sino en que <strong>la novena cuesta casi lo mismo que la octava</strong>. Esa propiedad —escalar sin dolor— es la que hace posibles las fases siguientes sin rehacer nada. Y el hallazgo del <code>Nt*</code> que no era stub recuerda que, en este terreno, <strong>siempre</strong> hay un caso raro esperando: mejor documentarlo que sorprenderse.</p>
 <hr>
+<h2>Nota final</h2>
+<p>Un catálogo se mantiene no por su tamaño, sino por su <strong>disciplina</strong>: cada función nueva pasa por las <strong>mismas</strong> pruebas que las ocho originales. Sin esa disciplina, "generalizar" se convierte en acumular deuda técnica. Aquí, el <strong>registro</strong> (una línea por syscall) y la <strong>macro</strong> (<code>KAGE_STUB</code>) son el contrato que evita que eso ocurra: el sistema crece, pero la superficie de confianza <strong>no</strong> se dispara.</p>
+<hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
