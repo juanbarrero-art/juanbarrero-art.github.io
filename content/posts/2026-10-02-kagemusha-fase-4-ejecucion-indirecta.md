@@ -488,6 +488,33 @@ v1 mide su propia visibilidad en vez de esconderla.
 
 ---
 
+## Un escenario: ¿qué pasaría si el SSN fuera incorrecto?
+
+Imagina que, por un error de índice, a `NtClose` le asignáramos el SSN `0x10` en vez de `0x0F`.
+El kernel **no** tiene forma de saber que "querías cerrar un handle": ejecuta `SSDT[0x10]`, que es
+**otra** función, con el argumento (un handle) que no encaja. El resultado no sería "un fallo
+elegante", sino un comportamiento **errático**: quizá un error raro, quizá un efecto inesperado.
+
+Por eso el oráculo es **obligatorio**: comparar nuestro SSN con el del stub real no es un lujo, es
+lo que separa "funciona" de "a veces hace otra cosa". En una herramienta real, un SSN mal resuelto
+sería un bug **silencioso** y **peligroso**.
+
+---
+
+## Matriz de fallos (Fase 4)
+
+| Fallo | Síntoma | Cómo se caza |
+| --- | --- | --- |
+| `call` en vez de `jmp` | Cuelgue/bucle al llamar | El flujo (y el transcript) |
+| Falta `mov r10, rcx` | Argumento incorrecto en el kernel | `RCX == R10` en el `bp` |
+| SSN de la tabla mal | Ejecuta otra función | Oráculo (bytes del stub) |
+| Gadget no validado | Crash impredecible | Validación de 3 puntos |
+| `ret` no vuelve al wrapper | Flujo roto | `dps @rsp` (dirección de retorno) |
+
+Una tabla de fallos es tan útil como una de aciertos: dice **qué buscar** cuando algo va mal.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).

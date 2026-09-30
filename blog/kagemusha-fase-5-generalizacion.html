@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">03 oct 2026 &middot; 14 min de lectura</p>
+        <p class="post__meta">03 oct 2026 &middot; 15 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -274,6 +274,17 @@ Aridad 6:  RCX, RDX, R8, R9 + [rsp+0x20..28]-&gt; 5.o y 6.o EN PILA</code></pre>
 <p><strong>¿Qué pasa si me equivoco de <code>slot</code>?</strong> Leerías el SSN o el gadget de otra entrada → ejecutarías <strong>otra</strong> función. Por eso el test 4/5 comprueba consistencia por slot.</p>
 <p><strong>¿Por qué <code>NtQuerySystemTime</code> no falla aunque no sea stub?</strong> FreshyCalls lo resuelve por orden de exports; la ejecución indirecta no depende de que el export sea un stub.</p>
 <p><strong>¿El catálogo cubre todo?</strong> No; cubre aridades y casos representativos. Crecer es "una línea por función".</p>
+<hr>
+<h2>El precio de generalizar (y por qué el <code>jmp</code> lo minimiza)</h2>
+<p>Generalizar tiene un coste: cuanto más amplio el catálogo, más combinaciones de argumentos. La decisión de diseño que lo abarata es el <strong><code>jmp</code></strong>: como no toca la pila, <strong>un mismo stub</strong> sirve para cualquier aridad. Sin eso, tendrías que generar (o mantener a mano) un stub por aridad, con más superficie de error.</p>
+<p>Con la macro, el coste de añadir una función es <strong>constante y pequeño</strong>: una línea de registro + un wrapper + un test. Eso es lo que hace <strong>sostenible</strong> crecer.</p>
+<hr>
+<h2>Matriz: qué fallo detecta cada aridad</h2>
+<table><thead><tr><th>Aridad probada</th><th>Qué fallo expone si estuviera mal</th></tr></thead><tbody><tr><td>0</td><td>Confusión de registros/pila (control)</td></tr><tr><td>1</td><td><code>mov r10, rcx</code> y SSN básicos</td></tr><tr><td>4</td><td>Uso de <code>R8</code>/<code>R9</code> (los últimos en registros)</td></tr><tr><td>5</td><td>Paso del <strong>5.º</strong> argumento por la pila</td></tr><tr><td>6</td><td>Paso del <strong>6.º</strong> argumento por la pila</td></tr><tr><td>Round-trip</td><td>Coherencia de efectos reales (memoria)</td></tr><tr><td>Negativo</td><td>Que <strong>falla bien</strong> (no solo que acierta)</td></tr></tbody></table>
+<p>Cada aridad no es "más de lo mismo": es una <strong>prueba focalizada</strong> de una suposición concreta.</p>
+<hr>
+<h2>Migrar el catálogo a otra build</h2>
+<p>Como los SSN se resuelven <strong>en runtime</strong>, migrar a otra build de Windows <strong>no</strong> requiere tocar el ASM ni el registro: solo volver a ejecutar. Lo que puede cambiar es <strong>cuántos</strong> exports <code>Nt*</code> hay y cuáles no son stubs (<code>NtQuerySystemTime</code>-like). Por eso la serie recomienda <strong>registrar la build</strong> en cada resultado y re-ejecutar la suite en cada entorno.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

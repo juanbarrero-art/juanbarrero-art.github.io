@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 14 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 15 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -252,6 +252,20 @@ DESPUES (hook E9):
 <p><strong>¿Por qué FreshyCalls es inmune aunque el stub esté hookeado?</strong> Porque no lee los <strong>bytes</strong> del stub: usa el <strong>orden de exports por dirección</strong>, que no cambia al parchear el prólogo.</p>
 <p><strong>¿Qué pasa si hookean el gadget, no el stub?</strong> El gadget se busca/valida en el pool; si un candidato estuviera corrupto, se descarta (validación de bytes + rango). El diseño contempla "gadget re-escrito" como riesgo a vigilar.</p>
 <p><strong>¿Por qué importa el fuzz del parser?</strong> Porque un analizador que confía en un PE malformado es atacable. Validar <code>e_lfanew</code>/RVAs es tan importante como la lógica principal.</p>
+<hr>
+<h2>Matriz de robustez (amenaza → prueba → resultado)</h2>
+<table><thead><tr><th>Amenaza</th><th>Prueba</th><th>Resultado</th></tr></thead><tbody><tr><td>Hook inline <code>E9</code></td><td>Instalar + ejecutar</td><td>✅ sigue funcionando</td></tr><tr><td>Hook indirecto <code>FF 25</code></td><td>T19</td><td>✅ detectado, FreshyCalls inmune</td></tr><tr><td>Stub de la propia función hookeado</td><td>Batería T20 (los 8)</td><td>✅ auto-hospedaje</td></tr><tr><td>PE malformado</td><td>Fuzz (9 + export directory malicioso)</td><td>✅ sin crash</td></tr><tr><td>Uso sin init</td><td>T0</td><td>✅ <code>KAGE_STATUS_NOT_INITIALIZED</code></td></tr><tr><td>Concurrencia</td><td>4 hilos × 1000</td><td>✅ 0 fallos</td></tr><tr><td>Re-init en uso</td><td>100 × init</td><td>✅ tablas estables</td></tr><tr><td>Exports <code>Nt*</code> que no son stubs</td><td>Cobertura total</td><td>✅ 488/490 detectados</td></tr></tbody></table>
+<p>Una matriz así es el <strong>resumen ejecutivo</strong> de la fase: cada fila, una amenaza; cada ✅, una prueba.</p>
+<hr>
+<h2>Lecciones para defensores</h2>
+<ul><li><strong>No te fíes de un solo sensor.</strong> El hook de user-mode es útil pero evitable; combina callbacks</li></ul>
+<p>de kernel y ETW.</p>
+<ul><li><strong>La correlación gana.</strong> Una señal aislada (un <code>syscall</code> en <code>ntdll</code> con <em>caller</em> raro) no basta;</li></ul>
+<p>el valor está en <strong>cruzar</strong> señales (pila + comportamiento + binario).</p>
+<ul><li><strong>Los hooks son frágiles por diseño</strong> ante código que no ejecuta el stub; saberlo te permite</li></ul>
+<p><strong>priorizar</strong> qué proteger con sensores más robustos.</p>
+<ul><li><strong>Mide tu detección.</strong> Un EDR no es "mejor" por tener más hooks, sino por <strong>detectar</strong> más con</li></ul>
+<p>menos falsos positivos.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

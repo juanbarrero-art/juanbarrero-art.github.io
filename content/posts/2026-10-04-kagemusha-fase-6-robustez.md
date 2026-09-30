@@ -396,6 +396,36 @@ atacable. Validar `e_lfanew`/RVAs es tan importante como la lógica principal.
 
 ---
 
+## Matriz de robustez (amenaza → prueba → resultado)
+
+| Amenaza | Prueba | Resultado |
+| --- | --- | --- |
+| Hook inline `E9` | Instalar + ejecutar | ✅ sigue funcionando |
+| Hook indirecto `FF 25` | T19 | ✅ detectado, FreshyCalls inmune |
+| Stub de la propia función hookeado | Batería T20 (los 8) | ✅ auto-hospedaje |
+| PE malformado | Fuzz (9 + export directory malicioso) | ✅ sin crash |
+| Uso sin init | T0 | ✅ `KAGE_STATUS_NOT_INITIALIZED` |
+| Concurrencia | 4 hilos × 1000 | ✅ 0 fallos |
+| Re-init en uso | 100 × init | ✅ tablas estables |
+| Exports `Nt*` que no son stubs | Cobertura total | ✅ 488/490 detectados |
+
+Una matriz así es el **resumen ejecutivo** de la fase: cada fila, una amenaza; cada ✅, una prueba.
+
+---
+
+## Lecciones para defensores
+
+- **No te fíes de un solo sensor.** El hook de user-mode es útil pero evitable; combina callbacks
+  de kernel y ETW.
+- **La correlación gana.** Una señal aislada (un `syscall` en `ntdll` con *caller* raro) no basta;
+  el valor está en **cruzar** señales (pila + comportamiento + binario).
+- **Los hooks son frágiles por diseño** ante código que no ejecuta el stub; saberlo te permite
+  **priorizar** qué proteger con sensores más robustos.
+- **Mide tu detección.** Un EDR no es "mejor" por tener más hooks, sino por **detectar** más con
+  menos falsos positivos.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

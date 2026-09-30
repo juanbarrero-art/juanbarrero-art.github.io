@@ -439,6 +439,43 @@ función".
 
 ---
 
+## El precio de generalizar (y por qué el `jmp` lo minimiza)
+
+Generalizar tiene un coste: cuanto más amplio el catálogo, más combinaciones de argumentos. La
+decisión de diseño que lo abarata es el **`jmp`**: como no toca la pila, **un mismo stub** sirve
+para cualquier aridad. Sin eso, tendrías que generar (o mantener a mano) un stub por aridad, con
+más superficie de error.
+
+Con la macro, el coste de añadir una función es **constante y pequeño**: una línea de registro +
+un wrapper + un test. Eso es lo que hace **sostenible** crecer.
+
+---
+
+## Matriz: qué fallo detecta cada aridad
+
+| Aridad probada | Qué fallo expone si estuviera mal |
+| --- | --- |
+| 0 | Confusión de registros/pila (control) |
+| 1 | `mov r10, rcx` y SSN básicos |
+| 4 | Uso de `R8`/`R9` (los últimos en registros) |
+| 5 | Paso del **5.º** argumento por la pila |
+| 6 | Paso del **6.º** argumento por la pila |
+| Round-trip | Coherencia de efectos reales (memoria) |
+| Negativo | Que **falla bien** (no solo que acierta) |
+
+Cada aridad no es "más de lo mismo": es una **prueba focalizada** de una suposición concreta.
+
+---
+
+## Migrar el catálogo a otra build
+
+Como los SSN se resuelven **en runtime**, migrar a otra build de Windows **no** requiere tocar el
+ASM ni el registro: solo volver a ejecutar. Lo que puede cambiar es **cuántos** exports `Nt*` hay y
+cuáles no son stubs (`NtQuerySystemTime`-like). Por eso la serie recomienda **registrar la build**
+en cada resultado y re-ejecutar la suite en cada entorno.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

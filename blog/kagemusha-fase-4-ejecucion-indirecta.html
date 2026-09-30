@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">02 oct 2026 &middot; 16 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 17 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -321,6 +321,14 @@ EN EL GADGET:
 <p><strong>¿Qué pasa si el gadget no está en <code>ntdll</code>?</strong> Entonces no sería indirecto puro: la gracia es que el <code>RIP</code> caiga en memoria <strong>legítima</strong>. Por eso lo verificamos.</p>
 <p><strong>¿Por qué 1000 repeticiones?</strong> Porque un resultado puede ser "suerte". 1000 veces demuestra que es <strong>sistemático</strong>, no casual.</p>
 <p>**¿Se puede combinar con <em>stack spoofing</em>?** Fuera de alcance de la v1 (es otro problema, v2). La v1 mide su propia visibilidad en vez de esconderla.</p>
+<hr>
+<h2>Un escenario: ¿qué pasaría si el SSN fuera incorrecto?</h2>
+<p>Imagina que, por un error de índice, a <code>NtClose</code> le asignáramos el SSN <code>0x10</code> en vez de <code>0x0F</code>. El kernel <strong>no</strong> tiene forma de saber que "querías cerrar un handle": ejecuta <code>SSDT[0x10]</code>, que es <strong>otra</strong> función, con el argumento (un handle) que no encaja. El resultado no sería "un fallo elegante", sino un comportamiento <strong>errático</strong>: quizá un error raro, quizá un efecto inesperado.</p>
+<p>Por eso el oráculo es <strong>obligatorio</strong>: comparar nuestro SSN con el del stub real no es un lujo, es lo que separa "funciona" de "a veces hace otra cosa". En una herramienta real, un SSN mal resuelto sería un bug <strong>silencioso</strong> y <strong>peligroso</strong>.</p>
+<hr>
+<h2>Matriz de fallos (Fase 4)</h2>
+<table><thead><tr><th>Fallo</th><th>Síntoma</th><th>Cómo se caza</th></tr></thead><tbody><tr><td><code>call</code> en vez de <code>jmp</code></td><td>Cuelgue/bucle al llamar</td><td>El flujo (y el transcript)</td></tr><tr><td>Falta <code>mov r10, rcx</code></td><td>Argumento incorrecto en el kernel</td><td><code>RCX == R10</code> en el <code>bp</code></td></tr><tr><td>SSN de la tabla mal</td><td>Ejecuta otra función</td><td>Oráculo (bytes del stub)</td></tr><tr><td>Gadget no validado</td><td>Crash impredecible</td><td>Validación de 3 puntos</td></tr><tr><td><code>ret</code> no vuelve al wrapper</td><td>Flujo roto</td><td><code>dps @rsp</code> (dirección de retorno)</td></tr></tbody></table>
+<p>Una tabla de fallos es tan útil como una de aciertos: dice <strong>qué buscar</strong> cuando algo va mal.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
