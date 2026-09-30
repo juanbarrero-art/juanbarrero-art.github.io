@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, edr, evasion, investigacion, principiantes, articulo">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)&quot;">
+  <meta property="og:description" content="Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-12">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="edr">
+  <meta property="article:tag" content="evasion">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="investigacion">
+  <meta property="article:tag" content="principiantes">
+  <meta property="article:tag" content="articulo">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)&quot;">
+  <meta name="twitter:description" content="Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)\"",
+  "description": "Artículo de síntesis para principiantes. Explica qué es la evasión de EDR, cómo se llegó al informe técnico del proyecto, la lógica de cada pieza, qué cubre y qué no la serie, por qué se crean estos informes, las capacidades medidas del proyecto y por qué la evasión es un problema de arquitectura en capas.",
+  "datePublished": "2026-10-12",
+  "dateModified": "2026-10-12",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, edr, evasion, investigacion, principiantes, articulo",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-articulo-por-que-evasion-capas.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">12 oct 2026 &middot; 6 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Artículo: por qué investigamos la evasión de EDR (y por qué es en capas)&quot;</h1>
+        <p class="post__tags"><span class="tag">#edr</span> <span class="tag">#evasion</span> <span class="tag">#windows internals</span> <span class="tag">#investigacion</span> <span class="tag">#principiantes</span> <span class="tag">#articulo</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Por qué investigamos la evasión de EDR (y por qué es en capas)</h1>
+<p>Este artículo es la <strong>puerta de entrada conceptual</strong> a la serie <strong>Kagemusha</strong>. No hace falta que sepas programar ni seguridad ofensiva para entenderlo: la idea es que <strong>comprendas el "por qué"</strong> de todo lo demás. Si luego quieres el detalle técnico, cada concepto enlaza a su entrada.</p>
+<hr>
+<h2>1. La pregunta de partida</h2>
+<p>Imagina que eres un <strong>defensor</strong>. Tienes un <strong>EDR</strong> (<em>Endpoint Detection and Response</em>): el antivirus "de nueva generación" que observa <strong>qué hace</strong> un programa, no solo cómo es su archivo. Ahora la pregunta incómoda:</p>
+<blockquote><p><strong>¿Qué haría un atacante para que mi EDR no lo vea?</strong></p></blockquote>
+<p>Investigar eso no es para atacar: es como estudiar cerraduras para mejorar la seguridad de tu casa. <strong>Quien no entiende una técnica, no puede detectarla.</strong> Esa es la razón de ser de todo este proyecto.</p>
+<h2>2. Antes de seguir: cuatro palabras</h2>
+<ul><li><strong>Syscall:</strong> la "petición" que un programa le hace al núcleo de Windows (abrir un archivo, crear</li></ul>
+<p>un proceso…). Es la puerta al <strong>kernel</strong> (el "jefe" del sistema).</p>
+<ul><li><strong>Núcleo / kernel (ring 0):</strong> el nivel con todos los permisos. Un programa normal corre en</li></ul>
+<p><strong>user-mode (ring 3)</strong>, sin permisos.</p>
+<ul><li><strong>Hook (gancho):</strong> una trampa que un EDR pone <strong>en la puerta</strong> para ver las peticiones.</li><li><strong>Evasión:</strong> <em>reducir la señal</em> que tu programa emite, para no disparar las <strong>reglas</strong> del EDR.</li></ul>
+<p>Con esto, ya puedes leer el resto.</p>
+<h2>3. La idea central: la evasión es <strong>en capas</strong></h2>
+<p>Mira una casa:</p>
+<ul><li><strong>Capa 1 — la puerta (user-mode).</strong> El EDR pone una <strong>cámara</strong> en la puerta. El atacante usa una</li></ul>
+<p>puerta lateral (<strong>indirect syscalls</strong>) para no pasar por la cámara.</p>
+<ul><li><strong>Capa 2 — los sensores dentro (telemetría).</strong> El EDR también mira las <strong>pilas de llamadas</strong> y</li></ul>
+<p>eventos (<strong>ETW-TI</strong>, <em>callbacks de kernel</em>). El atacante intenta <strong>ocultar la pila</strong> (<em>stack spoofing</em>) o <strong>apagar cámaras</strong> que sí puede tocar (<strong>parchear ETW de user-mode</strong>).</p>
+<ul><li><strong>Capa 3 — la alarma central (kernel).</strong> Hay sensores que <strong>solo</strong> funcionan desde el kernel. El</li></ul>
+<p>atacante, desde user-mode, <strong>no puede apagarlos</strong>. Para eso tendría que <strong>bajar al kernel</strong> (por ejemplo, reutilizando un driver firmado y vulnerable: <strong>BYOVD</strong>).</p>
+<ul><li><strong>Capa 4 — la conducta (lo que decides hacer).</strong> Al final, lo que <strong>de verdad</strong> dispara la</li></ul>
+<p>alarma es el <strong>comportamiento</strong> (hacer algo ruidoso), no la puerta que usaste.</p>
+<p>De aquí sale la <strong>tesis del proyecto</strong>:</p>
+<blockquote><p><strong>La evasión no es "una técnica", es un problema de arquitectura por capas.</strong> Se reduce señal capa a capa, y <strong>el techo está en el kernel</strong>.</p></blockquote>
+<h2>4. Cómo llegamos hasta aquí (el recorrido del informe)</h2>
+<p>El proyecto no empezó con todas las ideas: <strong>se construyó por pasos</strong>, y cada paso <strong>midió</strong> algo.</p>
+<ol><li><strong>Mecanismo (el indirect syscall).</strong> Empezamos haciendo que el <code>syscall</code> se ejecute **dentro de</li></ol>
+<p><code>ntdll</code><strong> (no en nuestro binario), para esquivar los </strong>hooks de user-mode** → <a href="/blog/kagemusha-indirect-syscalls.html">Visión general</a>.</p>
+<ol><li><strong>¿Nos ve alguien? (E2).</strong> Registramos un <em>instrumentation callback</em> y comprobamos que <strong>sí ve</strong></li></ol>
+<p>cada syscall, aunque sea indirecto → <a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión</a>.</p>
+<ol><li><strong>¿Dejamos huella? (E3).</strong> Miramos la <strong>pila</strong> en el momento del syscall: el retorno apunta a</li></ol>
+<p><strong>nuestro módulo</strong> (una firma) → misma entrada.</p>
+<ol><li><strong>¿Podemos borrar la huella? (E4b/E4c).</strong> Parcheamos <strong>ETW de user-mode</strong> y limpiamos el</li></ol>
+<p>callback (E4b); integramos <em>stack spoofing</em> (E4c), pero descubrimos que <strong>CET (Shadow Stack) y el spoofing clásico son incompatibles</strong> → <a href="/blog/kagemusha-evasion-e4b-cet-spoofing.html">Evasión en acción</a>.</p>
+<ol><li><strong>¿Y el techo? (informe de kernel).</strong> Documentamos que **no se puede cegar ETW-TI desde</li></ol>
+<p>user-mode<strong>; el siguiente escalón es el </strong>kernel** (BYOVD) → <a href="/blog/kagemusha-informe-tecnicas-kernel.html">Técnicas para alcanzar el kernel</a>.</p>
+<ol><li><strong>Síntesis (informe de evasión).</strong> Reunimos todo en un <strong>marco conceptual</strong> → <a href="/blog/kagemusha-informe-tecnico-evasion.html">Informe de evasión</a>.</li></ol>
+<p><strong>Por eso existen estos informes:</strong> cada uno recoge el <strong>método</strong>, los <strong>resultados medidos</strong> y, sobre todo, <strong>los límites</strong>. Un informe sin límites es publicidad; con límites, es ciencia.</p>
+<h2>5. La lógica de cada pieza (de un vistazo)</h2>
+<table><thead><tr><th>Pieza</th><th>Qué resuelve</th><th>Por qué importa</th></tr></thead><tbody><tr><td><strong>Indirect syscall + FreshyCalls</strong></td><td>Esquivar <strong>hooks de user-mode</strong></td><td>El hook no se dispara si no ejecutas el stub</td></tr><tr><td><strong>Stack spoofing</strong></td><td>Ocultar la <strong>firma de pila</strong></td><td>Los detectores de pila sí ven el indirecto "puro"</td></tr><tr><td><strong>ETW patch + limpiar callback</strong></td><td>Cegar telemetría <strong>de user-mode</strong></td><td>Reduce señales que sí están a tu alcance</td></tr><tr><td><strong>Kernel / BYOVD</strong></td><td>Cegar <strong>ETW-TI / callbacks</strong></td><td>Es el <strong>techo</strong>; desde user-mode no se puede</td></tr><tr><td><strong>OPSEC / conducta</strong></td><td>No disparar <strong>reglas</strong></td><td>Sin patrón ruidoso, no hay alerta</td></tr></tbody></table>
+<h2>6. Un concepto que lo cambia todo: <strong>visibilidad ≠ detección</strong></h2>
+<p>El error más común es creer que "si el EDR lo ve, lo detecta". <strong>No.</strong></p>
+<ul><li><strong>Sensor</strong> → captura un hecho.</li><li><strong>Telemetría</strong> → el flujo de eventos.</li><li><strong>Regla</strong> → la lógica que decide.</li><li><strong>Alerta</strong> → cuando la regla cruza su <strong>umbral</strong>.</li></ul>
+<p>Un hecho puede ser <strong>observado</strong> y <strong>no detectado</strong>. Lo comprobamos: <strong>Defender observó</strong> nuestros syscalls y <strong>no generó ninguna detección</strong>, porque la <strong>conducta</strong> era benigna. Es decir: <strong>el mecanismo importa, pero la conducta decide</strong>.</p>
+<h2>7. Qué cubre la serie (y qué NO)</h2>
+<p>Para ser honestos, hay que decir el alcance:</p>
+<p><strong>Cubre (y lo mide):</strong></p>
+<ul><li>Todo lo alcanzable desde <strong>user-mode</strong>: indirect syscalls, <em>stack spoofing</em>, parcheo de ETW de</li></ul>
+<p>user-mode, limpieza del instrumentation callback. <strong>Evasión confirmada</strong> en hooks, pila, ETW user y callback.</p>
+<p><strong>NO cubre (y lo documenta como techo):</strong></p>
+<ul><li><strong>ETW-TI de kernel y callbacks de kernel</strong> (requeriría kernel/BYOVD).</li><li><strong>Bootkits / hypervisores / firmware</strong> (below-OS): se describe el <strong>mapa</strong> y las <strong>defensas</strong>, sin</li></ul>
+<p>recetas operativas.</p>
+<ul><li><strong>Delivery, payloads, persistencia, C2</strong>: fuera del foco; el proyecto estudia el <strong>mecanismo</strong>, no</li></ul>
+<p>la operación completa.</p>
+<h2>8. Las capacidades del proyecto (medidas, no prometidas)</h2>
+<ul><li><strong>178 PASS / 0 FAIL</strong> en la build <strong>stealth</strong> (sin CET, con <em>spoofing</em>) y <strong>182 PASS</strong> en la build</li></ul>
+<p><strong>CET</strong> (<code>/CETCOMPAT</code>).</p>
+<ul><li><strong>0 instrucciones <code>syscall</code></strong> en el módulo (verificado con <code>dumpbin</code>).</li><li><strong>Matriz de evasión</strong> (del informe): hooks ✅ · pila ✅ (stealth) · callback ✅ · ETW user ✅</li></ul>
+<p>· <strong>kernel ❌ (techo)</strong>.</p>
+<ul><li>Todo con <strong>oráculos independientes</strong> (nunca validar contra el propio sistema) → <a href="/blog/kagemusha-metodologia-verificacion.html">Metodología</a>.</li></ul>
+<h2>9. Por qué la evasión es <strong>en capas</strong> (cierre)</h2>
+<ul><li><strong>Capa tras capa</strong>: cada sensor que un atacante neutraliza tiene su <strong>coste</strong> y su <strong>límite</strong>.</li><li><strong>El techo está abajo</strong>: lo que el kernel ve (ETW-TI, callbacks) no se cierra desde arriba.</li><li><strong>La conducta manda</strong>: incluso con el mejor mecanismo, un comportamiento ruidoso se detecta.</li><li><strong>La defensa gana con profundidad</strong>: <em>"el defensor diversifica sensores; el atacante reduce señal"</em>.</li></ul>
+<p>Quien tenga la señal <strong>más completa</strong> gana la carrera.</p>
+<blockquote><p>Esa es la conclusión de la serie y la razón de cada informe: <strong>entender la evasión por capas</strong> para, del otro lado, <strong>detectarla mejor</strong>.</p></blockquote>
+<hr>
+<h2>Cómo leer la serie</h2>
+<ol><li><strong>Este artículo</strong> (la idea general y el "por qué").</li><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a> (primer experimento, sin programar).</li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a> (los conceptos, explicados).</li><li>Las fases (M0–M7) y los experimentos (E2–E4c).</li><li>Los <strong>informes técnicos</strong>: <a href="/blog/kagemusha-informe-tecnico-evasion.html">evasión</a> y</li></ol>
+<p><a href="/blog/kagemusha-informe-tecnicas-kernel.html">técnicas para alcanzar el kernel</a>.</p>
+<p>Toda la serie (navegable): <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>.</p>
+<hr>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Fuentes primarias: <code>docs/research/informe-tecnico-evasion.md</code>,</li></ul>
+<p><code>docs/research/informe-tecnicas-kernel.md</code>, <code>docs/research/metodologia.md</code>, <code>README.md</code>.</p>
+<ul><li>Microsoft Learn — <em>ETW/ETW-TI</em>, <em>Control-flow Enforcement Technology (CET)</em>, <em>HVCI</em>.</li><li>crummie5 — <em>FreshyCalls</em>; <code>WKL-Sec/LayeredSyscall</code>; <code>paranoidninja/Process-Instrumentation-Syscall-Hook</code>.</li></ul>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
