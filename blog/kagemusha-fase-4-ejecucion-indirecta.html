@@ -114,8 +114,10 @@ Kagemusha!KageStubStart:
 00007ff6`c7712db3 8b0527a90800    mov     eax,dword ptr [Kagemusha!g_SsnTable (00007ff6`c779d6e0)]
 00007ff6`c7712db9 ff2521a80800    jmp     qword ptr [Kagemusha!g_GadgetTable (00007ff6`c779d5e0)]
 Kagemusha!KageStubEnd:
-00007ff6`c7712dbf cc              int     3</code></pre>
-<p>El stub <strong>no contiene <code>syscall</code></strong>: solo prepara (<code>r10</code>, <code>eax</code>) y salta. El <code>int 3</code> que sigue es el relleno entre funciones que genera el compilador.</p>
+00007ff6`c7712dbf cc              int     3
+Kagemusha!KageHelloAsm:
+00007ff6`c7712dc0 b82a000000      mov     eax,2Ah</code></pre>
+<p>El stub <strong>no contiene <code>syscall</code></strong>: solo prepara (<code>r10</code>, <code>eax</code>) y salta. Tras <code>KageStubEnd</code> aparece un <code>int 3</code> (byte <code>CC</code>) en el desensamblado.</p>
 <h3>Cómo funciona (según el README)</h3>
 <blockquote><p><em>"El wrapper llama al stub; el stub mueve el primer argumento a <code>R10</code> (ABI syscall), carga el SSN en <code>EAX</code> y <code>jmp</code> al gadget de ntdll. El <code>ret</code> del gadget regresa al wrapper (el <code>jmp</code> preservó la dirección de retorno). El <code>syscall</code> se ejecuta <strong>dentro de ntdll</strong>."</em></p></blockquote>
 <p>El <code>jmp</code> (tail call) es lo que explica el plan de arquitectura:</p>
@@ -187,7 +189,7 @@ rip=00007ffc48540fa2</code></pre>
 <p><code>rip</code> ∈ <code>[start, end]</code>.</p>
 <ol><li><strong>El SSN viaja en <code>EAX</code> y es el correcto:</strong> <code>r @eax</code> == valor de la tabla; y <code>r @r10 == r @rcx</code>.</li><li><strong>Nuestro módulo no contiene la instrucción:</strong> <code>dumpbin /disasm ... | findstr syscall</code> → 0.</li><li><strong>La dirección de retorno vuelve a nuestro flujo:</strong> <code>dps @rsp</code> apunta a <code>Kagemusha!NtClose_I+...</code>.</li><li><strong>Contraste pedagógico:</strong> comparar el <em>stack trace</em> de la ruta nativa (por el stub) con la</li></ol>
 <p>indirecta.</p>
-<ol><li><strong>Exactitud semántica:</strong> T9/T6 devuelven el mismo <code>NTSTATUS</code> que la API nativa.</li></ol>
+<ol><li><strong>Exactitud semántica:</strong> T9 (README) / T5 (numeración del plan §6) devuelven el mismo <code>NTSTATUS</code> que la API nativa.</li></ol>
 <hr>
 <h2>Riesgos declarados en el plan (§7)</h2>
 <p>Del plan de arquitectura, para esta fase y el indirecto "puro":</p>

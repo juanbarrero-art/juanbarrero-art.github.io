@@ -134,7 +134,7 @@ Ejemplo `--trace` (del README):
 
 **Pendiente:** extensión de cdb `!kage` (I1) para volcar tabla y ledger desde el debugger.
 
-Del README: *"T23 (ledger) → 5 checks, parte de los **166 PASS / 0 FAIL**."*
+Del README: *"T23 (ledger) → 5 checks, parte de los **171 PASS / 0 FAIL**."*
 
 ---
 

@@ -37,10 +37,12 @@ Kagemusha!KageStubStart:
 00007ff6`c7712db9 ff2521a80800    jmp     qword ptr [Kagemusha!g_GadgetTable (00007ff6`c779d5e0)]
 Kagemusha!KageStubEnd:
 00007ff6`c7712dbf cc              int     3
+Kagemusha!KageHelloAsm:
+00007ff6`c7712dc0 b82a000000      mov     eax,2Ah
 ```
 
-El stub **no contiene `syscall`**: solo prepara (`r10`, `eax`) y salta. El `int 3` que sigue es el
-relleno entre funciones que genera el compilador.
+El stub **no contiene `syscall`**: solo prepara (`r10`, `eax`) y salta. Tras `KageStubEnd` aparece
+un `int 3` (byte `CC`) en el desensamblado.
 
 ### Cómo funciona (según el README)
 
@@ -161,7 +163,7 @@ Del README: *"T11 ejecuta 1000 `NtClose_I` consecutivos → resultado idéntico 
 4. **La dirección de retorno vuelve a nuestro flujo:** `dps @rsp` apunta a `Kagemusha!NtClose_I+...`.
 5. **Contraste pedagógico:** comparar el *stack trace* de la ruta nativa (por el stub) con la
    indirecta.
-6. **Exactitud semántica:** T9/T6 devuelven el mismo `NTSTATUS` que la API nativa.
+6. **Exactitud semántica:** T9 (README) / T5 (numeración del plan §6) devuelven el mismo `NTSTATUS` que la API nativa.
 
 ---
 

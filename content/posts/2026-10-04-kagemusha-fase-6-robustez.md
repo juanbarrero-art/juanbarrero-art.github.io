@@ -84,7 +84,7 @@ tests T0/T24"* añade (del README):
 
 ## Evidencia y resultados
 
-Del README: *"Suite T13-T17 → parte de los **166 PASS / 0 FAIL**."*
+Del README: *"Suite T13-T17 → parte de los **116 PASS / 0 FAIL**."*
 
 Y de las baterías relacionadas (documentadas en `docs/research/`):
 
@@ -92,7 +92,7 @@ Y de las baterías relacionadas (documentadas en `docs/research/`):
 - **Batería pesada (T20):** al hookear los 8 stubs, `VirtualProtect` se cuelga (usa
   `NtProtectVirtualMemory`) y se resuelve **auto-hospedándose** con nuestro
   `NtProtectVirtualMemory_I`.
-- **Batería global (T21):** **484/484** stubs reales no hookeados (baseline); parser en
+- **Batería global (T21):** ningún stub real hookeado (baseline limpio, según `experimentos-globales.md`); parser en
   kernel32/kernelbase.
 
 ---

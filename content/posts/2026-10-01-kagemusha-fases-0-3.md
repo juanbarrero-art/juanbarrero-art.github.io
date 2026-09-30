@@ -3,78 +3,45 @@ title: "Kagemusha — Fases 0 a 3: del toolchain al gadget"
 date: 2026-10-01
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
-summary: Los cimientos del sistema, explicados a fondo. Toolchain C+MASM y debugger por CLI, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo, su evidencia y sus errores comunes.
+summary: Documentación de las fases M0–M3 del repositorio: toolchain C+MASM y debugger por CLI, utilidades (PEB walk, hash DJB2, exports, rangos), resolución de SSN por FreshyCalls (sort-by-RVA) y validación del gadget syscall;ret.
 ---
 
 # Kagemusha — Fases 0 a 3: del toolchain al gadget
 
-En la [visión general](/blog/kagemusha-indirect-syscalls.html) pusimos la tesis y la metodología.
-Ahora empezamos a **construir**. Estas cuatro fases (M0–M3) todavía **no ejecutan** ninguna
-syscall: preparan **los cimientos** para que, en la Fase 4, el `syscall` ocurra dentro de
-`ntdll`. Cada fase termina con una **prueba objetiva** contra una fuente independiente.
-
-Si algún término se te escapa (stub, SSN, `ntdll`), la [guía de syscalls](/blog/guia-syscalls-windows.html)
-es el mejor punto de partida. Esta entrada asume que ya sabes *qué* es una syscall y se centra
-en *cómo* la prepara el sistema.
+Documentación de las fases **M0–M3** tal como están registradas en el `README.md` y en el código
+del repositorio. Estas fases no ejecutan aún ninguna syscall: preparan los cimientos para la
+Fase 4.
 
 ---
 
 ## Fase 0 — Toolchain + debugger + "hola ASM" · M0 ✅
 
-### El objetivo
+**Objetivo (README).** *"Validar el pipeline completo C + MASM y el flujo de depuración por línea
+de comandos."*
 
-Antes de escribir nada "serio", hay que validar el **pipeline completo**: compilar C y ASM juntos,
-generar símbolos (PDB) y poder depurar **por línea de comandos**. Si esta base falla, todo lo
-demás son castillos en el aire.
+**Implementación (README).**
+- `tools/build.cmd` — invoca `vcvars64`, `ml64` (ASM) y `cl`/`link` (C), con PDB completo.
+- `src/asm/hello.asm` — `KageHelloAsm` devuelve 42.
+- `src/main.c` — punto de entrada del selftest.
 
-### El entorno
+**Entorno (verificado, del README).**
+- MSVC 19.51 (Build Tools 2026), MASM `ml64` 14.51, Windows SDK 10.0.26100.
+- Debugger `cdb` v10.0.29617 (alias `cdbX64`), `_NT_SYMBOL_PATH` configurado.
 
-- **MSVC 19.51** (Build Tools 2026), **MASM `ml64` 14.51**, **Windows SDK 10.0.26100**.
-- **`cdb` v10.0.29617** (Debugging Tools for Windows), con `_NT_SYMBOL_PATH` configurado.
+**Pruebas.** T1 `KageHelloAsm() == 42` → PASS.
 
-```powershell
-# Servidor de simbolos de Microsoft (una vez)
-[Environment]::SetEnvironmentVariable("_NT_SYMBOL_PATH",
-    "srv*C:\symbols*https://msdl.microsoft.com/download/symbols", "User")
-```
-
-### La implementación
-
-Dos piezas mínimas —un `PROC` en ASM y un `main` en C— más un `tools\build.cmd` que llama a
-`vcvars64`, ensambla con `ml64`, compila con `cl` y enlaza con `link /DEBUG:FULL`:
-
-```asm
-; src/asm/hello.asm
-KageHelloAsm PROC
-    mov eax, 42
-    ret
-KageHelloAsm ENDP
-```
-
-```c
-/* src/main.c (extracto) */
-int main(void) {
-    int v = KageHelloAsm();
-    printf("M0  KageHelloAsm() = %d\n", v);
-    return v == 42 ? 0 : 1;
-}
-```
-
-### La prueba (y por qué el PDB es sagrado)
-
-El milestone no es "compila", sino **"puedo poner un breakpoint simbólico y ver el `mov`"**:
+**Evidencia (`docs/evidencias/m0.txt`).**
 
 ```text
 bp Kagemusha!KageHelloAsm
 Kagemusha!KageHelloAsm:
-00007ff6`1cf72a30 b82a000000      mov     eax,2Ah   ; 42
+00007ff6`1cf72a30 b82a000000      mov     eax,2Ah
 ```
 
 Salida: `M0  KageHelloAsm() = 42` (exit 0).
 
-> **Sin símbolos no hay evidencia, solo fe.** El PDB es lo que permite, en la Fase 4, hacer
-> `bp Kagemusha!NtClose_I` y leer un `RIP` **con nombre**. El debugger se convierte en una
-> herramienta de prueba, no de adivinación.
+**Por qué importa el PDB (del workflow del repo).** El plan exige `bp` **simbólicos** y símbolos
+resueltos (`ntdll!NtClose`) para poder verificar; sin PDB no hay símbolos y la verificación falla.
 
 ---
 
@@ -82,261 +49,189 @@ Salida: `M0  KageHelloAsm() = 42` (exit 0).
 
 ![Diagrama: PEB walk](../assets/diag-peb.svg)
 
-### El objetivo
+**Objetivo (README).** *"Acceso a `ntdll` sin depender de la IAT: PEB walk, resolución de exports
+por hash, rangos y logging."*
 
-Acceder a `ntdll` **sin depender de la IAT** (Import Address Table). La IAT lista las funciones
-importadas y es visible; evitar `GetModuleHandle`/`GetProcAddress` en el camino crítico es parte
-del diseño. Hacemos "a mano" lo que esas funciones hacen.
+### `src/util/peb.c` (código real)
 
-### Pieza 1 — PEB walk (`src/util/peb.c`)
-
-El **PEB** (Process Environment Block) es la estructura del proceso que mantiene el kernel; en
-x64 se localiza con `gs:[0x60]`. Dentro, `Ldr` guarda la lista de módulos **en orden de carga**
-(`InLoadOrderModuleList`). Recorriéndola, comparamos cada nombre contra un **hash** hasta dar
-con `ntdll`.
-
-```c
-PPEB UtlGetCurrentPeb(void) {
-    return (PPEB)__readgsqword(0x60);   /* TEB -> PEB */
-}
-/* UtlFindModuleByHash: camina InLoadOrderModuleList comparando hashes */
-```
-
-**¿Por qué no usar `GetModuleHandle`?** Porque es *IAT-visible* y depende de `kernel32`. El PEB
-walk hace lo mismo sin dejar esa dependencia.
-
-### Pieza 2 — Hash DJB2 (`src/util/exhash.c`)
-
-En vez de comparar cadenas carácter a carácter (visible y clásico), comparamos **enteros**: el
-hash del nombre. Usamos **DJB2** (`hash = hash*33 + c`), con variantes *case-insensitive* para
-ANSI y Wide.
+- `UtlGetCurrentPeb` → `__readgsqword(0x60)`.
+- `UtlFindModuleByHash` — camina `InLoadOrderModuleList` (`PEB->Ldr`) comparando
+  `UtlHashStrWide(BaseDllName.Buffer)`.
+- `UtlGetModuleRange` — recorre las secciones PE y devuelve `.text` (con el chequeo de `e_lfanew`).
+- `UtlIsReadableRange` — validación real con `VirtualQuery` (estado `MEM_COMMIT`, sin
+  `PAGE_NOACCESS`/`PAGE_GUARD`).
 
 ```c
-DWORD UtlHashStrAnsi(PCSTR s) {
-    DWORD h = 5381;
-    while (*s) { h = ((h << 5) + h) + (BYTE)tolower(*s++); }
-    return h;
+PVOID UtlGetCurrentPeb(VOID) {
+    return (PVOID)__readgsqword(0x60);   /* TEB -> PEB */
 }
 ```
 
-**¿Por qué hashes?** Cambian una comparación de cadenas (fácil de *flagguear*) por una
-comparación de enteros. Menos superficie, más orden. Además, los hashes se pueden calcular en
-compilación y en runtime solo se comparan números.
+### `src/util/exhash.c` (código real)
 
-### Pieza 3 — Exports por hash (`UtlGetExportByHash`)
+Hash **DJB2** con semilla `5381`. Ojo al detalle: `UtlHashStrAnsi` **no** aplica `tolower`; es
+`UtlHashStrWide` la que **normaliza a mayúsculas** (`a`–`z`):
 
-Dado el base de `ntdll`, recorremos su **export directory** (EAT): leemos los arrays de
-nombres, direcciones y ordinales, calculamos el hash de cada nombre y devolvemos la dirección
-de la función que coincide. **Descartamos *forwarded*** (exports que son punteros a otro módulo,
-típicamente `Ntdll*` o `api-ms-*`).
+```c
+DWORD UtlHashStrAnsi(PCSTR String) {
+    DWORD Hash = 5381u;
+    for (const unsigned char *p = (const unsigned char *)String; *p; p++)
+        Hash = ((Hash << 5) + Hash) + (DWORD)*p;   /* DJB2 */
+    return Hash;
+}
+```
 
-### Pieza 4 — Rango `.text` (`UtlGetModuleRange`)
+`UtlGetExportByHash(PVOID DllBase, DWORD FuncNameHash)` recorre el **export directory** y
+**descarta *forwarded*** (RVA dentro del rango del export directory → `NULL`); además valida
+`e_lfanew`, `SizeOfImage` y que las tablas caben en la imagen.
 
-Leemos las cabeceras PE (DOS → NT → secciones) y obtenemos el rango real de `.text`. Es el
-**marco de referencia** que usaremos para validar que un gadget está dentro de `ntdll`.
-
-### Pieza 5 — Log (`src/util/log.c`)
-
-`UtlLog` con niveles (Off/Err/Warn/Info/Dbg) a `stdout` **con `flush`**, para que la salida
-aparezca en el transcript de `cdb` sin perderse por *buffering*.
+**Por qué sin IAT (del plan §3.1).** `UtlGetExportByHash` es la **única vía** de obtención de
+direcciones: *"sin `GetModuleHandle` ni `GetProcAddress`, que son IAT-visibles"*. Los hashes, en el
+código actual, se calculan en **runtime** (`UtlHashStrAnsi`); el plan menciona una macro
+`KAGE_HASH` en tiempo de compilación como trabajo futuro.
 
 ### La prueba (oráculo independiente)
 
-El test **no** dice "creo que es correcto": lo contrasta con la API de Windows y con los
-símbolos de Microsoft:
-
 ```text
-rax=00007ffc48540f90                        ; lo que resuelve NUESTRO codigo
-00007ffc`48540f90 ntdll!NtClose (NtClose)   ; lo que dice el SIMBOLO de Microsoft
-? (rax - ntdll!NtClose) = 0                 ; IDENTICOS
+rax=00007ffc48540f90                                  ; lo que resuelve nuestro codigo
+00007ffc`48540f90 ntdll!NtClose (NtClose)             ; lo que dice el simbolo de Microsoft
+? (rax - ntdll!NtClose) = 0                           ; IDENTICOS
 ```
 
-Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`,
-`NtClose = 00007FFC48540F90`.
-
-> Si el PEB walk devolviera una base falsa, `GetModuleHandleW` lo delataría. Si el hash
-> estuviera mal, `GetProcAddress` daría otra dirección. **Nunca nos creemos a nosotros mismos.**
+Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`, `NtClose = 00007FFC48540F90`.
 
 ---
 
 ## Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅
 
-![Diagrama: FreshyCalls (sort-by-VA)](../assets/diag-freshycalls.svg)
+![Diagrama: FreshyCalls](../assets/diag-freshycalls.svg)
 
-### El objetivo
+**Objetivo (README).** *"Obtener el SSN de cada `Nt*` sin leer bytes del stub (inmune a hooks),
+por orden de export."*
 
-Obtener el **SSN** (número de servicio) de cada `Nt*` **sin leer bytes del stub**. Si dependemos
-de esos bytes y un EDR los modifica (hook), dependemos de que estén intactos. La idea es **no
-mirar el stub en absoluto**.
+### Implementación (README)
 
-### El invariante
+- `include/kage/resolver.h` — `KAGE_SSN_ENTRY`, códigos `KAGE_ERR_*`, `KageResolveSsnTable`.
+- `src/resolver/freshycalls.c` — filtra `Nt*` (Nt + mayúscula), ordena por **RVA**, `índice == SSN`;
+  detecta VAs/RVAs duplicadas y *forwarded*.
 
-> En Windows 10/11 los stubs `Nt*` están en `.text` **en el mismo orden que sus SSN**.
-
-Por tanto:
+### El algoritmo (código real de `freshycalls.c`)
 
 ```c
-/* 1) coleccionar TODAS las exports "Nt*" (prefijo estricto Nt + mayuscula) */
-/* 2) ordenarlas por direccion virtual (VA) ascendente */
-qsort(NtExports, n, sizeof(*NtExports), cmp_por_va);
-/* 3) el INDICE que ocupa cada una ES su SSN */
-for (DWORD i = 0; i < n; i++)
-    NtExports[i].ssn = i;
+/* 1) KageEnumSyscallExports: colecciona exports "Nt*" (filtro Nt + mayuscula) -> {Rva, NameHash} */
+/* 2) ordenar por RVA ascendente (equivale a ordenar por VA dentro del modulo) */
+qsort(Exports, n, sizeof(KAGE_NT_EXPORT), KageCompareByRva);
+/* 3) invariante: direcciones estrictamente crecientes (sin duplicados) -> KAGE_ERR_COLLISION */
+/* 4) para cada entrada del catalogo, busca por hash y toma el indice ordenado: */
+Entries[i].Ssn = (WORD)j;   /* indice en el sort == SSN */
 ```
 
-Nada de leer `mov eax, SSN` del stub: **solo ordenamos direcciones**. Eso lo hace inmune a que
-los bytes del stub estén modificados.
-
-**Detalle del filtro:** prefijo estricto **`Nt` + segunda letra mayúscula**. Esto evita falsos
-positivos como `NtdllOpen…` que desplazarían el índice.
-
-### Los checks (fallar ruidoso)
-
-El resolver **falla con error** si: la lista está vacía, hay **VAs duplicadas**, aparece un
-*forwarded*, o algún objetivo del catálogo no resuelve. Nada de continuar con una tabla a medias.
+**Invariante (README).** *"En Windows 10/11 los stubs `Nt*` residen en `.text` en orden de SSN."*
 
 ### La prueba (oráculo independiente)
-
-Contrastamos nuestro SSN contra el que dice el **stub real** de Microsoft:
 
 ```text
 uf ntdll!NtClose
 ntdll!NtClose:
-00007ffc`48540f93 b80f000000      mov     eax,0Fh    ; SSN real, lo dice el stub
+00007ffc`48540f93 b80f000000      mov     eax,0Fh      ; SSN real
 ```
 
-Salida: `M2  FreshyCalls: 8/8 coinciden con el stub`. Para las 12 funciones del registro:
+Salida: `M2  FreshyCalls: 8/8 coinciden con el stub`. Del README (tabla de 12 en total):
 
 | Función | SSN | Función | SSN |
 | --- | --- | --- | --- |
 | NtClose | 0x00F | NtAllocateVirtualMemory | 0x018 |
 | NtCreateFile | 0x055 | NtProtectVirtualMemory | 0x050 |
 | NtOpenProcess | 0x026 | NtReadFile | 0x006 |
-| NtQuerySystemInformation | 0x036 | NtQueryInformationProcess | 0x019 |
-
-> Un SSN equivocado no "casi funciona": ejecutarías **otra** función del kernel. Por eso el
-> oráculo es obligatorio.
+| NtQuerySystemInformation | 0x036 | NtWriteFile | 0x008 |
+| NtQueryInformationProcess | 0x019 | NtOpenKey | 0x012 |
+| NtCreateThreadEx | 0x0C9 | NtWaitForSingleObject | 0x004 |
 
 ---
 
-## Fase 3 — Localizar el gadget `syscall;ret` · M3 ✅
+## Fase 3 — Gadget `syscall;ret` · M3 ✅
 
-![Diagrama: gadget syscall;ret](../assets/diag-gadget.svg)
+![Diagrama: gadget](../assets/diag-gadget.svg)
 
-### El objetivo
+**Objetivo (README).** *"Localizar y validar la instrucción real `syscall;ret` (`0F 05 C3`) dentro
+de `ntdll`."*
 
-Encontrar, **dentro de `ntdll`**, la secuencia real de bytes **`0F 05 C3`** (`syscall; ret`),
-ejecutable y que no forme parte de un hook. Ese será el punto de salto de la Fase 4.
+### Implementación (README + `gadget.c`)
 
-### La idea clave
+- `src/resolver/gadget.c` — `KageFindGadgetInStub` (busca `0F 05 C3` en el stub), `KageValidateGadget`
+  (bytes + rango `.text`), pool determinista por VA (respaldo).
+- `KageEnumSyscallExports` (`freshycalls.c`) es la **fuente única** de enumeración, reutilizada por
+  SSN y por el pool.
 
-Un gadget `syscall;ret` es **agnóstico del SSN**: sirve para *cualquier* syscall, porque el
-número viaja en `EAX`. Eso permite tener un **pool** de gadgets de respaldo y hace el diseño
-más simple.
+Código real (funciones internas `static`):
 
-### La validación (3 checks)
+```c
+#define KAGE_GADGET_SCAN 64   /* bytes a escanear dentro del stub */
 
-Localizar los bytes no basta; hay que **validar** el candidato:
+static BOOL KageIsGadgetBytes(const BYTE *p) {
+    return (p[0] == 0x0F && p[1] == 0x05 && p[2] == 0xC3);   /* syscall; ret */
+}
+static PVOID KageFindGadgetInStub(PVOID Stub);   /* ancla a 4C 8B D1 B8 y escanea 64 bytes */
+static BOOL  KageValidateGadget(PVOID Gadget, PVOID TextStart, SIZE_T TextSize);
+```
 
-1. En esa dirección están exactamente `0F 05` y, dos bytes después, `C3`.
-2. La dirección cae **dentro de `.text` de `ntdll`** (el rango del M1).
-3. El stub de origen **no empieza con un prólogo de hook** (`E9` / `FF 25`).
+### Cómo se elige el gadget (de `KageResolveGadgets`)
 
-El orden de selección es **determinista** (pruebas reproducibles): primero el stub de la propia
-función; si está hookeado, el de su gemela `Zw*` (misma rutina); y si no, el pool ordenado por
-**menor VA**.
+1. Se intenta el gadget del **propio stub** (`KageFindGadgetInStub`), que **ancla al prólogo de
+   syscall real `4C 8B D1 B8`** (endurecimiento M4) y escanea 64 bytes buscando `0F 05 C3`.
+2. Si no valida (p. ej. stub sin gadget), se recorre el **pool** de stubs `Nt*` limpios, ordenado
+   por **VA ascendente** (respaldo determinista y reproducible).
+3. `KageValidateGadget` exige: bytes `0F 05 C3` **y** que el gadget caiga dentro de `.text`.
 
-### La prueba
+**Pruebas.** T8 — 4/4 gadgets con bytes `0F 05 C3` dentro de `.text` → PASS.
+
+**Evidencia (`docs/evidencias/m3.txt`).**
 
 ```text
 db poi(Kagemusha!g_Entries+0x18) L3
-00007ffc`48540fa2  0f 05 c3                 ; syscall; ret
-? poi(Kagemusha!g_Entries+0x18) - ntdll = 0x160fa2   ; dentro de ntdll
+00007ffc`48540fa2  0f 05 c3                                  ; syscall; ret
+? poi(Kagemusha!g_Entries+0x18) - ntdll = 0x160fa2           ; dentro de ntdll
 ```
 
 Salida: `M3  gadgets validos (0F 05 C3 en .text): 8/8`.
 
-> Doble comprobación: **los bytes** son los correctos **y** la dirección pertenece a `ntdll`.
-> Un gadget "a mitad de instrucción" provoca un crash; por eso anclamos a inicio de stub
-> validado y patrón exacto.
-
 ---
 
-## Qué aprendimos en estas cuatro fases
-
-- **El PDB no es opcional.** Sin símbolos no hay evidencia, solo fe.
-- **El hash convierte comparaciones visibles en comparaciones de enteros.** Menos superficie, más orden.
-- **Nunca hardcodear el SSN.** La tentación de "poner 0x0F y ya" rompe en la próxima build.
-- **Validar, no asumir.** Un gadget se *valida* (bytes + rango + no-hook), no se *confía*.
-- **Fallar ruidoso.** Un error claro vale más que un resultado silenciosamente incorrecto.
-
-Con los cimientos listos (base de `ntdll`, SSN resueltos y gadget validado), ya podemos **ejecutar
-de verdad** una `Nt*` de forma indirecta: la [Fase 4](/blog/kagemusha-fase-4-ejecucion-indirecta.html).
-
-## Cómo sigue la serie
-
-1. [Guía de syscalls](/blog/guia-syscalls-windows.html)
-2. [Visión general, tesis y metodología](/blog/kagemusha-indirect-syscalls.html)
-3. **Fases 0 a 3** (esta entrada)
-4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
-5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
-6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
-7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
-8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
-
-## Módulos y contratos (vista de implementación)
-
-Estas fases construyen los módulos de abajo hacia arriba. Vale la pena tener claros sus
-**contratos** (qué recibe y qué devuelve cada pieza), porque de ellos depende la corrección.
-
-### `util` — utilidades base
+## Módulos y contratos (de `resolver.h` y `util/`)
 
 ```c
-PPEB   UtlGetCurrentPeb(void);                              /* gs:[0x60] */
-PVOID  UtlFindModuleByHash(DWORD nameHash);                 /* PEB->Ldr, InLoadOrder */
-BOOL   UtlGetModuleRange(PVOID base, PVOID *textStart, SIZE_T *textSize);
-DWORD  UtlHashStrAnsi(PCSTR name);                          /* DJB2 */
-DWORD  UtlHashStrWide(PCWSTR name);
-PVOID  UtlGetExportByHash(PVOID dllBase, DWORD funcNameHash);/* export directory, sin forwarded */
-VOID   UtlLog(UTL_LOGLEVEL, PCSTR fmt, ...);                /* stdout + flush (cdb) */
-```
+/* util/ */
+PVOID UtlGetCurrentPeb(VOID);
+PVOID UtlFindModuleByHash(DWORD NameHash);
+BOOL  UtlGetModuleRange(PVOID Base, PVOID *TextStart, SIZE_T *TextSize);
+BOOL  UtlIsReadableRange(const VOID *Address, SIZE_T Size);
+DWORD UtlHashStrAnsi(PCSTR String);
+DWORD UtlHashStrWide(PCWSTR String);
+PVOID UtlGetExportByHash(PVOID DllBase, DWORD FuncNameHash);
+VOID  UtlLogSetLevel(UTL_LOGLEVEL);
+VOID  UtlLog(UTL_LOGLEVEL, PCSTR fmt, ...);
 
-`UtlGetExportByHash` es la **única vía** de obtención de direcciones: sin `GetModuleHandle` ni
-`GetProcAddress` en el camino crítico. Los hashes se calculan en compilación (macro
-`KAGE_HASH("NtClose")`) y en runtime solo se comparan enteros.
-
-### `resolver` — SSN y gadget
-
-```c
+/* resolver.h (API publica) */
 typedef struct _KAGE_SSN_ENTRY {
-    DWORD NameHash;         /* DJB2("NtClose") */
-    WORD  Ssn;              /* indice en el sort == SSN */
-    PVOID FunctionAddress;  /* VA real del export */
-    PVOID StubAddress;      /* VA del stub (referencia) */
+    DWORD NameHash;        /* DJB2 del nombre, p.ej. "NtClose" */
+    WORD  Ssn;             /* numero de servicio = indice en el sort-by-VA */
+    PVOID FunctionAddress; /* VA real de la funcion Nt* (export) */
+    PVOID StubAddress;     /* VA del stub en ntdll (solo referencia) */
+    PVOID Gadget;          /* VA del gadget syscall;ret elegido (Fase 3) */
 } KAGE_SSN_ENTRY;
 
-NTSTATUS KageResolveSsnTable(PVOID ntdllBase, KAGE_SSN_ENTRY *entries, DWORD count);
-NTSTATUS KageFindGadgetInStub(PKAGE_SSN_ENTRY entry, PVOID *pGadget);
-NTSTATUS KageValidateGadget(PVOID base, PVOID textStart, SIZE_T textSize, PVOID cand);
+NTSTATUS KageEnumSyscallExports(PVOID ModuleBase, KAGE_EXPORT_CB Cb, PVOID Ctx);
+NTSTATUS KageResolveSsnTable(PVOID NtdllBase, KAGE_SSN_ENTRY *Entries, DWORD Count);
+NTSTATUS KageResolveGadgets(PVOID NtdllBase, KAGE_SSN_ENTRY *Entries, DWORD Count);
+BOOL     KageIsStubHooked(PVOID Stub);
 ```
 
-Una sola fuente de verdad (el orden de exports). Sin lecturas de bytes ni fallbacks. Checks de
-init: lista no vacía, sin VAs duplicadas, y todos los objetivos resuelven.
-
-### `asm` — trampolín
-
-Un `PROC` por syscall. Regla de oro: el ASM **nunca** contiene el SSN literal ni `0F 05`; solo
-lee `g_SsnTable`/`g_GadgetTable`. Los índices (slots) los asigna el registro central, no el ASM.
-
-### `wrappers` — capa C tipada
-
-Cada `Nt*` soportada expone una firma tipada con sufijo `_I` (`NtClose_I`, …). El wrapper valida
-estado (init, tablas), llama al stub y devuelve el **`NTSTATUS` tal cual**. Los errores del marco
-se distinguen con prefijo `KAGE_STATUS_*` (`NOT_INITIALIZED`, `SSN_UNRESOLVED`, `NO_GADGET`).
+Nota: `KageFindGadgetInStub` y `KageValidateGadget` existen como funciones **`static` internas** de
+`gadget.c` (no forman parte de la API pública).
 
 ---
 
-## El plan de arquitectura (v1): alcance
+## Plan de arquitectura (v1): alcance (del plan §1)
 
 | Incluido en v1 | Fuera de alcance |
 | --- | --- |
@@ -348,100 +243,28 @@ se distinguen con prefijo `KAGE_STATUS_*` (`NOT_INITIALIZED`, `SSN_UNRESOLVED`, 
 | Harness determinista + cdb | x86, WoW64, ARM64 |
 | Verificación de `RIP` dentro de ntdll | Inyección de procesos / payloads |
 
-Acotar el problema es lo que hace que la solución sea **verificable**. Cada cosa fuera de
-alcance se documenta para no dar falsas expectativas.
-
 ---
 
-## Workflow de depuración por línea de comandos
+## Cómo sigue la serie
 
-La verificación no es "ejecutar y mirar": es un **protocolo** reproducible con `cdb`.
-
-```text
-# Ejecucion con script y transcript de la sesion
-cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe
-
-# Simbolos
-.symfix
-.reload /f Kagemusha.exe
-
-# Inspeccion clave (el "corazon" de la practica)
-x ntdll!NtClose          ; VA del stub real
-uf ntdll!NtClose         ; ver "mov eax, <SSN>"
-db <gadget> L3           ; ver "0f 05 c3"
-r @eax @r10 @rcx @rip    ; EAX=SSN, R10=arg1, RIP=gadget
-lm m ntdll               ; rango de ntdll -> RIP dentro?
-? @rip - ntdll           ; offset de RIP respecto a la base
-dps @rsp L4              ; pila: a donde apunta el retorno
-```
-
-Cada script vive en `tools/cdb_scripts/` y genera un transcript en `docs/evidencias/`. Así, el
-resultado de hoy se puede **reproducir** mañana, en la misma build.
-
-### Checklist de verificación (por fase)
-
-- [ ] El binario compila con **PDB completo** y los `bp` simbólicos funcionan.
-- [ ] `UtlGetExportByHash("NtClose")` == `GetProcAddress` (oráculo).
-- [ ] El SSN de FreshyCalls == SSN del stub real (oráculo).
-- [ ] El gadget tiene bytes `0F 05 C3` **y** cae en `.text` de `ntdll`.
-- [ ] La suite sale **0 FAIL** y el transcript queda archivado.
-
----
-
-## Fondo: cómo es una cabecera PE (por qué leemos "a mano")
-
-Para resolver exports sin `GetProcAddress`, hay que recorrer el archivo/DLL a bajo nivel. Un PE
-(Portable Executable) tiene capas:
-
-```text
-+------------------+  <- inicio
-| DOS header       |   e_magic ("MZ"), e_lfanew -> apunta a la cabecera NT
-+------------------+
-| NT headers       |   FileHeader + OptionalHeader (SizeOfImage, secciones...)
-+------------------+
-| Section headers  |   .text, .rdata, .data... (cada una con su RVA y tamaño)
-+------------------+
-| .text            |   codigo
-| .rdata           |   import/export directories
-| .data            |   datos
-+------------------+
-```
-
-- **`e_lfanew`** dice **dónde** empieza la cabecera NT. Un valor absurdo (malicioso o corrupto)
-  llevaría a leer "fuera del archivo" → por eso el proyecto **valida** ese offset.
-- El **export directory** (en `.rdata`) lista los nombres y sus **RVAs**; para ordenar por
-  **dirección virtual** (FreshyCalls) necesitamos `SizeOfImage` y la base del módulo.
-
-Entender esto explica **por qué** la Fase 6 hace fuzz del parser: un PE malformado es una
-*vulnerabilidad* si confías en él a ciegas.
-
----
-
-## Fondo: el PEB y la lista de módulos
-
-El **PEB** es la estructura del proceso que mantiene el kernel. Nos interesa sobre todo la lista
-de módulos cargados (`PEB->Ldr->InLoadOrderModuleList`), que es una **lista doblemente enlazada**
-de entradas `LDR_DATA_TABLE_ENTRY`:
-
-```text
-PEB
- └─ Ldr
-     └─ InLoadOrderModuleList  <-> [ ntdll ] <-> [ kernel32 ] <-> [ kernelbase ] <-> ...
-```
-
-Cada nodo tiene `BaseDllName` (el nombre) y `DllBase` (la dirección base). Nuestro walker la
-recorre **comparando hashes** en lugar de cadenas. ¿Por qué `InLoadOrder` y no otra lista?
-Porque el orden de carga es estable y predecible, y `ntdll` suele estar entre los primeros.
+1. [Cómo leer la serie + Misión 0](/blog/como-leer-serie-mision-0.html)
+2. [Guía de syscalls](/blog/guia-syscalls-windows.html)
+3. [Visión general, tesis y metodología](/blog/kagemusha-indirect-syscalls.html)
+4. **Fases 0 a 3** (esta entrada)
+5. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
+6. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
+7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+8. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
+9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
 
 ---
 
 ## Bibliografía y referencias
 
-- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (PEB, Ldr, export directory).
-- Microsoft Learn — *PEB/Ldr structures*, *PE format*, *x64 calling convention*.
+- Fuentes primarias: `README.md`, `docs/plan-arquitectura-v1.md`, `src/util/peb.c`,
+  `src/util/exhash.c`, `src/util/log.c`, `src/resolver/freshycalls.c`, `src/resolver/gadget.c`,
+  `include/kage/resolver.h`, `docs/evidencias/m0..m3.txt`.
+- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.*
 - crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
-- am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.
-- thefLink — *RecycledGate* (`github.com/thefLink/RecycledGate`).
-- Fuentes primarias: `docs/evidencias/m0..m3.txt`, `tools/cdb_scripts/`.
 
 > Aprender a romper para poder defender.

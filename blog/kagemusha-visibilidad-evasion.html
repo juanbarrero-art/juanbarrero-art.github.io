@@ -93,7 +93,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">06 oct 2026 &middot; 5 min de lectura</p>
+        <p class="post__meta">06 oct 2026 &middot; 6 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span> <span class="tag">#deteccion</span> <span class="tag">#edr</span></p>
@@ -133,8 +133,11 @@ NtYieldExecution(0x6, ...)            (ret: 0x40000024)</code></pre>
 00000023`ae0ff838 00007ff6`355838b9     ntdll!NtClose+0x12          ; RIP a mitad de stub
 00000023`ae0ff840 00007ff6`355817c2     Kagemusha!NtClose_I+0x29    ; llamador = nuestro modulo
 00000023`ae0ff880 00007ff6`355820a0     Kagemusha!M4_Execute+0x82
+00000023`ae0ff910 00007ff6`35584fcf     Kagemusha!main+0x130
+(Inline Function) --------`--------     Kagemusha!invoke_main+0x22
 00000023`ae0ff950 00007ffc`4680cd87     Kagemusha!__scrt_common_main_seh+0x10f
-00000023`ae0ff990 00007ffc`4848caec     KERNEL32!BaseThreadInitThunk+0x17</code></pre>
+00000023`ae0ff990 00007ffc`4848caec     KERNEL32!BaseThreadInitThunk+0x17
+00000023`ae0ff9c0 00000000`00000000     ntdll!RtlUserThreadStart+0x2c</code></pre>
 <p>Señales residuales (del documento):</p>
 <ol><li><strong>RIP a mitad de stub:</strong> el syscall entra en <code>ntdll!NtClose+0x12</code>, <strong>no</strong> en la entrada</li></ol>
 <p>(<code>NtClose+0x0</code>). Formalizado en el test <strong>T26 / E3a</strong>: el gadget siempre está desplazado respecto a la entrada del stub.</p>
@@ -146,8 +149,16 @@ NtYieldExecution(0x6, ...)            (ret: 0x40000024)</code></pre>
 <table><thead><tr><th>Mecanismo del EDR</th><th>¿Ve el indirect?</th></tr></thead><tbody><tr><td>Hooks inline en stubs <code>Nt*</code></td><td>No</td></tr><tr><td>Inspección de pila / ETW-TI / callbacks de kernel</td><td><strong>Sí</strong> (RIP mid-stub + llamador de usuario)</td></tr></tbody></table>
 <hr>
 <h2>Evasión bajo CET / Shadow Stack (E4c, test T27)</h2>
-<p>Del README:</p>
-<blockquote><p><em>"<code>KageShadowStackProbe</code> (<code>--cetprobe</code>) demuestra que el stack spoofing <strong>clásico (ret/ROP) falla</strong> bajo CET/Shadow Stack: el hijo termina con <code>0xC0000409</code> (#CP). Test <strong>T27</strong>. El camino de evasión válido es <strong>CET-safe</strong> (call-based o VEH-based, ver <code>docs/research/experimento-e4c-cet-spoofing.md</code>)."</em></p></blockquote>
+<p>De <code>docs/research/experimento-e4c-cet-spoofing.md</code>.</p>
+<p><strong>Objetivo:</strong> comprobar que el <em>stack spoofing</em> clásico (ROP / <code>ret</code> a frames falsos, estilo SilentMoonwalk) <strong>no es viable</strong> con CET / Shadow Stack activo — el caso de este equipo.</p>
+<p><strong>Método:</strong> <code>KageShadowStackProbe</code> (<code>src/asm/syscalls.asm</code>) hace <code>lea rax, target; push rax; ret</code>, es decir un <code>ret</code> cuya dirección <strong>no está en el shadow stack</strong>; modo CLI <code>--cetprobe</code>; test <strong>T27</strong> (lo lanza en un proceso hijo y comprueba el código de salida).</p>
+<p><strong>Resultado:</strong></p>
+<pre><code class="lang-text">cetprobe exit=0xC0000409</code></pre>
+<p><code>0xC0000409</code> = <strong>STATUS_STACK_BUFFER_OVERRUN / violación de Control Protection (#CP)</strong>. Del documento: <em>"Sin CET, el probe saltaría a <code>KageSsRetTarget</code> y saldría con 0."</em></p>
+<p><strong>Conclusión (del documento):</strong> el spoofing de pila basado en <code>ret</code>/ROP <strong>falla bajo CET</strong> (el <code>ret</code> debe coincidir con el shadow stack; los frames falsos no están ahí). Un enfoque <strong>CET-safe</strong> no puede depender de <code>ret</code>/ROP; caminos válidos: <strong>call-based</strong> (usar <code>call</code> legítimos, que sí empujan al shadow stack) o <strong>VEH-based</strong> (LayeredSyscall / RustVEHSyscalls, desde <code>KiUserExceptionDispatcher</code>). <em>"Esto es lo específico y valioso de E4c: evasión de pila compatible con CET, no el ROP clásico."</em></p>
+<p><strong>Reproducir (del documento):</strong></p>
+<pre><code class="lang-text">Kagemusha.exe --cetprobe        :: #CP (0xC0000409) si CET activo
+Kagemusha_tests.exe             :: T27</code></pre>
 <p>Esto conecta con la Fase 7 (T22): el trampolín <code>jmp</code> es <strong>CET-safe por diseño</strong>, pero intentar cerrar la firma de pila con un <code>ret</code>/ROP clásico <strong>rompe</strong> bajo shadow stack.</p>
 <hr>
 <h2>Síntesis (del README, secciones E2/E3/Defender)</h2>

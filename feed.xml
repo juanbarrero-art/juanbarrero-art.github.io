@@ -5,7 +5,7 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 15:53:22 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 16:14:24 +0000</lastBuildDate>
   <item>
     <title>&quot;Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html</link>
@@ -53,7 +53,7 @@
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</guid>
     <pubDate>Thu, 01 Oct 2026 00:00:00 +0000</pubDate>
-    <description>Los cimientos del sistema, explicados a fondo. Toolchain C+MASM y debugger por CLI, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo, su evidencia y sus errores comunes.</description>
+    <description>Documentación de las fases M0–M3 del repositorio: toolchain C+MASM y debugger por CLI, utilidades (PEB walk, hash DJB2, exports, rangos), resolución de SSN por FreshyCalls (sort-by-RVA) y validación del gadget syscall;ret.</description>
   </item>
   <item>
     <title>Bienvenido al blog</title>

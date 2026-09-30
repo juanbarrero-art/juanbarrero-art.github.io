@@ -88,8 +88,11 @@ Child-SP          RetAddr               Call Site
 00000023`ae0ff838 00007ff6`355838b9     ntdll!NtClose+0x12          ; RIP a mitad de stub
 00000023`ae0ff840 00007ff6`355817c2     Kagemusha!NtClose_I+0x29    ; llamador = nuestro modulo
 00000023`ae0ff880 00007ff6`355820a0     Kagemusha!M4_Execute+0x82
+00000023`ae0ff910 00007ff6`35584fcf     Kagemusha!main+0x130
+(Inline Function) --------`--------     Kagemusha!invoke_main+0x22
 00000023`ae0ff950 00007ffc`4680cd87     Kagemusha!__scrt_common_main_seh+0x10f
 00000023`ae0ff990 00007ffc`4848caec     KERNEL32!BaseThreadInitThunk+0x17
+00000023`ae0ff9c0 00000000`00000000     ntdll!RtlUserThreadStart+0x2c
 ```
 
 Señales residuales (del documento):
@@ -113,12 +116,37 @@ Conclusión (del documento):
 
 ## Evasión bajo CET / Shadow Stack (E4c, test T27)
 
-Del README:
+De `docs/research/experimento-e4c-cet-spoofing.md`.
 
-> *"`KageShadowStackProbe` (`--cetprobe`) demuestra que el stack spoofing **clásico (ret/ROP)
-> falla** bajo CET/Shadow Stack: el hijo termina con `0xC0000409` (#CP). Test **T27**. El camino de
-> evasión válido es **CET-safe** (call-based o VEH-based, ver
-> `docs/research/experimento-e4c-cet-spoofing.md`)."*
+**Objetivo:** comprobar que el *stack spoofing* clásico (ROP / `ret` a frames falsos, estilo
+SilentMoonwalk) **no es viable** con CET / Shadow Stack activo — el caso de este equipo.
+
+**Método:** `KageShadowStackProbe` (`src/asm/syscalls.asm`) hace `lea rax, target; push rax; ret`,
+es decir un `ret` cuya dirección **no está en el shadow stack**; modo CLI `--cetprobe`; test **T27**
+(lo lanza en un proceso hijo y comprueba el código de salida).
+
+**Resultado:**
+
+```text
+cetprobe exit=0xC0000409
+```
+
+`0xC0000409` = **STATUS_STACK_BUFFER_OVERRUN / violación de Control Protection (#CP)**. Del
+documento: *"Sin CET, el probe saltaría a `KageSsRetTarget` y saldría con 0."*
+
+**Conclusión (del documento):** el spoofing de pila basado en `ret`/ROP **falla bajo CET** (el
+`ret` debe coincidir con el shadow stack; los frames falsos no están ahí). Un enfoque **CET-safe**
+no puede depender de `ret`/ROP; caminos válidos: **call-based** (usar `call` legítimos, que sí
+empujan al shadow stack) o **VEH-based** (LayeredSyscall / RustVEHSyscalls, desde
+`KiUserExceptionDispatcher`). *"Esto es lo específico y valioso de E4c: evasión de pila compatible
+con CET, no el ROP clásico."*
+
+**Reproducir (del documento):**
+
+```text
+Kagemusha.exe --cetprobe        :: #CP (0xC0000409) si CET activo
+Kagemusha_tests.exe             :: T27
+```
 
 Esto conecta con la Fase 7 (T22): el trampolín `jmp` es **CET-safe por diseño**, pero intentar
 cerrar la firma de pila con un `ret`/ROP clásico **rompe** bajo shadow stack.

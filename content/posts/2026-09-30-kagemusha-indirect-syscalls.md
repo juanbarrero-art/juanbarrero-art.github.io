@@ -201,7 +201,7 @@ motor que WinDbg, símbolos perfectos con MSVC.
 [3] Gadget en ntdll:  syscall ; ret    ; <-- el syscall ocurre DENTRO de ntdll
         |
         v  (ret vuelve al wrapper; la pila sigue intacta)
-[4] Kernel:     SSDT[EAX] -> NtClose     ; hace el trabajo real
+[4] Kernel:     despacho por SSN (EAX)   ; hace el trabajo real
         |
         v
 [5] Wrapper C:  devuelve el NTSTATUS tal cual
@@ -245,7 +245,7 @@ la build, se registra el build junto al resultado.
 
 Resultados de la build de referencia (Windows 11):
 
-- **171 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T0–T27 (E2/E3/E4c).
+- **Suite en verde (0 FAIL).** El `README.md` cita cifras en varias secciones (155 en *Resultados de la suite*, 166 en el experimento de Defender, 171 en Fase 7); se toma **171** (la más reciente) y se deja constancia de la inconsistencia del README.
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 
@@ -321,7 +321,7 @@ Detrás de cada decisión de la v1 hay una razón concreta. Nada es "porque sí"
 
 **¿Por qué `jmp` y no `call` en el trampolín?** En la ABI x64, un `call` empujaría una nueva
 dirección de retorno a la pila. Entonces, el `ret` del gadget de `ntdll` **volvería al stub**,
-no al wrapper, y el flujo se rompería (o volvería a ejecutar el stub en bucle). El `jmp` (un
+no al wrapper, y el flujo se rompería. El `jmp` (un
 *tail call*) **preserva** el frame del wrapper: el `ret` del gadget regresa **directamente** al
 wrapper. Además, como no tocamos la pila, los argumentos 5+ (que viajan en ella) llegan
 intactos al kernel.
