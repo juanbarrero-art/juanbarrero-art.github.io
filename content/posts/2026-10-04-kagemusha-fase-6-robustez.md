@@ -282,6 +282,120 @@ desvía con basura. Un analizador fiable es aquel que **no se cree** la entrada.
 
 ---
 
+## Los 12 experimentos, por grupos
+
+Los experimentos no están sueltos; forman tres bloques con un propósito:
+
+**Bloque 1 — Hook y resiliencia (1–7).** Instalar un `E9` en el stub, **detectarlo**, resolver el
+SSN con el stub modificado, encontrar el gadget, **ejecutar** la syscall, **restaurar** y
+**re-init** con el hook presente. Es el corazón de la fase: probar que un hook **no nos tumba**.
+
+**Bloque 2 — Cobertura (8–9).** Resolver **todo** el catálogo `Nt*`: **488/488** stubs reales
+coinciden con el SSN. Y detectar los **2** exports `Nt*` que **no** son stubs.
+
+**Bloque 3 — Entradas adversas y concurrencia (10–12).** Fuzz del parser PE (9 malformados),
+concurrencia (4 hilos × 1000 syscalls) e **init idempotente** (100 × `KageInitialize`).
+
+---
+
+## Detectar un hook: `E9` y `FF 25`
+
+`KageIsStubHooked` reconoce los **prólogos** de hook habituales:
+
+```text
+E9 xx xx xx xx   ; jmp relativo a otra direccion
+FF 25 ...        ; jmp qword ptr [rip+disp]  (indirecto)
+```
+
+El primer test usa `E9`; la **batería extendida (T19)** añade el caso **`FF 25`** (jmp indirecto),
+comprobando que también se detecta y que FreshyCalls sigue inmune. Dos formas de hook, dos
+pruebas: no basta con verificar la que te gusta.
+
+---
+
+## El fuzz del parser, con más veneno
+
+La Fase 6 hace fuzz con **9 PE malformados** (`e_lfanew` extremo). El endurecimiento posterior
+(**A1**) va más allá: un **export directory malicioso** (G8) que intenta que el parser lea una RVA
+fuera de `SizeOfImage`. El parser **rechaza** y no crashea. Es la diferencia entre "aceptar
+entrada" y "**validar** entrada".
+
+---
+
+## Endurecimiento (A1/A2) y tests nuevos (T0/T24)
+
+La revisión de código añadió dos blindajes y dos tests:
+
+- **A1 — parser PE:** valida las RVAs del export directory contra `SizeOfImage`.
+- **A2 — wrappers:** guardia de init → `KAGE_STATUS_NOT_INITIALIZED` (nunca `jmp` a `NULL`).
+- **T0:** usar el sistema **sin init**.
+- **T24:** wrap-around del ledger, errores del resolver, parser malicioso, `KageSlotName` fuera
+  de rango.
+
+Con esto, la suite global subió a **166 PASS / 0 FAIL**. El patrón es claro: cada revisión
+**añade pruebas** para que el fallo no pueda volver.
+
+---
+
+## Concurrencia e idempotencia, en corto
+
+- **Concurrencia:** 4 hilos ejecutando syscalls a la vez → 0 fallos. Detecta condiciones de carrera
+  en el uso de las tablas.
+- **Idempotencia:** `KageInitialize()` 100 veces deja las tablas **estables**. Un init que "se pisa"
+  a sí mismo sería un bug latente; aquí se descarta.
+
+---
+
+## Cómo se ve el hook en memoria (antes / después)
+
+```text
+ANTES (stub limpio):
+  4C 8B D1        mov r10, rcx
+  B8 0F 00 00 00  mov eax, 0Fh
+  0F 05 C3        syscall ; ret
+
+DESPUES (hook E9):
+  E9 00 00 00 00  jmp +0            <-- el stub ya no ejecuta nada util
+  00 00 00 00 00  (bytes desplazados)
+  0F 05 C3        syscall ; ret     <-- "tapado" por el jmp
+```
+
+`KageIsStubHooked` mira el **primer byte**: si es `E9` o `FF`, hay hook. Y como nuestro sistema
+**no ejecuta el stub** (salta al gadget), el `jmp` del hook nunca se corre.
+
+---
+
+## Por qué la defensa no depende de "un" hook
+
+Si un defensa confiara **solo** en hooks de user-mode, cualquier técnica que no ejecute el stub la
+sortearía. Por eso un EDR serio **combina** sensores:
+
+- **Callbacks del kernel** (creación de proceso/hilo, carga de imagen): más robustos, más caros.
+- **ETW:** telemetría independiente del user-mode.
+- **Análisis de pila:** detectar *callers* no habituales para un `syscall`.
+
+La Fase 6 demuestra **un** lado (el hook de user-mode no basta). La honestidad está en decir que
+el otro lado existe y **medirlo** (Fase 8).
+
+---
+
+## Preguntas frecuentes (Fase 6)
+
+**¿El hook simulado equivale a un EDR real?** No exactamente: es una **emulación** controlada y
+segura del mismo efecto (un `jmp` al inicio del stub). Sirve para probar resiliencia sin un EDR.
+
+**¿Por qué FreshyCalls es inmune aunque el stub esté hookeado?** Porque no lee los **bytes** del
+stub: usa el **orden de exports por dirección**, que no cambia al parchear el prólogo.
+
+**¿Qué pasa si hookean el gadget, no el stub?** El gadget se busca/valida en el pool; si un
+candidato estuviera corrupto, se descarta (validación de bytes + rango). El diseño contempla
+"gadget re-escrito" como riesgo a vigilar.
+
+**¿Por qué importa el fuzz del parser?** Porque un analizador que confía en un PE malformado es
+atacable. Validar `e_lfanew`/RVAs es tan importante como la lógica principal.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

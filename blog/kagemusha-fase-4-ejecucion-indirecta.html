@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">02 oct 2026 &middot; 11 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 16 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -244,6 +244,83 @@ ntdll 00007ffc`483e0000 - 00007ffc`48647000</code></pre>
 <h2>Comparación rápida: directo vs. indirecto (recordatorio)</h2>
 <table><thead><tr><th>Aspecto</th><th>Direct</th><th>Indirect (Kagemusha)</th></tr></thead><tbody><tr><td>¿<code>0F 05</code> en tu módulo?</td><td>Sí</td><td><strong>No</strong></td></tr><tr><td><code>syscall</code> en <code>ntdll</code></td><td>No</td><td><strong>Sí</strong></td></tr><tr><td>Necesita SSN</td><td>Sí</td><td>Sí</td></tr><tr><td>Necesita gadget</td><td>No</td><td><strong>Sí</strong></td></tr><tr><td>Evita hooks de user-mode</td><td>Sí</td><td>Sí</td></tr><tr><td>Invisible al kernel</td><td>No</td><td>No</td></tr></tbody></table>
 <p>La tabla resume el compromiso: el indirecto <strong>mueve</strong> el <code>syscall</code> a <code>ntdll</code> sin eliminar el hecho de que el kernel lo ve.</p>
+<hr>
+<h2>El flujo completo de una llamada, paso a paso (con el repo)</h2>
+<p>Sigamos una <code>NtClose_I</code> con los <strong>archivos reales</strong> del repositorio:</p>
+<pre><code class="lang-text">[1] wrappers.c: NtClose_I(h)
+      - comprueba g_Initialized        (si no, KAGE_STATUS_NOT_INITIALIZED)
+      - comprueba g_SsnTable[slot]     (si no, KAGE_STATUS_SSN_UNRESOLVED)
+      - comprueba g_GadgetTable[slot]  (si no, KAGE_STATUS_NO_GADGET)
+      - llama a KageNtCloseStub(h)
+              |
+              v
+[2] syscalls.asm: KageNtCloseStub
+      mov r10, rcx                      ; arg1 -&gt; R10
+      mov eax, [g_SsnTable + slot*4]    ; SSN resuelto en runtime
+      jmp  [g_GadgetTable + slot*8]     ; salta al syscall;ret de ntdll
+              |
+              v
+[3] gadget en ntdll: syscall ; ret     ; &lt;-- el syscall ocurre DENTRO de ntdll
+              |
+              v  (ret vuelve al wrapper: la pila no se toco)
+[4] kernel: SSDT[EAX] -&gt; NtClose        ; hace el trabajo
+              |
+              v
+[5] wrappers.c: devuelve el NTSTATUS tal cual</code></pre>
+<p>Cada pieza tiene una responsabilidad <strong>una sola</strong>: el wrapper <strong>valida y delega</strong>, el stub <strong>prepara y salta</strong>, el gadget <strong>ejecuta</strong>, el kernel <strong>decide</strong>. Si algo va mal, sabes <strong>dónde</strong> mirar.</p>
+<hr>
+<h2>El workflow de verificación de 6 puntos</h2>
+<p>Para la Fase 4, el plan del proyecto exige <strong>seis</strong> comprobaciones (no una). Es la definición operativa de "esto es indirecto":</p>
+<ol><li><strong>El <code>syscall</code> se ejecuta DENTRO de <code>ntdll</code>.</strong> Con <code>bp &amp;lt;VA_gadget&amp;gt;</code>: <code>lm m ntdll</code> muestra que</li></ol>
+<p><code>rip</code> cae en <code>[start, end]</code>. En un direct syscall, el <code>0F 05</code> estaría en <code>Kagemusha.exe</code>.</p>
+<ol><li><strong>El SSN viaja en <code>EAX</code> y es el correcto.</strong> <code>r @eax</code> == valor de la tabla (obtenido con</li></ol>
+<p><code>uf ntdll!NtClose</code>). Además, <code>r @r10 == r @rcx</code> (ABI).</p>
+<ol><li><strong>Nuestro módulo no contiene la instrucción.</strong> <code>s -a</code> acotado a <code>.text</code> de Kagemusha → <strong>cero</strong>;</li></ol>
+<p><code>dumpbin /disasm | findstr syscall</code> → <strong>cero</strong>.</p>
+<ol><li><strong>La dirección de retorno vuelve a nuestro flujo.</strong> En el <code>bp</code> del gadget, <code>dps @rsp L1</code> apunta</li></ol>
+<p>a <code>Kagemusha!NtClose_I+...</code> → el <code>jmp</code> preservó el frame.</p>
+<ol><li><strong>Contraste pedagógico.</strong> Poner <code>bp ntdll!NtClose</code> en una llamada nativa y comparar el *stack</li></ol>
+<p>trace*: la ruta nativa pasa por el stub (zona de hooks); la nuestra, no.</p>
+<ol><li><strong>Exactitud semántica.</strong> T9/T6 devuelven el <strong>mismo</strong> <code>NTSTATUS</code> que la API nativa para las</li></ol>
+<p>mismas entradas.</p>
+<blockquote><p>Seis puntos, seis oráculos. No basta con "parece que funciona": hay que <strong>acotar</strong> la propiedad por todos los lados.</p></blockquote>
+<hr>
+<h2>Los tres experimentos M4+ (falsabilidad), explicados</h2>
+<p><strong>1. La línea de retorno (<code>m4_return.txt</code>).</strong> Si el <code>jmp</code> no preservara el frame, el <code>ret</code> del gadget no volvería al wrapper. La pila lo demuestra:</p>
+<pre><code class="lang-text">dps @rsp L2
+  00000087`59eff9f8  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; vuelve al wrapper</code></pre>
+<p><strong>2. El SSN gobierna el syscall (<code>m4_falsify.txt</code>).</strong> Cambiamos <code>g_SsnTable</code> en memoria a <code>0x55</code> y observamos que el stub carga <code>0x55</code> (no depende de bytes del stub). Se corta <strong>antes</strong> de ejecutar el syscall alterado: experimento <strong>seguro</strong>.</p>
+<p><strong>3. Repetibilidad (T11).</strong> 1000 <code>NtClose_I</code> consecutivos → resultado idéntico (PASS). Un sistema que funciona "una vez" no está verificado.</p>
+<hr>
+<h2>El init transaccional: por qué no hay estados a medias</h2>
+<p><code>KageInitialize</code> no "va rellenando": <strong>o resuelve todo el registro</strong> (SSN + gadget para cada entrada) <strong>o falla con un error detallado</strong>. Este detalle evita la peor clase de bug: el sistema "medio inicializado", donde unas syscalls van y otras no, y los fallos son aleatorios. El estado siempre es coherente: o todo, o error.</p>
+<p>Relación con el endurecimiento <strong>A2</strong>: si alguien <strong>usa un wrapper sin init</strong>, este devuelve <code>KAGE_STATUS_NOT_INITIALIZED</code> y <strong>nunca</strong> hace <code>jmp</code> a <code>NULL</code>. Falla ruidoso, no explota.</p>
+<hr>
+<h2>Errores del marco vs. errores del kernel</h2>
+<p>Distinguir el origen de un error es clave para depurar. La Fase 4 lo formaliza así:</p>
+<table><thead><tr><th>Si ves...</th><th>Significa...</th><th>Dónde está el problema</th></tr></thead><tbody><tr><td><code>KAGE_STATUS_NOT_INITIALIZED</code></td><td>No se llamó a <code>KageInitialize</code></td><td>Tu marco</td></tr><tr><td><code>KAGE_STATUS_SSN_UNRESOLVED</code></td><td>El resolver no dio SSN</td><td>Tu marco</td></tr><tr><td><code>KAGE_STATUS_NO_GADGET</code></td><td>No hay gadget válido</td><td>Tu marco</td></tr><tr><td><code>0xC0000008</code> (<code>STATUS_INVALID_HANDLE</code>)</td><td>El kernel rechazó el handle</td><td>Tu <strong>argumento</strong></td></tr><tr><td><code>0x00000000</code> (<code>STATUS_SUCCESS</code>)</td><td>Todo fue bien</td><td>—</td></tr></tbody></table>
+<p>Esta separación convierte "algo falló" en "<strong>falló esto, aquí</strong>".</p>
+<hr>
+<h2>La pila durante la llamada (el detalle que confunde)</h2>
+<pre><code class="lang-text">ANTES del jmp (dentro del stub):
+  [rsp]     -&gt; direccion de retorno al wrapper   (la puso el &quot;call&quot; del wrapper)
+  [rsp+8]   -&gt; 5.o argumento (si existe)
+  [rsp+0x10]-&gt; 6.o argumento (si existe)
+
+EL STUB HACE jmp:
+  (no empuja nada; la pila NO cambia)
+
+EN EL GADGET:
+  syscall      ; entra al kernel
+  ret          ; consume [rsp] = vuelve al WRAPPER (no al stub)</code></pre>
+<p>Esta es la razón por la que el <code>jmp</code> (<em>tail call</em>) es <strong>obligatorio</strong>: mantiene la pila <strong>idéntica</strong> a como la dejó el wrapper, así que los argumentos 5+ siguen donde el kernel los espera, y el <code>ret</code> del gadget regresa al sitio correcto.</p>
+<hr>
+<h2>Preguntas frecuentes (Fase 4)</h2>
+<p><strong>¿Por qué <code>R10</code> y no <code>RCX</code> para el primer argumento?</strong> Porque <code>syscall</code> sobrescribe <code>RCX</code> con la dirección de retorno. La ABI de syscall manda el 1.er argumento por <code>R10</code>; de ahí <code>mov r10, rcx</code>.</p>
+<p><strong>¿Puedo usar cualquier gadget?</strong> Cualquier <code>syscall;ret</code> <strong>limpio</strong> y <strong>dentro de <code>.text</code></strong> de <code>ntdll</code> sirve (el SSN viaja en <code>EAX</code>). Pero hay que <strong>validarlo</strong> (bytes + rango + no-hook).</p>
+<p><strong>¿Qué pasa si el gadget no está en <code>ntdll</code>?</strong> Entonces no sería indirecto puro: la gracia es que el <code>RIP</code> caiga en memoria <strong>legítima</strong>. Por eso lo verificamos.</p>
+<p><strong>¿Por qué 1000 repeticiones?</strong> Porque un resultado puede ser "suerte". 1000 veces demuestra que es <strong>sistemático</strong>, no casual.</p>
+<p>**¿Se puede combinar con <em>stack spoofing</em>?** Fuera de alcance de la v1 (es otro problema, v2). La v1 mide su propia visibilidad en vez de esconderla.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>

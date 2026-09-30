@@ -311,6 +311,134 @@ detalle: es una **prueba diferencial** (la usaremos a fondo en la Fase 7).
 
 ---
 
+## El catálogo, función por función
+
+```text
+slot  syscall                     aridad   por que esta
+----  --------------------------  -------  ------------------------------------------
+  0   NtClose                        1      el caso de la Fase 4
+  1   NtQuerySystemInformation       4      consulta de sistema (registros)
+  2   NtQueryInformationProcess      5      5.o argumento EN LA PILA
+  3   NtAllocateVirtualMemory       6      args en la pila (reserva real de memoria)
+  4   NtFreeVirtualMemory           4      round-trip con 3
+  5   NtProtectVirtualMemory        5      round-trip con 3/4 (cambia permisos)
+  6   NtQuerySystemTime             1      export ESPECIAL (no es stub, ver abajo)
+  7   NtYieldExecution              0      sin argumentos (control)
+```
+
+La elección **no** es aleatoria: cada aridad (0, 1, 4, 5, 6) ejercita un camino distinto del paso
+de argumentos. La aridad 5 y 6 son las importantes: **el 5.º argumento ya no cabe en registros** y
+viaja por la pila.
+
+---
+
+## El contrato de la macro (`KAGE_STUB`)
+
+```asm
+KAGE_STUB MACRO name, slot
+name PROC
+    mov  r10, rcx
+    mov  eax, DWORD PTR [g_SsnTable + slot*4]
+    jmp  QWORD PTR [g_GadgetTable + slot*8]
+name ENDP
+ENDM
+```
+
+Reglas del contrato:
+
+- **Un slot alinea dos tablas:** `g_SsnTable + slot*4` (WORD) y `g_GadgetTable + slot*8` (QLWORD).
+  Un fallo de escala (`*4` vs `*8`) lee basura y ejecutaría **otra** syscall.
+- El ASM **no conoce** el SSN ni el gadget: los **lee** de las tablas (que rellena el core en
+  runtime). Por eso añadir una función es "una línea en el registro".
+- El bloque queda delimitado por `KageStubStart`/`KageStubEnd`, para poder **inspeccionarlo por
+  símbolo** en `cdb`.
+
+---
+
+## Los 15 experimentos, por qué cada uno
+
+No son pruebas de humo; cada uno ataca una suposición distinta:
+
+- **Resolución y tablas (1–5, 7):** que el catálogo entero se resuelva, que las 8 entradas de
+  `g_SsnTable` queden pobladas, que los 8 gadgets sean `0F 05 C3`, y que el bloque ASM contenga
+  **≥ 8 stubs**. Si el resolver o la macro fallaran, aquí se ve.
+- **Consistencia con el oráculo (6):** `SSN == SSN del stub real` por slot. Da 7/8 por el caso
+  especial (ver abajo).
+- **Aridades (8–12):** ejecutar 0, 1, 4, 5 y 6 argumentos. La 5 y la 6 verifican que los
+  argumentos en la pila llegan al kernel.
+- **Round-trip (13):** `NtProtectVirtualMemory` + `NtFreeVirtualMemory` sobre memoria **real**.
+- **Negativo (14):** clase inválida → `STATUS_INVALID_INFO_CLASS`. Saber que **falla bien** es tan
+  importante como saber que acierta.
+- **Caso especial (15):** `NtQuerySystemTime` devuelve tiempo **válido y monótono**.
+
+> La combinación de **positivos + negativos + aridades extremas** es lo que convierte "funciona"
+> en "está verificado".
+
+---
+
+## El caso `NtQuerySystemTime`: no todos los `Nt*` son syscalls
+
+Uno de los 8 no tiene el prólogo de stub (`4C 8B D1 B8`). `NtQuerySystemTime` se exporta como un
+`jmp` a `ntdll!RtlQuerySystemTime` (implementación en user-mode). Por eso el experimento 6 compara
+**7/8** stubs.
+
+Lo bonito: **FreshyCalls le asigna un SSN igualmente** (por su posición en el orden de exports) y
+la ejecución indirecta **funciona**. Es decir, la técnica **tolera** este caso. Documentarlo es
+clave: en la Fase 6 se cuantificó a nivel de todo `ntdll` (**488/490** son stubs reales).
+
+---
+
+## Nota de seguridad para scripts de `cdb`
+
+`NtClose(handle inválido)` genera una **excepción first-chance** `c0000008` que `ntdll` maneja
+internamente. En scripts de `cdb` hay que **ignorarla** (`sxi c0000008`) o el script se detiene en
+una excepción que, en realidad, el sistema ya resolvió. Pequeño detalle, gran ahorro de tiempo.
+
+---
+
+## Añadir una syscall nueva, paso a paso
+
+Uno de los objetivos de la Fase 5 era que escalar fuera **trivial**. El procedimiento:
+
+1. Añadir **una línea** al registro del core (nombre + slot).
+2. Regenerar (la macro `KAGE_STUB` crea el `PROC` por ti).
+3. Añadir el **wrapper tipado** `_I` correspondiente.
+4. Añadir un test.
+
+Nada de copiar/pegar stubs ni de tocar el ASM a mano. El registro es la **fuente única**; el
+molde, la macro. Esa es la diferencia entre "8 funciones" y un **sistema**.
+
+---
+
+## La aridad, con la pila a la vista
+
+```text
+Aridad 0:  (sin argumentos)                 -> nada en pila
+Aridad 1:  RCX (->R10)                       -> nada en pila
+Aridad 4:  RCX, RDX, R8, R9                  -> nada en pila
+Aridad 5:  RCX, RDX, R8, R9 + [rsp+0x20]     -> 5.o EN PILA
+Aridad 6:  RCX, RDX, R8, R9 + [rsp+0x20..28]-> 5.o y 6.o EN PILA
+```
+
+Como el `jmp` no toca la pila, las aridades 5 y 6 funcionan **sin cambiar el stub**. Ese es el
+motivo de probar justamente esas aridades: si algo estuviera mal en el manejo de la pila, aquí
+aparecería.
+
+---
+
+## Preguntas frecuentes (Fase 5)
+
+**¿Qué pasa si me equivoco de `slot`?** Leerías el SSN o el gadget de otra entrada → ejecutarías
+**otra** función. Por eso el test 4/5 comprueba consistencia por slot.
+
+**¿Por qué `NtQuerySystemTime` no falla aunque no sea stub?** FreshyCalls lo resuelve por orden de
+exports; la ejecución indirecta no depende de que el export sea un stub.
+
+**¿El catálogo cubre todo?** No; cubre aridades y casos representativos. Crecer es "una línea por
+función".
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

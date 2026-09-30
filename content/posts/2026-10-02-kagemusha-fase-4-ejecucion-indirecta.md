@@ -344,6 +344,150 @@ hecho de que el kernel lo ve.
 
 ---
 
+## El flujo completo de una llamada, paso a paso (con el repo)
+
+Sigamos una `NtClose_I` con los **archivos reales** del repositorio:
+
+```text
+[1] wrappers.c: NtClose_I(h)
+      - comprueba g_Initialized        (si no, KAGE_STATUS_NOT_INITIALIZED)
+      - comprueba g_SsnTable[slot]     (si no, KAGE_STATUS_SSN_UNRESOLVED)
+      - comprueba g_GadgetTable[slot]  (si no, KAGE_STATUS_NO_GADGET)
+      - llama a KageNtCloseStub(h)
+              |
+              v
+[2] syscalls.asm: KageNtCloseStub
+      mov r10, rcx                      ; arg1 -> R10
+      mov eax, [g_SsnTable + slot*4]    ; SSN resuelto en runtime
+      jmp  [g_GadgetTable + slot*8]     ; salta al syscall;ret de ntdll
+              |
+              v
+[3] gadget en ntdll: syscall ; ret     ; <-- el syscall ocurre DENTRO de ntdll
+              |
+              v  (ret vuelve al wrapper: la pila no se toco)
+[4] kernel: SSDT[EAX] -> NtClose        ; hace el trabajo
+              |
+              v
+[5] wrappers.c: devuelve el NTSTATUS tal cual
+```
+
+Cada pieza tiene una responsabilidad **una sola**: el wrapper **valida y delega**, el stub
+**prepara y salta**, el gadget **ejecuta**, el kernel **decide**. Si algo va mal, sabes **dónde**
+mirar.
+
+---
+
+## El workflow de verificación de 6 puntos
+
+Para la Fase 4, el plan del proyecto exige **seis** comprobaciones (no una). Es la definición
+operativa de "esto es indirecto":
+
+1. **El `syscall` se ejecuta DENTRO de `ntdll`.** Con `bp <VA_gadget>`: `lm m ntdll` muestra que
+   `rip` cae en `[start, end]`. En un direct syscall, el `0F 05` estaría en `Kagemusha.exe`.
+2. **El SSN viaja en `EAX` y es el correcto.** `r @eax` == valor de la tabla (obtenido con
+   `uf ntdll!NtClose`). Además, `r @r10 == r @rcx` (ABI).
+3. **Nuestro módulo no contiene la instrucción.** `s -a` acotado a `.text` de Kagemusha → **cero**;
+   `dumpbin /disasm | findstr syscall` → **cero**.
+4. **La dirección de retorno vuelve a nuestro flujo.** En el `bp` del gadget, `dps @rsp L1` apunta
+   a `Kagemusha!NtClose_I+...` → el `jmp` preservó el frame.
+5. **Contraste pedagógico.** Poner `bp ntdll!NtClose` en una llamada nativa y comparar el *stack
+   trace*: la ruta nativa pasa por el stub (zona de hooks); la nuestra, no.
+6. **Exactitud semántica.** T9/T6 devuelven el **mismo** `NTSTATUS` que la API nativa para las
+   mismas entradas.
+
+> Seis puntos, seis oráculos. No basta con "parece que funciona": hay que **acotar** la propiedad
+> por todos los lados.
+
+---
+
+## Los tres experimentos M4+ (falsabilidad), explicados
+
+**1. La línea de retorno (`m4_return.txt`).** Si el `jmp` no preservara el frame, el `ret` del
+gadget no volvería al wrapper. La pila lo demuestra:
+
+```text
+dps @rsp L2
+  00000087`59eff9f8  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; vuelve al wrapper
+```
+
+**2. El SSN gobierna el syscall (`m4_falsify.txt`).** Cambiamos `g_SsnTable` en memoria a `0x55` y
+observamos que el stub carga `0x55` (no depende de bytes del stub). Se corta **antes** de
+ejecutar el syscall alterado: experimento **seguro**.
+
+**3. Repetibilidad (T11).** 1000 `NtClose_I` consecutivos → resultado idéntico (PASS). Un sistema
+que funciona "una vez" no está verificado.
+
+---
+
+## El init transaccional: por qué no hay estados a medias
+
+`KageInitialize` no "va rellenando": **o resuelve todo el registro** (SSN + gadget para cada
+entrada) **o falla con un error detallado**. Este detalle evita la peor clase de bug: el sistema
+"medio inicializado", donde unas syscalls van y otras no, y los fallos son aleatorios. El estado
+siempre es coherente: o todo, o error.
+
+Relación con el endurecimiento **A2**: si alguien **usa un wrapper sin init**, este devuelve
+`KAGE_STATUS_NOT_INITIALIZED` y **nunca** hace `jmp` a `NULL`. Falla ruidoso, no explota.
+
+---
+
+## Errores del marco vs. errores del kernel
+
+Distinguir el origen de un error es clave para depurar. La Fase 4 lo formaliza así:
+
+| Si ves... | Significa... | Dónde está el problema |
+| --- | --- | --- |
+| `KAGE_STATUS_NOT_INITIALIZED` | No se llamó a `KageInitialize` | Tu marco |
+| `KAGE_STATUS_SSN_UNRESOLVED` | El resolver no dio SSN | Tu marco |
+| `KAGE_STATUS_NO_GADGET` | No hay gadget válido | Tu marco |
+| `0xC0000008` (`STATUS_INVALID_HANDLE`) | El kernel rechazó el handle | Tu **argumento** |
+| `0x00000000` (`STATUS_SUCCESS`) | Todo fue bien | — |
+
+Esta separación convierte "algo falló" en "**falló esto, aquí**".
+
+---
+
+## La pila durante la llamada (el detalle que confunde)
+
+```text
+ANTES del jmp (dentro del stub):
+  [rsp]     -> direccion de retorno al wrapper   (la puso el "call" del wrapper)
+  [rsp+8]   -> 5.o argumento (si existe)
+  [rsp+0x10]-> 6.o argumento (si existe)
+
+EL STUB HACE jmp:
+  (no empuja nada; la pila NO cambia)
+
+EN EL GADGET:
+  syscall      ; entra al kernel
+  ret          ; consume [rsp] = vuelve al WRAPPER (no al stub)
+```
+
+Esta es la razón por la que el `jmp` (*tail call*) es **obligatorio**: mantiene la pila
+**idéntica** a como la dejó el wrapper, así que los argumentos 5+ siguen donde el kernel los
+espera, y el `ret` del gadget regresa al sitio correcto.
+
+---
+
+## Preguntas frecuentes (Fase 4)
+
+**¿Por qué `R10` y no `RCX` para el primer argumento?** Porque `syscall` sobrescribe `RCX` con la
+dirección de retorno. La ABI de syscall manda el 1.er argumento por `R10`; de ahí `mov r10, rcx`.
+
+**¿Puedo usar cualquier gadget?** Cualquier `syscall;ret` **limpio** y **dentro de `.text`** de
+`ntdll` sirve (el SSN viaja en `EAX`). Pero hay que **validarlo** (bytes + rango + no-hook).
+
+**¿Qué pasa si el gadget no está en `ntdll`?** Entonces no sería indirecto puro: la gracia es que
+el `RIP` caiga en memoria **legítima**. Por eso lo verificamos.
+
+**¿Por qué 1000 repeticiones?** Porque un resultado puede ser "suerte". 1000 veces demuestra que
+es **sistemático**, no casual.
+
+**¿Se puede combinar con *stack spoofing*?** Fuera de alcance de la v1 (es otro problema, v2). La
+v1 mide su propia visibilidad en vez de esconderla.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).
