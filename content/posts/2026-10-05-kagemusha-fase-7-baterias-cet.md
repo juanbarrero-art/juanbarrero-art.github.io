@@ -170,18 +170,7 @@ bin\Kagemusha.exe --trace
 
 ## Cómo sigue la serie
 
-1. [Cómo leer la serie + Misión 0](/blog/como-leer-serie-mision-0.html)
-2. [Guía de syscalls](/blog/guia-syscalls-windows.html)
-3. [Visión general, tesis y metodología](/blog/kagemusha-indirect-syscalls.html)
-4. [Fases 0 a 3: del toolchain al gadget](/blog/kagemusha-fases-0-3.html)
-5. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
-6. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
-7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
-8. **Fase 7 y baterías (T19–T22): ledger, CLI y CET** (esta entrada)
-9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
-10. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
-
----
+Toda la serie (navegable): **[Kagemusha](/blog/serie/kagemusha.html)**.
 
 ## Bibliografía y referencias
 

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion, informe">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones&quot;">
+  <meta property="og:description" content="Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-08">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="red team">
+  <meta property="article:tag" content="syscalls">
+  <meta property="article:tag" content="investigacion">
+  <meta property="article:tag" content="informe">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones&quot;">
+  <meta name="twitter:description" content="Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones\"",
+  "description": "Documentación del informe técnico del repositorio (docs/research/informe.md): título, abstract, introducción y contribuciones, diseño, metodología, experimentos (E1–E4), limitaciones y trabajo futuro.",
+  "datePublished": "2026-10-08",
+  "dateModified": "2026-10-08",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion, informe",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-informe-investigacion.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">08 oct 2026 &middot; 3 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Informe de investigación (paper): tesis, diseño y contribuciones&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span> <span class="tag">#informe</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Informe de investigación (paper)</h1>
+<p>Esta entrada documenta el <strong>informe técnico</strong> del repositorio (<code>docs/research/informe.md</code>), que se describe a sí mismo como <em>"Documento acumulativo. Se completa a medida que avanzan las fases. Formato paper."</em></p>
+<hr>
+<h2>Título (tentativo, del informe)</h2>
+<blockquote><p><em>Kagemusha: ejecución de indirect syscalls en Windows x64 con resolución de SSN en runtime por orden de export y verificación por oráculos independientes.</em></p></blockquote>
+<h2>Abstract (del informe)</h2>
+<blockquote><p><em>"Se presenta un sistema que ejecuta funciones <code>Nt*</code> mediante indirect syscalls (el <code>syscall</code> se ejecuta dentro de <code>ntdll</code>), resolviendo los números de servicio (SSN) en runtime mediante FreshyCalls (índice del export ordenado por dirección virtual) y sin leer bytes de stub. El sistema se somete a una metodología de verificación con oráculos independientes y se documentan, de forma medible, sus propiedades y su superficie de detección."</em></p></blockquote>
+<h2>1. Introducción (del informe)</h2>
+<ul><li><strong>Motivación:</strong> <em>"ejecutar syscalls sin tocar los stubs hookeables de ntdll en user-mode."</em></li><li><strong>Contribución:</strong></li><li><strong>(a)</strong> implementación <em>indirect-only</em> de técnica única;</li><li><strong>(b)</strong> verificación por <strong>oráculos</strong>;</li><li><strong>(c)</strong> herramientas de observación (<em><strong>ledger</strong></em>, extensión de debugger);</li><li><strong>(d)</strong> análisis de <strong>detectabilidad</strong> del indirect "puro".</li></ul>
+<h2>2. Diseño (del informe)</h2>
+<ul><li><strong>Módulos:</strong> <code>util</code>, <code>resolver</code>, <code>asm</code>, <code>wrappers</code>, <code>core</code>, <code>tests</code>.</li><li><strong>Resolución:</strong> FreshyCalls (sort-by-VA). Invariante: *"en Windows 10/11 los stubs <code>Nt*</code> residen</li></ul>
+<p>en <code>.text</code> en orden de SSN."*</p>
+<ul><li><strong>Ejecución:</strong> <em>"trampolín que carga <code>EAX</code>=SSN y salta al gadget <code>syscall;ret</code> de ntdll."</em></li></ul>
+<blockquote><p>Nota de fidelidad: el informe dice "sort-by-VA"; el código (<code>freshycalls.c</code>) ordena por <strong>RVA</strong> (equivalente para el orden dentro del módulo). Ver la entrada de <a href="/blog/kagemusha-fases-0-3.html">Fases 0–3</a>.</p></blockquote>
+<h2>3. Metodología</h2>
+<p>El informe remite a <code>metodologia.md</code>. La documentamos en su propia entrada: <a href="/blog/kagemusha-metodologia-verificacion.html">Metodología de verificación</a>.</p>
+<h2>4. Experimentos y resultados (del informe)</h2>
+<p>El informe los lista así (es un <em>borrador vivo</em>, y su estado se actualiza en otros documentos):</p>
+<ul><li><strong>E1 (parcial):</strong> Tabla de SSN por build (ver <code>README.md</code>).</li><li>**E2 (pendiente\*):** Matriz de detección de user-mode.</li><li>**E3 (pendiente\*):** Análisis de call-stack del indirect puro.</li><li>**E4 (pendiente\*):** Benchmarks indirecto vs API nativa.</li></ul>
+<p>\* En el repositorio, estos experimentos <strong>ya están documentados</strong> en <code>docs/research/</code> y cubiertos en las entradas de la serie:</p>
+<ul><li><strong>E2</strong> → <a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión</a> (instrumentation</li></ul>
+<p>callbacks / ETW-TI).</p>
+<ul><li><strong>E3</strong> → <a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión</a> (firma de call-stack).</li><li><strong>E4</strong> → <a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías</a> (rendimiento ≈ nativo) y</li></ul>
+<p><a href="/blog/kagemusha-evasion-e4b-cet-spoofing.html">Evasión en acción</a> (E4b/E4c).</p>
+<h2>5. Limitaciones (del informe)</h2>
+<blockquote><p><em>"El caller visible en un stack walk sigue siendo el módulo propio (ausencia de stack spoofing, fuera de alcance de v1); se cuantifica en E3."</em></p></blockquote>
+<p>(En el repositorio, E3 confirma esa firma y E4c/2b demuestra que el <em>spoofing</em> clásico choca con CET; ver <a href="/blog/kagemusha-evasion-e4b-cet-spoofing.html">Evasión en acción</a>.)</p>
+<h2>6. Trabajo futuro (del informe)</h2>
+<ul><li><em>"Núcleo de ingeniería propio (macro + generador), ledger y <code>!kage</code> (Fase 7B)."</em></li><li><em>"Robustez multi-build y test de hook simulado (Fase 6)."</em></li></ul>
+<p>(El repo ya tiene macro, ledger, CLI y pruebas de robustez; queda <code>!kage</code>.)</p>
+<hr>
+<h2>Cómo sigue la serie</h2>
+<p>Toda la serie (navegable): <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>.</p>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Fuente primaria: <code>docs/research/informe.md</code>, <code>docs/research/metodologia.md</code>, <code>README.md</code>.</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em></li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li></ul>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

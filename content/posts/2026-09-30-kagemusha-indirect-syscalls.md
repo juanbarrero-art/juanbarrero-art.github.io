@@ -304,17 +304,9 @@ Entender la técnica es requisito para **detectarla**.
 
 ---
 
-## 14. Cómo sigue la serie
+## Cómo sigue la serie
 
-1. [Guía de syscalls para principiantes](/blog/guia-syscalls-windows.html)
-2. **Visión general, tesis y metodología** (esta entrada)
-3. [Fases 0 a 3: del toolchain al gadget](/blog/kagemusha-fases-0-3.html)
-4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
-5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
-6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
-7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
-8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
-9. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
+Toda la serie (navegable): **[Kagemusha](/blog/serie/kagemusha.html)**.
 
 ## Diseño en profundidad: por qué cada decisión
 

@@ -218,8 +218,8 @@
 <p><strong>¿Por qué FreshyCalls y no Hell's Gate?</strong> FreshyCalls <strong>no lee bytes del stub</strong>, así que es inmune a que el stub esté hookeado.</p>
 <p><strong>¿Es legal/ético?</strong> Es <strong>investigación educativa y defensiva</strong>, en laboratorio aislado. Entender la técnica es requisito para <strong>detectarla</strong>.</p>
 <hr>
-<h2>14. Cómo sigue la serie</h2>
-<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls para principiantes</a></li><li><strong>Visión general, tesis y metodología</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li><li><a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión (Defender, E2, E3, E4c)</a></li><li><a href="/blog/kagemusha-evasion-e4b-cet-spoofing.html">Evasión en acción (E4b, build dual, CET vs spoofing)</a></li></ol>
+<h2>Cómo sigue la serie</h2>
+<p>Toda la serie (navegable): <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>.</p>
 <h2>Diseño en profundidad: por qué cada decisión</h2>
 <p>Detrás de cada decisión de la v1 hay una razón concreta. Nada es "porque sí".</p>
 <p><strong>¿Por qué <code>jmp</code> y no <code>call</code> en el trampolín?</strong> En la ABI x64, un <code>call</code> empujaría una nueva dirección de retorno a la pila. Entonces, el <code>ret</code> del gadget de <code>ntdll</code> <strong>volvería al stub</strong>, no al wrapper, y el flujo se rompería. El <code>jmp</code> (un <em>tail call</em>) <strong>preserva</strong> el frame del wrapper: el <code>ret</code> del gadget regresa <strong>directamente</strong> al wrapper. Además, como no tocamos la pila, los argumentos 5+ (que viajan en ella) llegan intactos al kernel.</p>
