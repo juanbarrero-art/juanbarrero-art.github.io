@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">01 oct 2026 &middot; 14 min de lectura</p>
+        <p class="post__meta">01 oct 2026 &middot; 12 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -128,8 +128,6 @@ Kagemusha!KageHelloAsm:
 00007ff6`1cf72a30 b82a000000      mov     eax,2Ah   ; 42</code></pre>
 <p>Salida: <code>M0  KageHelloAsm() = 42</code> (exit 0).</p>
 <blockquote><p><strong>Sin símbolos no hay evidencia, solo fe.</strong> El PDB es lo que permite, en la Fase 4, hacer <code>bp Kagemusha!NtClose_I</code> y leer un <code>RIP</code> <strong>con nombre</strong>. El debugger se convierte en una herramienta de prueba, no de adivinación.</p></blockquote>
-<h3>Errores comunes en esta fase</h3>
-<ul><li><strong>Olvidar <code>/Zi</code> / <code>/DEBUG:FULL</code></strong>: sin PDB no hay símbolos y los <code>bp</code> simbólicos fallan.</li><li><strong>No configurar <code>_NT_SYMBOL_PATH</code></strong>: <code>ntdll!NtClose</code> aparecería sin nombre; imposible verificar.</li><li><strong>Mezclar x86 y x64</strong>: hay que usar el entorno <code>x64 Native Tools</code>.</li></ul>
 <hr>
 <h2>Fase 1 — Utilidades base (<code>util/</code>) · M1 ✅</h2>
 <p><img src="../assets/diag-peb.svg" alt="Diagrama: PEB walk" loading="lazy"></p>
@@ -163,8 +161,6 @@ Kagemusha!KageHelloAsm:
 ? (rax - ntdll!NtClose) = 0                 ; IDENTICOS</code></pre>
 <p>Salida: <code>M1  ntdll base = 00007FFC483E0000</code>, <code>.text = ... (1482908 bytes)</code>, <code>NtClose = 00007FFC48540F90</code>.</p>
 <blockquote><p>Si el PEB walk devolviera una base falsa, <code>GetModuleHandleW</code> lo delataría. Si el hash estuviera mal, <code>GetProcAddress</code> daría otra dirección. <strong>Nunca nos creemos a nosotros mismos.</strong></p></blockquote>
-<h3>Errores comunes</h3>
-<ul><li><strong>Hash mal calculado</strong>: comparece un nombre pero devuelve otro export → el oráculo lo caza.</li><li><strong>No descartar forwarded</strong>: terminabas con una dirección en otro módulo (no en <code>ntdll</code>).</li><li><strong><code>+1</code> de los ordinales</strong>: el EAT usa ordinales basados en <code>Base</code>; olvidarlo desalinea todo.</li></ul>
 <hr>
 <h2>Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅</h2>
 <p><img src="../assets/diag-freshycalls.svg" alt="Diagrama: FreshyCalls (sort-by-VA)" loading="lazy"></p>
@@ -191,10 +187,6 @@ ntdll!NtClose:
 <p>Salida: <code>M2  FreshyCalls: 8/8 coinciden con el stub</code>. Para las 12 funciones del registro:</p>
 <table><thead><tr><th>Función</th><th>SSN</th><th>Función</th><th>SSN</th></tr></thead><tbody><tr><td>NtClose</td><td>0x00F</td><td>NtAllocateVirtualMemory</td><td>0x018</td></tr><tr><td>NtCreateFile</td><td>0x055</td><td>NtProtectVirtualMemory</td><td>0x050</td></tr><tr><td>NtOpenProcess</td><td>0x026</td><td>NtReadFile</td><td>0x006</td></tr><tr><td>NtQuerySystemInformation</td><td>0x036</td><td>NtQueryInformationProcess</td><td>0x019</td></tr></tbody></table>
 <blockquote><p>Un SSN equivocado no "casi funciona": ejecutarías <strong>otra</strong> función del kernel. Por eso el oráculo es obligatorio.</p></blockquote>
-<h3>Errores comunes</h3>
-<ul><li><strong>Incluir exports que no son <code>Nt*</code></strong> (p. ej. <code>Ntdll*</code>) → el índice se desplaza y <strong>todos</strong> los</li></ul>
-<p>SSN quedan mal.</p>
-<ul><li><strong>No ordenar por VA</strong> correctamente: si el <code>qsort</code> falla, el índice pierde sentido.</li><li><strong>Hardcodear el SSN "porque ya lo sé"</strong> (la tentación): rompe en la próxima build.</li></ul>
 <hr>
 <h2>Fase 3 — Localizar el gadget <code>syscall;ret</code> · M3 ✅</h2>
 <p><img src="../assets/diag-gadget.svg" alt="Diagrama: gadget syscall;ret" loading="lazy"></p>
@@ -212,18 +204,10 @@ ntdll!NtClose:
 ? poi(Kagemusha!g_Entries+0x18) - ntdll = 0x160fa2   ; dentro de ntdll</code></pre>
 <p>Salida: <code>M3  gadgets validos (0F 05 C3 en .text): 8/8</code>.</p>
 <blockquote><p>Doble comprobación: <strong>los bytes</strong> son los correctos <strong>y</strong> la dirección pertenece a <code>ntdll</code>. Un gadget "a mitad de instrucción" provoca un crash; por eso anclamos a inicio de stub validado y patrón exacto.</p></blockquote>
-<h3>Errores comunes</h3>
-<ul><li><strong>Encontrar <code>0F 05</code> fuera de <code>.text</code></strong> (p. ej. en datos): se ejecutaría algo inválido → crash.</li><li><strong>Gadget a mitad de instrucción</strong>: los bytes coinciden por casualidad pero no es un <code>syscall</code></li></ul>
-<p>real → hay que anclar a inicio de stub.</p>
-<ul><li><strong>No contemplar el stub hookeado</strong>: el gadget podría estar "tapado" → usar el pool.</li></ul>
 <hr>
 <h2>Qué aprendimos en estas cuatro fases</h2>
 <ul><li><strong>El PDB no es opcional.</strong> Sin símbolos no hay evidencia, solo fe.</li><li><strong>El hash convierte comparaciones visibles en comparaciones de enteros.</strong> Menos superficie, más orden.</li><li><strong>Nunca hardcodear el SSN.</strong> La tentación de "poner 0x0F y ya" rompe en la próxima build.</li><li><strong>Validar, no asumir.</strong> Un gadget se <em>valida</em> (bytes + rango + no-hook), no se <em>confía</em>.</li><li><strong>Fallar ruidoso.</strong> Un error claro vale más que un resultado silenciosamente incorrecto.</li></ul>
 <p>Con los cimientos listos (base de <code>ntdll</code>, SSN resueltos y gadget validado), ya podemos <strong>ejecutar de verdad</strong> una <code>Nt*</code> de forma indirecta: la <a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4</a>.</p>
-<h2>Preguntas frecuentes (fases 0–3)</h2>
-<p><strong>¿Por qué no uso <code>GetProcAddress</code> y ya?</strong> Porque es IAT-visible y depende de <code>kernel32</code>; el diseño evita esa dependencia en el camino crítico.</p>
-<p><strong>¿Por qué DJB2 y no otra función de hash?</strong> Es simple, rápida y bien conocida; lo importante es que sea <strong>determinista</strong> y verificable con un oráculo externo.</p>
-<p><strong>¿Qué pasa si dos exports tienen la misma VA?</strong> Se detecta (VAs duplicadas) y el resolver <strong>falla ruidosamente</strong>; no se adivina.</p>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><strong>Fases 0 a 3</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol>
 <h2>Módulos y contratos (vista de implementación)</h2>
@@ -278,9 +262,6 @@ dps @rsp L4              ; pila: a donde apunta el retorno</code></pre>
 <p>Cada script vive en <code>tools/cdb_scripts/</code> y genera un transcript en <code>docs/evidencias/</code>. Así, el resultado de hoy se puede <strong>reproducir</strong> mañana, en la misma build.</p>
 <h3>Checklist de verificación (por fase)</h3>
 <ul><li>[ ] El binario compila con <strong>PDB completo</strong> y los <code>bp</code> simbólicos funcionan.</li><li>[ ] <code>UtlGetExportByHash("NtClose")</code> == <code>GetProcAddress</code> (oráculo).</li><li>[ ] El SSN de FreshyCalls == SSN del stub real (oráculo).</li><li>[ ] El gadget tiene bytes <code>0F 05 C3</code> <strong>y</strong> cae en <code>.text</code> de <code>ntdll</code>.</li><li>[ ] La suite sale <strong>0 FAIL</strong> y el transcript queda archivado.</li></ul>
-<hr>
-<h2>Errores comunes (resumen de las fases 0–3)</h2>
-<ul><li><strong>Sin PDB, sin evidencia.</strong> Los <code>bp</code> simbólicos fallan y no puedes verificar nada.</li><li><strong>Hash o filtro mal hechos</strong> desplazan el índice de SSN y <strong>todas</strong> las syscalls fallan.</li><li><strong>Ordenar mal por VA</strong> invalida el invariante de FreshyCalls.</li><li><strong>No validar el gadget</strong> (bytes + rango + no-hook) abre la puerta a crashes.</li><li><strong>Hardcodear SSN</strong> "porque ya lo sé" es la trampa clásica: rompe en la próxima build.</li><li><strong>No registrar la build</strong> hace irreproducible cualquier resultado.</li></ul>
 <hr>
 <h2>Fondo: cómo es una cabecera PE (por qué leemos "a mano")</h2>
 <p>Para resolver exports sin <code>GetProcAddress</code>, hay que recorrer el archivo/DLL a bajo nivel. Un PE (Portable Executable) tiene capas:</p>

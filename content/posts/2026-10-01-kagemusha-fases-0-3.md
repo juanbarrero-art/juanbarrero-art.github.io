@@ -76,12 +76,6 @@ Salida: `M0  KageHelloAsm() = 42` (exit 0).
 > `bp Kagemusha!NtClose_I` y leer un `RIP` **con nombre**. El debugger se convierte en una
 > herramienta de prueba, no de adivinación.
 
-### Errores comunes en esta fase
-
-- **Olvidar `/Zi` / `/DEBUG:FULL`**: sin PDB no hay símbolos y los `bp` simbólicos fallan.
-- **No configurar `_NT_SYMBOL_PATH`**: `ntdll!NtClose` aparecería sin nombre; imposible verificar.
-- **Mezclar x86 y x64**: hay que usar el entorno `x64 Native Tools`.
-
 ---
 
 ## Fase 1 — Utilidades base (`util/`) · M1 ✅
@@ -163,12 +157,6 @@ Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`,
 > Si el PEB walk devolviera una base falsa, `GetModuleHandleW` lo delataría. Si el hash
 > estuviera mal, `GetProcAddress` daría otra dirección. **Nunca nos creemos a nosotros mismos.**
 
-### Errores comunes
-
-- **Hash mal calculado**: comparece un nombre pero devuelve otro export → el oráculo lo caza.
-- **No descartar forwarded**: terminabas con una dirección en otro módulo (no en `ntdll`).
-- **`+1` de los ordinales**: el EAT usa ordinales basados en `Base`; olvidarlo desalinea todo.
-
 ---
 
 ## Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅
@@ -229,13 +217,6 @@ Salida: `M2  FreshyCalls: 8/8 coinciden con el stub`. Para las 12 funciones del 
 > Un SSN equivocado no "casi funciona": ejecutarías **otra** función del kernel. Por eso el
 > oráculo es obligatorio.
 
-### Errores comunes
-
-- **Incluir exports que no son `Nt*`** (p. ej. `Ntdll*`) → el índice se desplaza y **todos** los
-  SSN quedan mal.
-- **No ordenar por VA** correctamente: si el `qsort` falla, el índice pierde sentido.
-- **Hardcodear el SSN "porque ya lo sé"** (la tentación): rompe en la próxima build.
-
 ---
 
 ## Fase 3 — Localizar el gadget `syscall;ret` · M3 ✅
@@ -279,13 +260,6 @@ Salida: `M3  gadgets validos (0F 05 C3 en .text): 8/8`.
 > Un gadget "a mitad de instrucción" provoca un crash; por eso anclamos a inicio de stub
 > validado y patrón exacto.
 
-### Errores comunes
-
-- **Encontrar `0F 05` fuera de `.text`** (p. ej. en datos): se ejecutaría algo inválido → crash.
-- **Gadget a mitad de instrucción**: los bytes coinciden por casualidad pero no es un `syscall`
-  real → hay que anclar a inicio de stub.
-- **No contemplar el stub hookeado**: el gadget podría estar "tapado" → usar el pool.
-
 ---
 
 ## Qué aprendimos en estas cuatro fases
@@ -298,17 +272,6 @@ Salida: `M3  gadgets validos (0F 05 C3 en .text): 8/8`.
 
 Con los cimientos listos (base de `ntdll`, SSN resueltos y gadget validado), ya podemos **ejecutar
 de verdad** una `Nt*` de forma indirecta: la [Fase 4](/blog/kagemusha-fase-4-ejecucion-indirecta.html).
-
-## Preguntas frecuentes (fases 0–3)
-
-**¿Por qué no uso `GetProcAddress` y ya?** Porque es IAT-visible y depende de `kernel32`; el
-diseño evita esa dependencia en el camino crítico.
-
-**¿Por qué DJB2 y no otra función de hash?** Es simple, rápida y bien conocida; lo importante es
-que sea **determinista** y verificable con un oráculo externo.
-
-**¿Qué pasa si dos exports tienen la misma VA?** Se detecta (VAs duplicadas) y el resolver
-**falla ruidosamente**; no se adivina.
 
 ## Cómo sigue la serie
 
@@ -421,17 +384,6 @@ resultado de hoy se puede **reproducir** mañana, en la misma build.
 - [ ] El SSN de FreshyCalls == SSN del stub real (oráculo).
 - [ ] El gadget tiene bytes `0F 05 C3` **y** cae en `.text` de `ntdll`.
 - [ ] La suite sale **0 FAIL** y el transcript queda archivado.
-
----
-
-## Errores comunes (resumen de las fases 0–3)
-
-- **Sin PDB, sin evidencia.** Los `bp` simbólicos fallan y no puedes verificar nada.
-- **Hash o filtro mal hechos** desplazan el índice de SSN y **todas** las syscalls fallan.
-- **Ordenar mal por VA** invalida el invariante de FreshyCalls.
-- **No validar el gadget** (bytes + rango + no-hook) abre la puerta a crashes.
-- **Hardcodear SSN** "porque ya lo sé" es la trampa clásica: rompe en la próxima build.
-- **No registrar la build** hace irreproducible cualquier resultado.
 
 ---
 
