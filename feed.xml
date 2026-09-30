@@ -5,7 +5,7 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 13:59:11 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 14:00:17 +0000</lastBuildDate>
   <item>
     <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</link>
@@ -39,7 +39,7 @@
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</guid>
     <pubDate>Thu, 01 Oct 2026 00:00:00 +0000</pubDate>
-    <description>Construimos los cimientos del sistema paso a paso desde cero: toolchain C+MASM y debugger, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo y su evidencia.</description>
+    <description>Los cimientos del sistema, explicados a fondo. Toolchain C+MASM y debugger por CLI, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo, su evidencia y sus errores comunes.</description>
   </item>
   <item>
     <title>Bienvenido al blog</title>
@@ -53,7 +53,7 @@
     <link>https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</guid>
     <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
-    <description>Documento maestro de la serie: el problema, la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6 verificados).</description>
+    <description>Documento maestro de la serie. El problema de los hooks y los EDR, el panorama de técnicas de syscalls (direct, indirect, Hell&#x27;s Gate, Halo&#x27;s Gate, FreshyCalls), la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6).</description>
   </item>
   <item>
     <title>&quot;Guía: syscalls en Windows para principiantes&quot;</title>

@@ -3,93 +3,145 @@ title: "Kagemusha: visión general, tesis y metodología"
 date: 2026-09-30
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
-summary: Documento maestro de la serie: el problema, la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6 verificados).
+summary: Documento maestro de la serie. El problema de los hooks y los EDR, el panorama de técnicas de syscalls (direct, indirect, Hell's Gate, Halo's Gate, FreshyCalls), la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6).
 ---
 
 # Kagemusha: visión general, tesis y metodología
 
-Si llegas nuevo, empieza por la [Guía de syscalls para principiantes](/blog/guia-syscalls-windows.html),
-que explica desde cero qué es una syscall, qué es un stub y qué significa "indirecto". Esta
-entrada es el **documento maestro** de la serie: aquí están la tesis del proyecto, sus reglas
-de diseño, su arquitectura y —lo más importante— **cómo verificamos que lo que decimos es
-cierto**.
+Si llegas nuevo, empieza por la [Guía de syscalls para principiantes](/blog/guia-syscalls-windows.html):
+ahí se explican desde cero la transición a kernel, los stubs de `ntdll`, los SSN y la
+diferencia entre syscalls directas e indirectas. Esta entrada es el **documento maestro** de la
+serie: el problema, la tesis, las reglas de diseño, la arquitectura y —lo más importante— **cómo
+verificamos que lo que decimos es cierto**.
 
 > **Kagemusha** (影武者, "guerrero sombra") es un sistema de ejecución de **indirect syscalls**
 > para Windows x64, escrito en **C + MASM**, con **una sola técnica**: el `syscall` se ejecuta
 > dentro de `ntdll`, nunca en nuestro módulo.
 
-## El problema, en una frase
+---
 
-Los stubs `Nt*` de `ntdll` son el punto donde un EDR de user-mode coloca sus *hooks*. Si tú
-ejecutas el `syscall` tú mismo (*direct syscall*), dejas una instrucción `0F 05` en tu binario;
-si llamas normal, pasas por el hook. Las **indirect syscalls** buscan un punto medio: tu código
-**salta** a un fragmento `syscall;ret` que **ya vive dentro de `ntdll`**, de modo que el
-`syscall` ocurre en memoria legítima y en tu módulo no hay `0F 05`.
+## 1. El contexto: por qué los EDR miran `ntdll`
 
-## La tesis
+Para entender el proyecto hay que entender **a quién se enfrenta**. Un **EDR** (Endpoint
+Detection and Response) no es un antivirus de firmas: observa *comportamiento*. Y para observar
+lo que un programa va a pedirle al sistema, la técnica clásica es el **hooking**.
+
+**¿Qué es un hook?** Imagina que el stub `NtClose` en `ntdll` es una puerta. Un EDR
+**reemplaza el principio de esa puerta** por un desvío: cuando tu programa llega, en vez de
+ejecutarse el `syscall` original, corre primero el código del EDR, que inspecciona los
+argumentos y **decide** si deja pasar la llamada.
+
+En bytes, ese desvío suele ser un `jmp`:
+- **Relativo (`E9 xx xx xx xx`)**: salta a otro punto.
+- **Indirecto (`FF 25 ...`)**: salta a la dirección guardada en un puntero.
+
+El problema para el atacante/investigador: **cualquier llamada normal** a `NtClose` pasa por ese
+hook. Y el problema para el defensor es simétrico: quien **entiende** el hook, entiende cómo
+puede intentar evitarlo. Mi posición es clara: **entender la técnica es requisito para
+detectarla**. Este proyecto es, ante todo, **defensivo en su propósito** aunque su técnica sea
+"ofensiva".
+
+### El dilema de las syscalls
+
+Cuando llamas a `NtClose` "normal", pasas por el stub (y por el hook). Existen dos formas de
+intentar saltarte eso, y cada una tiene un precio:
+
+- **Direct syscall:** tu código carga el SSN y ejecuta `syscall` él mismo. Evitas el stub… pero
+  dejas una instrucción **`0F 05` en tu binario**, que un analista ve al instante.
+- **Indirect syscall:** tu código **salta** a un `syscall;ret` que ya existe en `ntdll`. El
+  `syscall` ocurre en memoria legítima y tu módulo no contiene `0F 05`.
+
+Kagemusha es **indirecto puro**: no hay `0F 05` en nuestro código, y el `RIP` en el momento del
+`syscall` cae dentro de `ntdll`.
+
+---
+
+## 2. Panorama de técnicas (y por qué elegimos una)
+
+El "campo" tiene varios enfoques conocidos. Documentarlos es parte de la honestidad: saber qué
+existe y **por qué** elegimos lo que elegimos.
+
+| Técnica | Idea | ¿Lee bytes del stub? | ¿Inmune a hooks de user-mode? |
+| --- | --- | --- | --- |
+| **Direct syscall** | `syscall` en tu propio módulo | No (SSN hardcodeado) | Sí, pero deja `0F 05` en tu binario |
+| **Hell's Gate** | Lee `mov eax, SSN` del stub de `ntdll` | **Sí** | **No** (si el stub está hookeado, lee basura) |
+| **Halo's Gate** | Como Hell's Gate, pero "cuenta vecinos" si el stub está hookeado | **Sí** (con heurística) | Parcial (heurística frágil) |
+| **FreshyCalls** | Ordena los exports `Nt*` por dirección; el índice es el SSN | **No** | **Sí** (no toca el stub) |
+| **LayeredSyscall / VEH** | Resuelve SSN vía *Exception Directory* y VEH | No | Sí, pero añade estado y fragilidad |
+
+Kagemusha elige **FreshyCalls + indirect puro** por tres razones:
+
+1. **Una sola técnica** clara y auditable (menos superficie, más fácil de razonar).
+2. **Inmunidad a hooks por diseño**: no lee bytes de stubs, así que modificarlos no la afecta.
+3. **Determinismo**: el resultado depende solo del orden de exports, reproducible en cada arranque.
+
+Lo que **dejamos fuera** (VEH, *stack spoofing*, *sleep obfuscation*) no es "mejor ni peor": es
+otro problema. La v1 resuelve **uno** bien.
+
+---
+
+## 3. La tesis
 
 > Es posible construir un sistema de syscalls **indirecto puro, de una sola técnica,
 > auditable y reproducible**, resolviendo los números de servicio (SSN) en runtime por
 > **orden de export** (*FreshyCalls*), **sin leer bytes de los stubs**, y verificando **cada
 > afirmación con un oráculo independiente**.
 
-La palabra clave es **auditable**: el objetivo no es "hacer magia indetectable", sino construir
-algo **medible y falsable**. Si una afirmación no se puede comprobar con una fuente externa a
-nuestro propio código, no la damos por buena.
+La palabra clave es **auditable**. El objetivo no es "magia indetectable", sino algo **medible
+y falsable**. Si una afirmación no se puede comprobar con una fuente externa a nuestro propio
+código, no la damos por buena. Esa disciplina es más valiosa que la técnica.
 
-## Los cinco principios de diseño
+---
 
-1. **Solo indirect syscalls.** Ninguna instrucción `0F 05` en nuestro binario. Es una propiedad
-   **verificable en el debugger**: escaneamos `.text` de nuestro módulo y el resultado debe ser
-   **cero** instrucciones `syscall`.
-2. **Una sola técnica de resolución de SSN: FreshyCalls.** Sin híbridos, sin fallbacks
-   silenciosos, sin "Hell's Gate" ni "Halo's Gate". Una técnica, bien entendida, vale más que
-   cinco a medias.
-3. **Resolución en runtime.** Los SSN **dependen de la build de Windows**. Escribirlos "a fuego"
-   (hardcodear) garantiza romperse en la siguiente actualización. Todo se resuelve al arrancar.
-4. **Código real y medido.** Cero pseudocódigo: el repositorio es código C + ASM que compila y
-   corre, y cada función tiene un test con un oráculo independiente.
-5. **Fallar de forma ruidosa.** Ante cualquier inconsistencia se **aborta con un error claro**;
-   nunca se "adivina" un SSN ni se continúa con una tabla a medio llenar.
+## 4. Los cinco principios de diseño
 
-## Alcance de la v1: qué SÍ y qué NO
+1. **Solo indirect syscalls.** Ninguna instrucción `0F 05` en nuestro binario. Propiedad
+   **verificable**: escaneamos `.text` de nuestro módulo y debe dar **cero** `syscall`.
+2. **Una sola técnica de SSN: FreshyCalls.** Sin híbridos ni fallbacks silenciosos.
+3. **Resolución en runtime.** Los SSN **cambian por build**; hardcodearlos garantiza romperse.
+4. **Código real y medido.** Cero pseudocódigo; cada función tiene un test con oráculo.
+5. **Fallar de forma ruidosa.** Ante una inconsistencia, se aborta con un error claro.
 
-Igual de importante que decir lo que el proyecto hace es decir lo que **no** hace. Así se
-mantiene honesto y acotado:
+Estos principios no son decorativos: cada uno se traduce en decisiones concretas de
+implementación y en pruebas que lo comprueban.
+
+---
+
+## 5. Alcance de la v1: qué SÍ y qué NO
 
 | Incluido en v1 | Fuera de alcance (v2 o nunca aquí) |
 | --- | --- |
-| Resolución de SSN por FreshyCalls (sort-by-VA) | Direct syscalls como mecanismo de producción |
-| Localización y validación de gadget `syscall;ret` | Stack/call-stack spoofing (SilentMoonwalk, Unwinder, CallStackSpoofer) |
-| Trampolín MASM por función | Sleep obfuscation / cifrado (Shelter) |
-| Wrappers C tipados por syscall | VEH + hardware breakpoints (LayeredSyscall, RustVEHSyscalls) |
-| PEB walk, hash DJB2, logging | Unhooking / mapeo de ntdll limpio desde KnownDlls |
-| Harness de pruebas determinista | x86, WoW64 (Heaven's Gate), ARM64 |
-| Verificación en cdb (RIP dentro de ntdll) | Inyección de procesos / carga de payloads |
+| SSN por FreshyCalls (sort-by-VA) | Direct syscalls como mecanismo de producción |
+| Gadget `syscall;ret` validado | Stack/call-stack spoofing (SilentMoonwalk, Unwinder, CallStackSpoofer) |
+| Trampolín MASM por función (macro) | Sleep obfuscation / cifrado (Shelter) |
+| Wrappers C tipados por syscall | VEH + hardware breakpoints |
+| PEB walk, hash DJB2, logging, rangos | Unhooking / mapeo de ntdll limpio desde KnownDlls |
+| Harness determinista + cdb | x86, WoW64 (Heaven's Gate), ARM64 |
+| Verificación de `RIP` dentro de ntdll | Inyección de procesos / carga de payloads |
 
-> Dejar explícito el "no" es parte de la ingeniería. La v1 resuelve **un** problema bien:
-> invocación indirecta pura, medible y reproducible.
+> Dejar explícito el "no" es ingeniería, no cobardía. Acotar el problema hace que la solución
+> sea **verificable**.
 
-## Stack tecnológico: por qué MSVC + MASM
+---
 
-Elegir el *toolchain* no es un detalle. Tras comparar opciones, la elección fue **MSVC
+## 6. Stack tecnológico: por qué MSVC + MASM
+
+Elegir *toolchain* no es un detalle. Tras comparar opciones, la elección fue **MSVC
 (`cl.exe`) + MASM (`ml64.exe`)**:
 
-- **Integración nativa:** MASM se ensambla como un paso más del build MSVC (`.asm` → `ml64 /c`),
-  sin ensambladores externos ni formatos intermedios.
-- **PDBs de primera clase:** los símbolos (`Kagemusha!NtClose_I`, `Kagemusha!KageStubStart`)
-  permiten *breakpoints* simbólicos limpios en `cdb`. Sin esto, la verificación sería un infierno.
-- **Paridad con la referencia:** los proyectos de referencia generan stubs MASM para MSVC, así
-  que nuestras comparaciones son 1:1.
-- **Inspección estática incluida:** `dumpbin /disasm` viene con el toolchain.
-- **Cero dependencias extra:** un instalador (Build Tools) trae `cl`, `ml64`, `link` y `dumpbin`.
+- **Integración nativa:** MASM se ensambla como un paso del build MSVC, sin ensambladores externos.
+- **PDBs de primera clase:** los símbolos (`Kagemusha!NtClose_I`) permiten *breakpoints*
+  simbólicos limpios en `cdb`. Sin esto, la verificación sería infierno.
+- **Paridad con la referencia:** los proyectos base generan stubs MASM para MSVC → comparaciones 1:1.
+- **Inspección incluida:** `dumpbin /disasm` viene con el toolchain.
+- **Cero dependencias extra:** un instalador (Build Tools) trae `cl`, `ml64`, `link`, `dumpbin`.
 
-Y para verificar: **`cdb.exe`** (Debugging Tools for Windows), porque es 100% CLI y
-*scriptable* (`-cf`, `-logo`), usa el mismo motor que WinDbg y trae símbolos perfectos con MSVC.
+Para verificar: **`cdb.exe`** (Debugging Tools), 100% CLI y *scriptable* (`-cf`, `-logo`), mismo
+motor que WinDbg, símbolos perfectos con MSVC.
 
-## Arquitectura por módulos
+---
 
-El sistema está separado en capas, de arriba (tests) a abajo (utilidades):
+## 7. Arquitectura por módulos
 
 ```text
 +--------------------------------------------------------------+
@@ -108,32 +160,50 @@ El sistema está separado en capas, de arriba (tests) a abajo (utilidades):
 +-----------------------------+--------------------------------+
 ```
 
-- **`util/`** — utilidades base: `UtlGetCurrentPeb` (`gs:[0x60]`), `UtlFindModuleByHash`
-  (recorre `InLoadOrderModuleList`), `UtlGetExportByHash` (hash **DJB2**), `UtlGetModuleRange`
-  (rango `.text`) y `UtlLog`.
-- **`resolver/`** — `freshycalls.c` (resolución de SSN) y `gadget.c` (localización del
-  `syscall;ret`).
-- **`core/`** — las tablas (`g_SsnTable`, `g_GadgetTable`) y **`KageInitialize` transaccional**
-  (o todo se resuelve, o falla con error detallado).
-- **`asm/`** — un `PROC` por syscall: `mov r10,rcx; mov eax,[tabla]; jmp [tabla]`. **Sin `0F 05`.**
-- **`wrappers/`** — capa C tipada (`NtClose_I`, …) que devuelve el `NTSTATUS` real del kernel.
+- **`util/`** — `UtlGetCurrentPeb` (`gs:[0x60]`), `UtlFindModuleByHash` (`InLoadOrderModuleList`),
+  `UtlGetExportByHash` (hash DJB2), `UtlGetModuleRange` (rango `.text`), `UtlLog`.
+- **`resolver/`** — `freshycalls.c` (SSN) y `gadget.c` (`syscall;ret`).
+- **`core/`** — `g_SsnTable`, `g_GadgetTable` y **`KageInitialize` transaccional**.
+- **`asm/`** — un `PROC` por syscall (macro `KAGE_STUB`), **sin `0F 05`**.
+- **`wrappers/`** — capa C tipada (`NtClose_I`, …), devuelve `NTSTATUS` real.
 - **`tests/`** — el harness con oráculos independientes.
 
-## La técnica, resumida
+---
 
-Tres piezas que ya explicamos en la guía, pero que aquí atan el diseño:
+## 8. La técnica, resumida
 
-1. **SSN por FreshyCalls.** Se enumeran las exports `Nt*`, se ordenan por **dirección virtual**,
-   y el **índice** es el SSN. **No se leen bytes del stub** → inmune a hooks.
-2. **Gadget validado.** Se busca la secuencia real `0F 05 C3` **dentro de `.text` de `ntdll`**
-   y se valida con bytes + rango. Un `syscall;ret` sirve para cualquier syscall (el SSN viaja en `EAX`).
-3. **Trampolín.** El wrapper C llama al stub ASM; el stub mueve el 1.º argumento a `R10`,
-   carga el SSN en `EAX` y hace `jmp` al gadget. El `ret` del gadget vuelve al wrapper
-   (el `jmp` preservó el frame).
+1. **SSN por FreshyCalls.** Enumerar exports `Nt*`, ordenar por **dirección virtual**; el
+   **índice** es el SSN. **Sin leer bytes del stub** → inmune a hooks.
+2. **Gadget validado.** Buscar `0F 05 C3` **dentro de `.text` de `ntdll`** y validar (bytes +
+   rango + no-hook). Un `syscall;ret` sirve para cualquier syscall (el SSN viaja en `EAX`).
+3. **Trampolín.** El wrapper C llama al stub ASM; el stub mueve el 1.º argumento a `R10`
+   (ABI de syscall), carga el SSN en `EAX` y hace `jmp` al gadget. El `ret` del gadget vuelve al
+   wrapper porque el `jmp` **preservó el frame**; además, no tocar la pila hace que los
+   argumentos 5+ lleguen intactos al kernel.
 
-## Metodología: oráculos independientes
+### El flujo completo, paso a paso
 
-Esta es la parte que hace que el proyecto valga la pena. La regla es tajante:
+```text
+[1] Wrapper C:  NtClose_I(handle)
+        |  valida estado (init, tablas)
+        v
+[2] Stub ASM:   mov r10, rcx          ; arg -> R10
+                mov eax, [g_SsnTable]  ; SSN resuelto en runtime
+                jmp  [g_GadgetTable]   ; salta a ntdll (sin 0F 05 aqui)
+        |
+        v
+[3] Gadget en ntdll:  syscall ; ret    ; <-- el syscall ocurre DENTRO de ntdll
+        |
+        v  (ret vuelve al wrapper; la pila sigue intacta)
+[4] Kernel:     SSDT[EAX] -> NtClose     ; hace el trabajo real
+        |
+        v
+[5] Wrapper C:  devuelve el NTSTATUS tal cual
+```
+
+---
+
+## 9. Metodología: oráculos independientes
 
 > **Ninguna afirmación se comprueba contra el propio sistema. Siempre hay un oráculo independiente.**
 
@@ -148,18 +218,20 @@ Esta es la parte que hace que el proyecto valga la pena. La regla es tajante:
 
 Cada hito produce **dos** formatos de evidencia: un **test automatizado** (PASS/FAIL) y un
 **transcript del debugger** (`docs/evidencias/mX.txt`), regenerable con scripts de
-`tools/cdb_scripts/`. Si una verificación depende de la build de Windows, se registra el build
-junto al resultado. Nada se "recuerda": todo se reproduce.
+`tools/cdb_scripts/`. Nada se "recuerda": **todo se reproduce**. Si una verificación depende de
+la build, se registra el build junto al resultado.
 
-## Estado actual: M0–M6 verificados
+---
+
+## 10. Estado actual: M0–M6 verificados
 
 | Fase | Hito | Estado |
 | --- | --- | --- |
 | 0 | Toolchain + debugger + hola-ASM | ✅ verificado (M0) |
-| 1 | `util/` (PEB, exports por hash, rangos, log) | ✅ verificado (M1) |
+| 1 | `util/` (PEB, exports, hash, rangos, log) | ✅ verificado (M1) |
 | 2 | Resolución de SSN (FreshyCalls) | ✅ verificado (M2) |
 | 3 | Gadget `syscall;ret` validado | ✅ verificado (M3) |
-| 4 | Ejecución indirecta real + wrapper `NtClose_I` | ✅ verificado (M4) |
+| 4 | Ejecución indirecta real (`NtClose_I`) | ✅ verificado (M4) |
 | 5 | Generalización a ≥ 8 syscalls | ✅ verificado (M5) |
 | 6 | Robustez multi-build + hook simulado | ✅ verificado (M6) |
 | 7 | Núcleo macro + ledger + `!kage` | 📋 planificada |
@@ -171,7 +243,7 @@ Resultados de la build de referencia (Windows 11):
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 
-## Tabla de SSN (FreshyCalls) vs stub real
+### Tabla de SSN (FreshyCalls) vs stub real
 
 | Función | SSN | Función | SSN |
 | --- | --- | --- | --- |
@@ -182,18 +254,51 @@ Resultados de la build de referencia (Windows 11):
 | NtQueryInformationProcess | 0x019 | NtOpenKey | 0x012 |
 | NtCreateThreadEx | 0x0C9 | NtWaitForSingleObject | 0x004 |
 
-## Riesgos y límites del indirect "puro"
+---
 
-Un investigador honesto enumera lo que **no** resuelve su técnica:
+## 11. Riesgos y límites del indirect "puro"
 
-- **Retorno visible en la pila.** El *caller* inmediato que ve un *stack walk* sigue siendo
-  nuestro módulo. **No hay *stack spoofing* en v1.** Cualquier telemetría que inspeccione la
-  pila puede verlo. Eso se **mide** (Fase 8), no se oculta.
-- **Hot-patching del gadget.** Si `ntdll` se modifica tras nuestro init, el gadget podría
-  invalidarse. Mitigación prevista: flag de re-validación por llamada.
-- **SSN por build.** Resueltos siempre en runtime, nunca hardcodeados.
+Un investigador honesto enumera lo que **no** resuelve:
 
-## Cómo sigue la serie
+- **Retorno visible en la pila.** El *caller* inmediato de un *stack walk* sigue siendo nuestro
+  módulo. **No hay *stack spoofing* en v1.** Se **mide** (Fase 8), no se oculta.
+- **Hot-patching del gadget.** Si `ntdll` cambia tras el init, el gadget podría invalidarse.
+  Mitigación prevista: re-validación por llamada (flag).
+- **SSN por build.** Resueltos siempre en runtime.
+- **Exports `Nt*` que no son stubs.** Como `NtQuerySystemTime`, que hace `jmp Rtl*` (lo vimos en
+  la Fase 5 y se cuantificó en la Fase 6: 488/488 stubs reales coinciden, 2 excepciones).
+
+---
+
+## 12. Cómo reproducirlo tú mismo
+
+1. Instala **VS Build Tools** (C++ + SDK) y las **Debugging Tools for Windows** (`cdb`).
+2. Configura `_NT_SYMBOL_PATH` (ver la [guía](/blog/guia-syscalls-windows.html)).
+3. `tools\build.cmd` → genera `bin\Kagemusha.exe` y `bin\Kagemusha_tests.exe` (+ PDB).
+4. `bin\Kagemusha_tests.exe` → suite (esperado: 0 FAIL).
+5. `powershell -File tools\verify.ps1` → **0 instrucciones `syscall`** en el módulo.
+6. `cdbX64 -cf tools\cdb_scripts\m4_nclose.txt -logo docs\evidencias\m4.txt bin\Kagemusha.exe`
+   → observa el `syscall` **dentro de `ntdll`**.
+
+---
+
+## 13. Preguntas frecuentes
+
+**¿Esto me hace indetectable?** No. Evita *hooks de user-mode*, pero el kernel sigue viendo la
+llamada y hay telemetría (callbacks, ETW, stack walks). El proyecto **mide** esa visibilidad.
+
+**¿Por qué no usar direct syscalls?** Dejan `0F 05` en tu binario: firma evidente. El indirecto
+puro mueve el `syscall` a `ntdll` sin esa firma.
+
+**¿Por qué FreshyCalls y no Hell's Gate?** FreshyCalls **no lee bytes del stub**, así que es
+inmune a que el stub esté hookeado.
+
+**¿Es legal/ético?** Es **investigación educativa y defensiva**, en laboratorio aislado.
+Entender la técnica es requisito para **detectarla**.
+
+---
+
+## 14. Cómo sigue la serie
 
 1. [Guía de syscalls para principiantes](/blog/guia-syscalls-windows.html)
 2. **Visión general, tesis y metodología** (esta entrada)

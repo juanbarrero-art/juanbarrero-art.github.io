@@ -3,19 +3,19 @@ title: "Kagemusha — Fases 0 a 3: del toolchain al gadget"
 date: 2026-10-01
 tags: windows internals, red team, syscalls, investigacion
 serie: Kagemusha
-summary: Construimos los cimientos del sistema paso a paso desde cero: toolchain C+MASM y debugger, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo y su evidencia.
+summary: Los cimientos del sistema, explicados a fondo. Toolchain C+MASM y debugger por CLI, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo, su evidencia y sus errores comunes.
 ---
 
 # Kagemusha — Fases 0 a 3: del toolchain al gadget
 
-En la [visión general](/blog/kagemusha-indirect-syscalls.html) pusimos la tesis y la
-metodología. Aquí empezamos a **construir**. Estas cuatro fases (M0–M3) no ejecutan todavía
-ninguna syscall: preparan **los cimientos** para que, en la Fase 4, el `syscall` ocurra dentro
-de `ntdll`. Y lo mejor: cada fase termina con una **prueba objetiva** contra una fuente
-independiente.
+En la [visión general](/blog/kagemusha-indirect-syscalls.html) pusimos la tesis y la metodología.
+Ahora empezamos a **construir**. Estas cuatro fases (M0–M3) todavía **no ejecutan** ninguna
+syscall: preparan **los cimientos** para que, en la Fase 4, el `syscall` ocurra dentro de
+`ntdll`. Cada fase termina con una **prueba objetiva** contra una fuente independiente.
 
-Si algún término te suena raro (stub, SSN, `ntdll`), la [guía de syscalls](/blog/guia-syscalls-windows.html)
-es el mejor punto de partida.
+Si algún término se te escapa (stub, SSN, `ntdll`), la [guía de syscalls](/blog/guia-syscalls-windows.html)
+es el mejor punto de partida. Esta entrada asume que ya sabes *qué* es una syscall y se centra
+en *cómo* la prepara el sistema.
 
 ---
 
@@ -23,26 +23,25 @@ es el mejor punto de partida.
 
 ### El objetivo
 
-Antes de escribir nada "serio", quería validar el **pipeline completo**: compilar C y ASM juntos,
+Antes de escribir nada "serio", hay que validar el **pipeline completo**: compilar C y ASM juntos,
 generar símbolos (PDB) y poder depurar **por línea de comandos**. Si esta base falla, todo lo
-demás es castillos en el aire.
+demás son castillos en el aire.
 
 ### El entorno
 
 - **MSVC 19.51** (Build Tools 2026), **MASM `ml64` 14.51**, **Windows SDK 10.0.26100**.
 - **`cdb` v10.0.29617** (Debugging Tools for Windows), con `_NT_SYMBOL_PATH` configurado.
 
-Instalar solo los *debuggers* del SDK es tan simple como:
-
 ```powershell
-# Configurar el servidor de simbolos de Microsoft (una vez)
+# Servidor de simbolos de Microsoft (una vez)
 [Environment]::SetEnvironmentVariable("_NT_SYMBOL_PATH",
     "srv*C:\symbols*https://msdl.microsoft.com/download/symbols", "User")
 ```
 
 ### La implementación
 
-Dos piezas mínimas:
+Dos piezas mínimas —un `PROC` en ASM y un `main` en C— más un `tools\build.cmd` que llama a
+`vcvars64`, ensambla con `ml64`, compila con `cl` y enlaza con `link /DEBUG:FULL`:
 
 ```asm
 ; src/asm/hello.asm
@@ -53,7 +52,7 @@ KageHelloAsm ENDP
 ```
 
 ```c
-/* src/main.c (extracto): el selftest imprime el resultado del ASM */
+/* src/main.c (extracto) */
 int main(void) {
     int v = KageHelloAsm();
     printf("M0  KageHelloAsm() = %d\n", v);
@@ -61,10 +60,7 @@ int main(void) {
 }
 ```
 
-Y un `tools/build.cmd` que llama a `vcvars64`, ensambla con `ml64`, compila con `cl` y enlaza
-con `link /DEBUG:FULL` (PDB completo).
-
-### La prueba (y por qué PDB importa)
+### La prueba (y por qué el PDB es sagrado)
 
 El milestone no es "compila", sino **"puedo poner un breakpoint simbólico y ver el `mov`"**:
 
@@ -76,9 +72,15 @@ Kagemusha!KageHelloAsm:
 
 Salida: `M0  KageHelloAsm() = 42` (exit 0).
 
-> **Por qué importa:** sin símbolos, en la Fase 4 no podríamos hacer `bp Kagemusha!NtClose_I`
-> ni leer el `RIP` con nombre. El PDB es lo que convierte el debugger en una herramienta de
-> **evidencia**, no de adivinación.
+> **Sin símbolos no hay evidencia, solo fe.** El PDB es lo que permite, en la Fase 4, hacer
+> `bp Kagemusha!NtClose_I` y leer un `RIP` **con nombre**. El debugger se convierte en una
+> herramienta de prueba, no de adivinación.
+
+### Errores comunes en esta fase
+
+- **Olvidar `/Zi` / `/DEBUG:FULL`**: sin PDB no hay símbolos y los `bp` simbólicos fallan.
+- **No configurar `_NT_SYMBOL_PATH`**: `ntdll!NtClose` aparecería sin nombre; imposible verificar.
+- **Mezclar x86 y x64**: hay que usar el entorno `x64 Native Tools`.
 
 ---
 
@@ -86,27 +88,32 @@ Salida: `M0  KageHelloAsm() = 42` (exit 0).
 
 ### El objetivo
 
-Acceder a `ntdll` **sin depender de la IAT** (Import Address Table). La IAT es una lista de
-funciones importadas que cualquiera puede ver; evitar `GetModuleHandle`/`GetProcAddress` en el
-camino crítico es parte del diseño. En su lugar, hacemos "a mano" lo que esas funciones hacen.
+Acceder a `ntdll` **sin depender de la IAT** (Import Address Table). La IAT lista las funciones
+importadas y es visible; evitar `GetModuleHandle`/`GetProcAddress` en el camino crítico es parte
+del diseño. Hacemos "a mano" lo que esas funciones hacen.
 
-### Las piezas
+### Pieza 1 — PEB walk (`src/util/peb.c`)
 
-**1. PEB walk (`src/util/peb.c`).** El **PEB** (Process Environment Block) es la estructura del
-proceso que el kernel mantiene; en x64 se localiza con `gs:[0x60]`. Dentro, `Ldr` guarda la
-lista de módulos **en orden de carga** (`InLoadOrderModuleList`). Recorriéndola, comparamos
-cada nombre contra un **hash** hasta dar con `ntdll`:
+El **PEB** (Process Environment Block) es la estructura del proceso que mantiene el kernel; en
+x64 se localiza con `gs:[0x60]`. Dentro, `Ldr` guarda la lista de módulos **en orden de carga**
+(`InLoadOrderModuleList`). Recorriéndola, comparamos cada nombre contra un **hash** hasta dar
+con `ntdll`.
 
 ```c
 PPEB UtlGetCurrentPeb(void) {
-    return (PPEB)__readgsqword(0x60);   /* magia del TEB -> PEB */
+    return (PPEB)__readgsqword(0x60);   /* TEB -> PEB */
 }
 /* UtlFindModuleByHash: camina InLoadOrderModuleList comparando hashes */
 ```
 
-**2. Hash DJB2 (`src/util/exhash.c`).** En vez de comparar cadenas carácter a carácter
-(visible y clásico), comparamos **enteros**: el hash del nombre. Usamos **DJB2**
-(`hash = hash*33 + c`), con variantes *case-insensitive* para ANSI y Wide.
+**¿Por qué no usar `GetModuleHandle`?** Porque es *IAT-visible* y depende de `kernel32`. El PEB
+walk hace lo mismo sin dejar esa dependencia.
+
+### Pieza 2 — Hash DJB2 (`src/util/exhash.c`)
+
+En vez de comparar cadenas carácter a carácter (visible y clásico), comparamos **enteros**: el
+hash del nombre. Usamos **DJB2** (`hash = hash*33 + c`), con variantes *case-insensitive* para
+ANSI y Wide.
 
 ```c
 DWORD UtlHashStrAnsi(PCSTR s) {
@@ -116,19 +123,31 @@ DWORD UtlHashStrAnsi(PCSTR s) {
 }
 ```
 
-**3. Exports por hash (`UtlGetExportByHash`).** Dado el base de `ntdll`, recorremos su **export
-directory** (EAT) y devolvemos la dirección de la función cuyo hash coincide, **descartando
-forwarded** (exports que son meros punteros a otro módulo).
+**¿Por qué hashes?** Cambian una comparación de cadenas (fácil de *flagguear*) por una
+comparación de enteros. Menos superficie, más orden. Además, los hashes se pueden calcular en
+compilación y en runtime solo se comparan números.
 
-**4. Rango `.text` (`UtlGetModuleRange`).** Leemos las cabeceras PE y obtenemos el rango real
-de la sección `.text`. Lo necesitaremos para **validar que un gadget está dentro de `ntdll`**.
+### Pieza 3 — Exports por hash (`UtlGetExportByHash`)
 
-**5. Log (`src/util/log.c`).** `UtlLog` con niveles, a `stdout` **con `flush`**, para que la
-salida aparezca en el transcript de `cdb` sin perderse.
+Dado el base de `ntdll`, recorremos su **export directory** (EAT): leemos los arrays de
+nombres, direcciones y ordinales, calculamos el hash de cada nombre y devolvemos la dirección
+de la función que coincide. **Descartamos *forwarded*** (exports que son punteros a otro módulo,
+típicamente `Ntdll*` o `api-ms-*`).
+
+### Pieza 4 — Rango `.text` (`UtlGetModuleRange`)
+
+Leemos las cabeceras PE (DOS → NT → secciones) y obtenemos el rango real de `.text`. Es el
+**marco de referencia** que usaremos para validar que un gadget está dentro de `ntdll`.
+
+### Pieza 5 — Log (`src/util/log.c`)
+
+`UtlLog` con niveles (Off/Err/Warn/Info/Dbg) a `stdout` **con `flush`**, para que la salida
+aparezca en el transcript de `cdb` sin perderse por *buffering*.
 
 ### La prueba (oráculo independiente)
 
-El test **no** dice "creo que es correcto". Lo contrasta con la API de Windows:
+El test **no** dice "creo que es correcto": lo contrasta con la API de Windows y con los
+símbolos de Microsoft:
 
 ```text
 rax=00007ffc48540f90                        ; lo que resuelve NUESTRO codigo
@@ -139,8 +158,14 @@ rax=00007ffc48540f90                        ; lo que resuelve NUESTRO codigo
 Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`,
 `NtClose = 00007FFC48540F90`.
 
-> Si nuestro PEB walk devolviera una base falsa, `GetModuleHandleW` lo delataría. Si el hash
+> Si el PEB walk devolviera una base falsa, `GetModuleHandleW` lo delataría. Si el hash
 > estuviera mal, `GetProcAddress` daría otra dirección. **Nunca nos creemos a nosotros mismos.**
+
+### Errores comunes
+
+- **Hash mal calculado**: comparece un nombre pero devuelve otro export → el oráculo lo caza.
+- **No descartar forwarded**: terminabas con una dirección en otro módulo (no en `ntdll`).
+- **`+1` de los ordinales**: el EAT usa ordinales basados en `Base`; olvidarlo desalinea todo.
 
 ---
 
@@ -148,15 +173,13 @@ Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`,
 
 ### El objetivo
 
-Obtener el **SSN** (número de servicio) de cada `Nt*` **sin leer bytes del stub**. ¿Por qué sin
-leer bytes? Porque un EDR puede modificar esos bytes (hook). Si dependemos de ellos, dependemos
-de que estén intactos.
+Obtener el **SSN** (número de servicio) de cada `Nt*` **sin leer bytes del stub**. Si dependemos
+de esos bytes y un EDR los modifica (hook), dependemos de que estén intactos. La idea es **no
+mirar el stub en absoluto**.
 
 ### El invariante
 
-FreshyCalls explota un hecho de Windows 10/11:
-
-> Los stubs `Nt*` están en `.text` **en el mismo orden que sus SSN**.
+> En Windows 10/11 los stubs `Nt*` están en `.text` **en el mismo orden que sus SSN**.
 
 Por tanto:
 
@@ -170,12 +193,15 @@ for (DWORD i = 0; i < n; i++)
 ```
 
 Nada de leer `mov eax, SSN` del stub: **solo ordenamos direcciones**. Eso lo hace inmune a que
-los bytes del stub estén "modificados".
+los bytes del stub estén modificados.
+
+**Detalle del filtro:** prefijo estricto **`Nt` + segunda letra mayúscula**. Esto evita falsos
+positivos como `NtdllOpen…` que desplazarían el índice.
 
 ### Los checks (fallar ruidoso)
 
 El resolver **falla con error** si: la lista está vacía, hay **VAs duplicadas**, aparece un
-forwarded, o algún objetivo del catálogo no resuelve. Nada de continuar a medias.
+*forwarded*, o algún objetivo del catálogo no resuelve. Nada de continuar con una tabla a medias.
 
 ### La prueba (oráculo independiente)
 
@@ -199,20 +225,27 @@ Salida: `M2  FreshyCalls: 8/8 coinciden con el stub`. Para las 12 funciones del 
 > Un SSN equivocado no "casi funciona": ejecutarías **otra** función del kernel. Por eso el
 > oráculo es obligatorio.
 
+### Errores comunes
+
+- **Incluir exports que no son `Nt*`** (p. ej. `Ntdll*`) → el índice se desplaza y **todos** los
+  SSN quedan mal.
+- **No ordenar por VA** correctamente: si el `qsort` falla, el índice pierde sentido.
+- **Hardcodear el SSN "porque ya lo sé"** (la tentación): rompe en la próxima build.
+
 ---
 
 ## Fase 3 — Localizar el gadget `syscall;ret` · M3 ✅
 
 ### El objetivo
 
-Encontrar, **dentro de `ntdll`**, la secuencia real de bytes **`0F 05 C3`** (`syscall; ret`) y
-garantizar que es ejecutable y que no forma parte de un hook. Ese será nuestro punto de salto
-en la Fase 4.
+Encontrar, **dentro de `ntdll`**, la secuencia real de bytes **`0F 05 C3`** (`syscall; ret`),
+ejecutable y que no forme parte de un hook. Ese será el punto de salto de la Fase 4.
 
 ### La idea clave
 
 Un gadget `syscall;ret` es **agnóstico del SSN**: sirve para *cualquier* syscall, porque el
-número viaja en `EAX`. Eso permite tener un **pool** de gadgets de respaldo.
+número viaja en `EAX`. Eso permite tener un **pool** de gadgets de respaldo y hace el diseño
+más simple.
 
 ### La validación (3 checks)
 
@@ -222,9 +255,9 @@ Localizar los bytes no basta; hay que **validar** el candidato:
 2. La dirección cae **dentro de `.text` de `ntdll`** (el rango del M1).
 3. El stub de origen **no empieza con un prólogo de hook** (`E9` / `FF 25`).
 
-El orden de selección es determinista (para que las pruebas sean reproducibles): primero el
-stub de la propia función; si está hookeado, el de su gemela `Zw*`; y si no, el pool ordenado
-por menor VA.
+El orden de selección es **determinista** (pruebas reproducibles): primero el stub de la propia
+función; si está hookeado, el de su gemela `Zw*` (misma rutina); y si no, el pool ordenado por
+**menor VA**.
 
 ### La prueba
 
@@ -237,23 +270,39 @@ db poi(Kagemusha!g_Entries+0x18) L3
 Salida: `M3  gadgets validos (0F 05 C3 en .text): 8/8`.
 
 > Doble comprobación: **los bytes** son los correctos **y** la dirección pertenece a `ntdll`.
-> Un gadget "a mitad de instrucción" provocaría un crash; por eso anclamos a inicio de stub
+> Un gadget "a mitad de instrucción" provoca un crash; por eso anclamos a inicio de stub
 > validado y patrón exacto.
+
+### Errores comunes
+
+- **Encontrar `0F 05` fuera de `.text`** (p. ej. en datos): se ejecutaría algo inválido → crash.
+- **Gadget a mitad de instrucción**: los bytes coinciden por casualidad pero no es un `syscall`
+  real → hay que anclar a inicio de stub.
+- **No contemplar el stub hookeado**: el gadget podría estar "tapado" → usar el pool.
 
 ---
 
 ## Qué aprendimos en estas cuatro fases
 
 - **El PDB no es opcional.** Sin símbolos no hay evidencia, solo fe.
-- **El hash convierte comparaciones visibles en comparaciones de enteros.** Menos superficie,
-  más orden.
+- **El hash convierte comparaciones visibles en comparaciones de enteros.** Menos superficie, más orden.
 - **Nunca hardcodear el SSN.** La tentación de "poner 0x0F y ya" rompe en la próxima build.
 - **Validar, no asumir.** Un gadget se *valida* (bytes + rango + no-hook), no se *confía*.
 - **Fallar ruidoso.** Un error claro vale más que un resultado silenciosamente incorrecto.
 
-Con los cimientos listos (base de `ntdll`, SSN resueltos y gadget validado), ya podemos hacer
-lo importante: **ejecutar de verdad** una `Nt*` de forma indirecta. Eso es la
-[Fase 4](/blog/kagemusha-fase-4-ejecucion-indirecta.html).
+Con los cimientos listos (base de `ntdll`, SSN resueltos y gadget validado), ya podemos **ejecutar
+de verdad** una `Nt*` de forma indirecta: la [Fase 4](/blog/kagemusha-fase-4-ejecucion-indirecta.html).
+
+## Preguntas frecuentes (fases 0–3)
+
+**¿Por qué no uso `GetProcAddress` y ya?** Porque es IAT-visible y depende de `kernel32`; el
+diseño evita esa dependencia en el camino crítico.
+
+**¿Por qué DJB2 y no otra función de hash?** Es simple, rápida y bien conocida; lo importante es
+que sea **determinista** y verificable con un oráculo externo.
+
+**¿Qué pasa si dos exports tienen la misma VA?** Se detecta (VAs duplicadas) y el resolver
+**falla ruidosamente**; no se adivina.
 
 ## Cómo sigue la serie
 
