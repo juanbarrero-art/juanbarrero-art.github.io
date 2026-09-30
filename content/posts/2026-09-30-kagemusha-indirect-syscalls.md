@@ -245,7 +245,7 @@ la build, se registra el build junto al resultado.
 
 Resultados de la build de referencia (Windows 11):
 
-- **Suite en verde (0 FAIL).** El `README.md` cita cifras en varias secciones (155 en *Resultados de la suite*, 116 en Fase 6, 172 en Fase 7); se toma **172** (la más reciente) y se deja constancia de la inconsistencia del README.
+- **Suite en verde (0 FAIL).** Resultados por build: **178 PASS** (stealth, sin CET) y **182 PASS** (`/CETCOMPAT`). El `README.md` arrastra cifras antiguas en secciones previas (155/116); se toman las de las builds duales como las actuales.
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 
@@ -314,6 +314,7 @@ Entender la técnica es requisito para **detectarla**.
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
 8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
+9. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
 
 ## Diseño en profundidad: por qué cada decisión
 

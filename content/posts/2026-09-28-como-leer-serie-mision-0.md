@@ -159,6 +159,7 @@ puedas ejecutar y comparar. La idea es que no seas espectador, sino que **hagas 
    [Fase 5](/blog/kagemusha-fase-5-generalizacion.html) · [Fase 6](/blog/kagemusha-fase-6-robustez.html) ·
    [Fase 7 y baterías](/blog/kagemusha-fase-7-baterias-cet.html).
 9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
+10. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
 
 ---
 

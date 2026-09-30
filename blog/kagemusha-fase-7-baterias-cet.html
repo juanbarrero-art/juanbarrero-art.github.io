@@ -92,7 +92,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">05 oct 2026 &middot; 5 min de lectura</p>
+        <p class="post__meta">05 oct 2026 &middot; 6 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span> <span class="tag">#cet</span></p>
@@ -153,7 +153,7 @@
 <p>malicioso, <code>KageSlotName</code> fuera de rango).</p>
 <hr>
 <h2>Resultados (del README)</h2>
-<ul><li><strong>172 PASS / 0 FAIL</strong> · <code>Kagemusha_tests.exe</code> (exit 0).</li><li>Módulo sin <code>syscall</code>: <code>verify.ps1</code> → 0 instrucciones.</li><li>M4: <code>NtClose_I(0xDEADBEEF)=0xC0000008</code>, <code>NtClose_I(handle válido)=0x00000000</code>.</li></ul>
+<ul><li><strong>172 PASS / 0 FAIL</strong> · <code>Kagemusha_tests.exe</code> (exit 0). <em>(A fecha de esta fase; después, la build dual reporta 178/182.)</em></li><li>Módulo sin <code>syscall</code>: <code>verify.ps1</code> → 0 instrucciones.</li><li>M4: <code>NtClose_I(0xDEADBEEF)=0xC0000008</code>, <code>NtClose_I(handle válido)=0x00000000</code>.</li></ul>
 <h2>Reproducir (del README)</h2>
 <pre><code class="lang-text">tools\build.cmd
 bin\Kagemusha_tests.exe
@@ -161,7 +161,7 @@ bin\Kagemusha.exe --dump
 bin\Kagemusha.exe --trace</code></pre>
 <hr>
 <h2>Cómo sigue la serie</h2>
-<ol><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a></li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><strong>Fase 7 y baterías (T19–T22): ledger, CLI y CET</strong> (esta entrada)</li><li><a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión (Defender, E2, E3, E4c)</a></li></ol>
+<ol><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a></li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><strong>Fase 7 y baterías (T19–T22): ledger, CLI y CET</strong> (esta entrada)</li><li><a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión (Defender, E2, E3, E4c)</a></li><li><a href="/blog/kagemusha-evasion-e4b-cet-spoofing.html">Evasión en acción (E4b, build dual, CET vs spoofing)</a></li></ol>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Fuentes primarias: <code>README.md</code>, <code>docs/research/experimentos-extendidos.md</code>,</li></ul>

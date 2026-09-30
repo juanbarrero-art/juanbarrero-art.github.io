@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion, evasión, etw, cet">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)&quot;">
+  <meta property="og:description" content="Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-07">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="red team">
+  <meta property="article:tag" content="syscalls">
+  <meta property="article:tag" content="investigacion">
+  <meta property="article:tag" content="evasión">
+  <meta property="article:tag" content="etw">
+  <meta property="article:tag" content="cet">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)&quot;">
+  <meta name="twitter:description" content="Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)\"",
+  "description": "Documentación de la fase de evasión del repositorio: parcheo de ETW de user-mode y limpieza del instrumentation callback (E4b, T31), build dual stealth/_cet (T29) y el hallazgo de que el stack spoofing clásico es incompatible con CET (E4c/2b).",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion, evasión, etw, cet",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-evasion-e4b-cet-spoofing.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">07 oct 2026 &middot; 4 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Evasión en acción: supresión de telemetría (E4b), build dual y CET vs stack spoofing (E4c/2b)&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span> <span class="tag">#evasión</span> <span class="tag">#etw</span> <span class="tag">#cet</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Evasión en acción</h1>
+<p>Esta entrada documenta los avances de <strong>evasión</strong> del repositorio, tal como están en el <code>README.md</code> y en <code>docs/research/</code>: supresión de telemetría de user-mode (<strong>E4b</strong>), <strong>build dual</strong> stealth/<code>_cet</code> y el <strong>hallazgo central</strong> de que el stack spoofing clásico es incompatible con CET (<strong>E4c/2b</strong>).</p>
+<hr>
+<h2>E4b — Supresión de telemetría (ETW + instrumentation callback)</h2>
+<p>De <code>docs/research/experimento-e4b-etw.md</code>. Objetivo: <em>"reducir la visibilidad que descubrimos en E2 (instrumentation callbacks / ETW)."</em></p>
+<p><strong>Implementado:</strong></p>
+<ul><li><strong><code>KageEtwPatch</code></strong> (<code>src/core/telemetry.c</code>): localiza <code>ntdll!EtwEventWrite</code> y lo parchea a</li></ul>
+<p><code>xor eax,eax; ret</code> (<code>0x33 0xC0 0xC3</code>) → deja de emitir eventos <strong>ETW de user-mode</strong>. Con <code>KageEtwRestore</code> para revertir.</p>
+<ul><li><strong><code>KageClearInstrumentationCallback</code></strong>: `NtSetInformationProcess(ProcessInstrumentationCallback,</li></ul>
+<p>NULL)` → elimina el callback que un monitor pudiera haber puesto en el proceso (lo de E2).</p>
+<p><strong>Pruebas.</strong> Test <strong>T31</strong> (5 checks: localización de <code>EtwEventWrite</code>, estado inicial, parche aplicado, bytes verificados y restauración). Pasa en ambas builds.</p>
+<p><strong>Alcance y límite (del documento, importante):</strong></p>
+<ul><li><strong>Neutraliza:</strong> ETW de user-mode (proveedores que llaman <code>EtwEventWrite</code>) y el instrumentation</li></ul>
+<p>callback del proceso.</p>
+<ul><li><strong>NO neutraliza:</strong> <strong>ETW-TI emitido por el kernel</strong> (<code>Microsoft-Windows-Threat-Intelligence</code>),</li></ul>
+<p>que el kernel genera sin pasar por <code>EtwEventWrite</code> de user-mode. Ese <strong>residual de kernel</strong> queda abierto (requeriría otro enfoque, fuera del alcance de user-mode).</p>
+<hr>
+<h2>Build dual: stealth (sin CET) vs <code>_cet</code></h2>
+<p>Del README (<em>"build dual (default stealth sin CET con spoofing; variante <code>_cet</code>) + T29 + guards"</em>):</p>
+<ul><li><strong>Default (stealth, sin CET):</strong> binario pensado para evasión con spoofing.</li><li><strong><code>_cet</code> (<code>/CETCOMPAT</code>):</strong> variante CET-compatible.</li></ul>
+<p>Resultados por build (del README):</p>
+<ul><li><strong>Default (stealth, sin CET): 178 PASS / 0 FAIL</strong> (<code>bin\Kagemusha_tests.exe</code>).</li><li><strong>CET (<code>/CETCOMPAT</code>): 182 PASS / 0 FAIL</strong> (<code>bin_cet\Kagemusha_tests.exe</code>).</li></ul>
+<hr>
+<h2>E4c/2b — Hallazgo: CET y stack spoofing clásico son incompatibles</h2>
+<p>De <code>docs/research/experimento-e4c2b-cet-vs-spoofing.md</code>.</p>
+<p><strong>Qué se hizo:</strong> se integró el mecanismo <strong>probado</strong> de <code>WKL-Sec/LayeredSyscall</code> (<code>HookModule.cpp</code>, con atribución) en Kagemusha (<code>src/ref_layered/</code>), usando <strong>nuestra</strong> SSN (FreshyCalls) y una API legítima no interactiva (<code>LoadLibraryA("user32.dll")</code>). Modo <code>--refspoof</code>.</p>
+<p><strong>Resultado (revelador):</strong></p>
+<table><thead><tr><th>Build</th><th>Resultado</th></tr></thead><tbody><tr><td>Kagemusha <strong>sin</strong> <code>/CETCOMPAT</code></td><td><strong>FUNCIONA</strong>: <code>NtClose = 0xC0000008</code>, traza HW bp→ntdll→syscall→restore</td></tr><tr><td>Kagemusha <strong>con</strong> <code>/CETCOMPAT</code> (nuestro build)</td><td><strong><code>#CP</code></strong> (0xC0000409)</td></tr></tbody></table>
+<p>Salida real (build no-CET):</p>
+<pre><code class="lang-text">[*] Hardware Breakpoint hit at 0x...0f90 (syscall)
+[*] Inside ntdll after setting TF at 0x...1a90
+[*] Generating stack &amp; changing RIP &amp; invoking intended syscall (ssn: 0xf)
+[*] Hardware Breakpoint hit at 0x...0fa4 (ret)
+[*] Restoring stack pointer
+refspoof: NtClose = 0xC0000008 (esperado 0xC0000008)</code></pre>
+<p><strong>Causa raíz (del documento):</strong> <em>"En Windows 11 con Shadow Stack en modo compatibilidad, solo los binarios CET-compatibles (<code>/CETCOMPAT</code>) reciben shadow stack. La referencia (LayeredSyscall) no está marcada → corre sin shadow stack → su spoofing funciona. Nuestro binario sí está marcado → el <code>ret</code> de la ruta de trazado incumple el shadow stack → <code>#CP</code>."</em></p>
+<p><strong>Conclusión central:</strong> el stack spoofing clásico (ret/ROP + VEH) es <strong>incompatible con CET</strong>; un binario CET-compatible <strong>no puede</strong> usar esa técnica. Lograrlo requiere un enfoque <strong>CET-safe propio</strong> (problema abierto; la técnica pública no lo resuelve). Esto <strong>corrobora E4c/1</strong>.</p>
+<p><strong>Decisión de proyecto (pendiente, del documento):</strong></p>
+<ul><li><strong>(a)</strong> Sin <code>/CETCOMPAT</code> → stack spoofing funcionando (renuncias a CET/Shadow Stack).</li><li><strong>(b)</strong> Con <code>/CETCOMPAT</code> → sin spoofing clásico; exige técnica <strong>CET-safe propia</strong> (I+D).</li></ul>
+<p><em>"Es una disyuntiva real: no puedes tener ambos con esta técnica."</em></p>
+<p><strong>Reproducir (del documento):</strong></p>
+<pre><code class="lang-text">bin\Kagemusha.exe --refspoof        :: #CP (binario CET-compatible)
+bin\Kagemusha_noCET.exe --refspoof  :: funciona (binario no-CET)</code></pre>
+<hr>
+<h2>Cómo se encaja con lo demás</h2>
+<ul><li><strong>E2</strong> (instrumentation callbacks / ETW-TI) se observa en el kernel; <strong>E4b</strong> neutraliza la parte</li></ul>
+<p>de <strong>user-mode</strong> (<code>EtwEventWrite</code> + callback), pero <strong>deja abierto ETW-TI de kernel</strong>.</p>
+<ul><li><strong>E3</strong> (firma de pila) se "cierra" con stack spoofing; pero <strong>E4c/2b</strong> demuestra que ese spoofing</li></ul>
+<p><strong>no es compatible con CET</strong>, forzando la disyuntiva del build dual.</p>
+<hr>
+<h2>Cómo sigue la serie</h2>
+<ol><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a></li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li><li><a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión (Defender, E2, E3, E4c)</a></li><li><strong>Evasión en acción: E4b, build dual y CET vs spoofing (E4c/2b)</strong> (esta entrada)</li></ol>
+<hr>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Fuentes primarias: <code>README.md</code>, <code>docs/research/experimento-e4b-etw.md</code>,</li></ul>
+<p><code>docs/research/experimento-e4c2b-cet-vs-spoofing.md</code>, <code>docs/research/experimento-e4c2a-veh-rip.md</code>, <code>src/core/telemetry.c</code>, <code>docs/evidencias/ref-layeredsyscall.txt</code>.</p>
+<ul><li>WKL-Sec — <em>LayeredSyscall</em> (mecanismo de referencia integrado con atribución).</li><li>Microsoft Learn — <em>ETW / ETW-TI</em> y <em>Control-flow Enforcement Technology (CET)</em>.</li></ul>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

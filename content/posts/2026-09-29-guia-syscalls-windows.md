@@ -311,6 +311,7 @@ serie documenta **cómo se ve** desde fuera para que la comunidad defensiva teng
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html).
 7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html).
 8. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
+9. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
 
 ---
 

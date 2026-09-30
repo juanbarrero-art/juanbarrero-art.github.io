@@ -153,7 +153,7 @@ Del README:
 
 ## Resultados (del README)
 
-- **172 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0).
+- **172 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0). *(A fecha de esta fase; después, la build dual reporta 178/182.)*
 - Módulo sin `syscall`: `verify.ps1` → 0 instrucciones.
 - M4: `NtClose_I(0xDEADBEEF)=0xC0000008`, `NtClose_I(handle válido)=0x00000000`.
 
@@ -179,6 +179,7 @@ bin\Kagemusha.exe --trace
 7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 8. **Fase 7 y baterías (T19–T22): ledger, CLI y CET** (esta entrada)
 9. [Visibilidad y evasión (Defender, E2, E3, E4c)](/blog/kagemusha-visibilidad-evasion.html)
+10. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
 
 ---
 

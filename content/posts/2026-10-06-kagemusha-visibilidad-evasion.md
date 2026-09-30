@@ -173,19 +173,13 @@ resolvió con `TerminateProcess`.)
 **Conclusión (del documento):** *"CET no bloquea la redirección de RIP por contexto de excepción.
 Por tanto, el enfoque CET-safe es viable."*
 
-### E4c/2b — mecanismo completo (pendiente, según el repo)
+### E4c/2b — CET vs stack spoofing (hallazgo)
 
-De `docs/research/experimento-e4c2b-status.md`.
-
-Se implementó un módulo propio (`KageSpoof`) con el mecanismo completo (HW breakpoint en el opcode
-`syscall` + VEH + Trace Flag + frame legítimo de `ntdll` + ejecutar el syscall + restaurar `RSP`).
-**Resultado: no completado** — la implementación entraba en un **bucle de single-step** que no
-convergía; se **retiró el scaffold** para no dejar código colgado. El documento lo declara
-explícitamente como *"tarea de I+D mayor, no un port trivial"*, y confirma con evidencia de
-referencia (`docs/evidencias/ref-layeredsyscall.txt`) que **LayeredSyscall funciona en este equipo**
-(VEH + HW bp + TraceFlag + pila legitimada). Opciones para continuar (del documento): port fiel del
-mecanismo de referencia, implementación propia, o enfoques CET-safe alternativos (call-based o
-desde un callback del SO). El proyecto queda limpio con **172 PASS**.
+De `docs/research/experimento-e4c2b-status.md` y `experimento-e4c2b-cet-vs-spoofing.md`. Se integra
+el mecanismo probado de `WKL-Sec/LayeredSyscall` (modo `--refspoof`): **funciona sin `/CETCOMPAT`**
+pero da **`#CP`** (`0xC0000409`) con `/CETCOMPAT`. Conclusión: el **stack spoofing clásico es
+incompatible con CET**. Detalle completo en la entrada
+[Evasíon en acción: E4b, build dual y CET vs spoofing](/blog/kagemusha-evasion-e4b-cet-spoofing.html).
 
 ---
 
@@ -205,7 +199,7 @@ inline, pero deja firma en la pila**, y la telemetría de kernel (ETW-TI / callb
 
 ## Resultados (del README)
 
-- **172 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0). *(El `README.md` cita cifras por sección: 155 en Resultados, 116 en Fase 6, 172 en Fase 7; se toma 172 como la más reciente.)*
+- **178 PASS (stealth) / 182 PASS (CET)** · `Kagemusha_tests.exe` (exit 0). *(Resultados por build, del `README.md`.)*
 - Módulo sin `syscall`: `verify.ps1` → 0 instrucciones.
 - Defender: 0 amenazas en escaneo estático; 0 eventos conductuales.
 
@@ -230,6 +224,7 @@ bin\Kagemusha_tests.exe           :: T25, T26, T27
 7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 8. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
 9. **Visibilidad y evasión (Defender, E2, E3, E4c)** (esta entrada)
+10. [Evasión en acción (E4b, build dual, CET vs spoofing)](/blog/kagemusha-evasion-e4b-cet-spoofing.html)
 
 ---
 
