@@ -157,6 +157,104 @@ Ambas ya están implementadas y verificadas; las contaré en las siguientes entr
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 
+## La ABI x64, en detalle (por qué esto funciona)
+
+La **ABI** (Application Binary Interface) de Windows x64 es el conjunto de reglas sobre cómo se
+pasan argumentos y valores de retorno entre funciones. Entenderla es entender por qué nuestro
+trampolín es correcto:
+
+- Los **4 primeros argumentos** van en registros: `RCX`, `RDX`, `R8`, `R9`.
+- El **5.º y siguientes** van en la **pila** del llamador.
+- El valor de retorno va en `RAX`.
+- Además hay **registros volátiles** (que la función puede destruir) y **no volátiles** (que debe
+  preservar).
+
+La instrucción `syscall` tiene su propia convención, ligeramente distinta:
+
+- **`RCX` guarda la dirección de retorno** (la sobrescribe la propia instrucción).
+- Por eso el **primer argumento va en `R10`** en lugar de `RCX`.
+
+De ahí el `mov r10, rcx` del stub. Si no hiciéramos esa copia, el kernel leería el argumento del
+siguiente registro y **fallaría** (o haría algo distinto).
+
+### El detalle que rompe a los novatos: `jmp` vs `call`
+
+```asm
+; INCORRECTO: con call, el ret del gadget no vuelve al wrapper
+call gadget          ; empuja una direccion de retorno extra
+
+; CORRECTO: con jmp (tail call), el frame del wrapper se preserva
+jmp  [g_GadgetTable] ; no toca la pila -> el ret vuelve al wrapper
+```
+
+Con `call`, la pila tendría una dirección de retorno de más; el `ret` del gadget volvería al
+stub, que volvería a saltar… **bucle o crash**. Con `jmp`, la pila queda tal como la dejó el
+wrapper, y el `ret` del gadget regresa **directamente** a él. Además, los argumentos 5+ que
+viajan en la pila llegan intactos al kernel.
+
+---
+
+## Interpretación de la evidencia, línea a línea
+
+Volvamos al transcript y traduzcamos cada línea:
+
+```text
+bp Kagemusha!NtClose_I ; g          ; paramos en el wrapper y dejamos correr
+? poi(Kagemusha!g_GadgetTable) = 00007ffc`48540fa2
+                                    ; el gadget que vamos a usar
+g                                   ; continuamos
+00007ffc`48540fa2 0f05  syscall     ; ESTAMOS EJECUTANDO EL SYSCALL, en esta direccion
+rax=000000000000000f                ; EAX = 0x0F = SSN de NtClose (resuelto en runtime)
+rcx=00000000deadbeef r10=00000000deadbeef
+                                    ; el argumento viaja en RCX y en R10 (ABI syscall)
+rip=00007ffc48540fa2                ; el instruction pointer esta en el gadget
+ntdll 00007ffc`483e0000 - 00647000  ; y ese gadget cae DENTRO de ntdll
+```
+
+Cuando el `RIP` (la instrucción que se está ejecutando) está en `00007ffc48540fa2` y ese valor
+cae **dentro del rango de `ntdll`**, la definición de "indirecto" se cumple: **el `syscall` se
+ejecutó en memoria de `ntdll`**, no en la nuestra. El `EAX` correcto prueba que el SSN lo puso
+nuestra tabla. El `RCX == R10` prueba que la ABI se respetó.
+
+---
+
+## El wrapper y el manejo de errores
+
+El wrapper hace tres cosas, en orden:
+
+1. **Valida el estado del marco**: ¿se hizo `KageInitialize`? ¿la tabla tiene SSN? ¿hay gadget?
+   Si algo falta, devuelve un **error propio** (`KAGE_STATUS_*`), no llama al kernel.
+2. **Llama al stub** (`KageNtCloseStub`).
+3. **Devuelve el `NTSTATUS` tal cual**, sin traducirlo a código Win32 (precisión NT).
+
+Separar los errores del **marco** (nuestro sistema) de los del **kernel** es clave para depurar:
+si recibes `KAGE_STATUS_SSN_UNRESOLVED`, el problema es tuyo (init/SSN); si recibes
+`STATUS_INVALID_HANDLE`, el kernel hizo su trabajo y el argumento era malo.
+
+---
+
+## Contraste con la llamada nativa
+
+Para convencerse de que hay una diferencia real, se puede comparar el **stack trace** de una
+llamada nativa (que pasa por el stub, zona de hooks) con el de nuestra ruta indirecta (que salta
+al gadget). En la nativa, el retorno aparece vinculado al stub de `ntdll`; en la indirecta, el
+retorno cae en **nuestro wrapper** (`Kagemusha!NtClose_I+0x13`), como vimos en `dps @rsp`.
+
+Esto, lejos de ser un detalle cosmético, es **el dato que un defensor usaría**: el *caller*
+inmediato del indirecto puro es el módulo propio. Por eso lo documentamos (y no lo escondemos).
+
+---
+
+## Errores comunes (Fase 4)
+
+- **Usar `call` en vez de `jmp`**: rompe el retorno. Debe ser *tail call*.
+- **Olvidar `mov r10, rcx`**: el kernel lee el argumento equivocado.
+- **Hardcodear el SSN en el ASM**: rompe entre builds; debe leerse de la tabla.
+- **Devolver un error propio como si fuera del kernel**: confunde el diagnóstico.
+- **No verificar `RIP` dentro de `ntdll`**: creer que es indirecto sin probarlo.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).

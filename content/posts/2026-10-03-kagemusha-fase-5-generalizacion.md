@@ -155,6 +155,84 @@ si un EDR modifica un stub. Eso es la Fase 6.
 5. **Fase 5: generalización y aridad** (esta entrada)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 
+## El catálogo: por qué esas 8
+
+Elegimos las 8 syscalls para que el catálogo **ejercite todos los casos** que pueden romper un
+sistema de trampolines:
+
+- **Aridad 0** (`NtYieldExecution`): sin argumentos. Si algo fallara con la pila, aquí quizá no
+  se note; sirve de control.
+- **Aridad 1** (`NtClose`): el caso "fácil", ya probado en la Fase 4.
+- **Aridad 4** (`NtQuerySystemInformation`, `NtFreeVirtualMemory`): el límite de los registros.
+- **Aridad 5** (`NtQueryInformationProcess`, `NtProtectVirtualMemory`): **el 5.º argumento ya va
+  en la pila**; aquí se prueba que el `jmp` lo deja intacto.
+- **Aridad 6** (`NtAllocateVirtualMemory`): **el 6.º también en la pila**.
+- **Caso especial** (`NtQuerySystemTime`): un export `Nt*` que **no es** un stub de syscall.
+
+Además, `NtProtectVirtualMemory` + `NtFreeVirtualMemory` forman un **round-trip** natural:
+reservar/proteger y luego liberar memoria real, comprobando que el efecto llega al kernel.
+
+---
+
+## El contrato de la macro
+
+```asm
+KAGE_STUB MACRO name, slot
+name PROC
+    mov  r10, rcx
+    mov  eax, DWORD PTR [g_SsnTable + slot*4]
+    jmp  QWORD PTR [g_GadgetTable + slot*8]
+name ENDP
+ENDM
+```
+
+El contrato es estricto y simple:
+
+- **`name`** genera el símbolo del `PROC` (p. ej. `NtAllocateVirtualMemory`).
+- **`slot`** fija el desplazamiento en las **dos** tablas (SSN y gadget). El mismo slot debe
+  alinear ambas: `g_SsnTable + slot*4` (WORD) y `g_GadgetTable + slot*8` (QLWORD).
+- El ASM **no** conoce el SSN ni el gadget: los **lee** de las tablas. Por eso añadir una syscall
+  es "una línea en el registro" y **no** tocar el ASM a mano.
+
+> Esta es la diferencia entre 8 stubs copiados y un **sistema**: el registro es la fuente única,
+> la macro es el molde, y las tablas son el estado en runtime.
+
+---
+
+## Los 15 experimentos, en detalle
+
+Los 15 experimentos de la Fase 5 no son "pruebas de humo"; cada uno ataca una suposición:
+
+1. `KageInitialize()` resuelve el catálogo entero (init transaccional).
+2. Las **8 entradas** de `g_SsnTable` quedan pobladas (no vacías).
+3. Los **8 gadgets** son `0F 05 C3` (validados).
+4. `g_SsnTable[slot 0]` coincide con el resolver (consistencia interna).
+5. Las 8 entradas coinciden con el resolver (consistencia global).
+6. SSN == SSN del stub real **por slot con stub real** (oráculo externo; 7/8 por el hallazgo).
+7. El bloque ASM contiene **≥ 8 stubs** (la macro generó lo esperado).
+8. **Aridad 0** — `NtYieldExecution`.
+9. **Aridad 1** — `NtClose`.
+10. **Aridad 4** — `NtQuerySystemInformation`.
+11. **Aridad 5** — `NtQueryInformationProcess` (arg en pila).
+12. **Aridad 6** — `NtAllocateVirtualMemory` (args en pila).
+13. **Round-trip** `protect` + `free` sobre memoria real.
+14. Caso **negativo**: clase inválida → `STATUS_INVALID_INFO_CLASS`.
+15. `NtQuerySystemTime` **monótono creciente** (dos lecturas coherentes).
+
+La combinación de **positivos**, **negativos**, **aridades extremas** y **oráculos** es lo que
+convierte "funciona" en "está verificado".
+
+---
+
+## Errores comunes (Fase 5)
+
+- **Desalinear slot y tabla**: un `slot*4` vs `slot*8` mal puesto lee basura como SSN/gadget.
+- **Asumir que todos los `Nt*` son stubs**: `NtQuerySystemTime` te lo desmiente.
+- **Probar solo aridad 1**: el bug de la pila aparece con 5+ argumentos.
+- **No incluir casos negativos**: sin un "debe fallar", no sabes si valida o solo "no crashea".
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

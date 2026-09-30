@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 5 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 8 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -135,6 +135,48 @@
 <p>detección**: qué <em>ve</em> realmente un EDR con el indirect puro (stack walk, telemetría, ETW). Sin esconder nada: midiendo.</p>
 <h2>Cierre (por ahora)</h2>
 <p>Con M0–M6 verificados, <strong>101 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (ledger, <code>!kage</code>, análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
+<h2>Cómo simular un hook sin un EDR real</h2>
+<p>No hace falta un EDR para probar la resiliencia. En el propio laboratorio:</p>
+<ol><li>Localizamos el stub de <code>NtClose</code> en <code>ntdll</code>.</li><li>Con <code>VirtualProtect</code> lo hacemos escribible.</li><li>Escribimos un <strong>prólogo de hook</strong> (<code>E9 00 00 00 00</code>): un <code>jmp</code> relativo a "ninguna parte".</li><li>Restauramos la protección.</li></ol>
+<p>Como <code>ntdll</code> es una sección de memoria compartida con <strong>Copy-On-Write</strong>, escribir en el stub de nuestro proceso crea una <strong>copia privada</strong>: no afectamos al resto del sistema, así que el experimento es seguro. Después, <code>KageIsStubHooked</code> debe responder <code>TRUE</code>.</p>
+<blockquote><p>Este es el mismo efecto que produce un EDR de user-mode, pero <strong>bajo nuestro control</strong> y reproducible. Nada de "magia": un <code>jmp</code> al inicio del stub.</p></blockquote>
+<hr>
+<h2>Por qué FreshyCalls es inmune (explicado)</h2>
+<p>La clave está en <strong>qué lee</strong> cada técnica:</p>
+<ul><li><strong>Hell's Gate / Halo's Gate</strong> leen los <strong>bytes del stub</strong> (<code>mov eax, SSN</code>). Si esos bytes están</li></ul>
+<p>modificados por un hook, leen <strong>basura</strong> → SSN incorrecto → comportamiento errático.</p>
+<ul><li><strong>FreshyCalls</strong> lee el <strong>orden de los exports por dirección virtual</strong>. Esa información **no</li></ul>
+<p>depende de los bytes del stub**: modificar el prólogo no cambia la dirección del export ni el orden.</p>
+<p>Por eso, con el stub hookeado, FreshyCalls devuelve <strong>el mismo SSN</strong>. Y como el gadget se busca <strong>fuera</strong> del stub hookeado (en el pool), la ejecución indirecta sigue funcionando: se salta al <code>syscall;ret</code> limpio de <code>ntdll</code> y <strong>nunca se ejecuta el <code>jmp</code> del hook</strong>.</p>
+<hr>
+<h2>Endurecer el parser PE</h2>
+<p>Un sistema que lee cabeceras PE (para encontrar exports) puede <strong>reventar</strong> con un PE malformado: si <code>e_lfanew</code> (el offset que apunta a la cabecera NT) es enorme, leer "allí" provoca una <strong>lectura fuera de rango</strong>. Por eso el parser:</p>
+<ul><li>Rechaza <code>e_lfanew</code> fuera de <code>[0x40, 0x1000]</code> <strong>antes</strong> de tocar las cabeceras NT.</li><li>Valida tamaños y límites antes de recorrer arrays.</li></ul>
+<p>El experimento de <strong>fuzz</strong> le da <strong>9 PEs malformados</strong> (con <code>e_lfanew</code> extremo) y comprueba que el parser devuelve <code>NULL</code>/error <strong>sin crashear</strong>. Endurecer la entrada es tan importante como la lógica principal.</p>
+<hr>
+<h2>Concurrencia e idempotencia</h2>
+<p>Dos pruebas que suelen olvidarse:</p>
+<ul><li><strong>Concurrencia:</strong> 4 hilos × 1000 syscalls cada uno, sin fallos. Sirve para detectar condiciones</li></ul>
+<p>de carrera en el uso de las tablas.</p>
+<ul><li><strong>Init idempotente:</strong> llamar a <code>KageInitialize()</code> 100 veces deja las tablas <strong>estables</strong> (mismos</li></ul>
+<p>valores). Un init que "se pisa" a sí mismo sería un bug latente.</p>
+<hr>
+<h2>El límite real: 488 de 490</h2>
+<p>El hallazgo más importante no es un éxito, sino un <strong>límite documentado</strong>. En la build de referencia:</p>
+<ul><li><strong>490</strong> exports <code>Nt*</code>.</li><li><strong>488</strong> tienen el prólogo de stub de syscall (<code>4C 8B D1 B8</code>).</li><li><strong>2</strong> no lo tienen (<code>NtGetTickCount</code>, <code>NtQuerySystemTime</code> → <code>jmp Rtl*</code>).</li></ul>
+<p>FreshyCalls los <strong>cuenta</strong> al ordenar por VA. En esta build, el índice coincide con el SSN real para <strong>los 488 stubs</strong> (0 discrepancias), incluido todo nuestro catálogo. Pero <strong>es un límite a vigilar</strong>: si otra build cambia cuántos exports "no-stub" hay, el índice podría desplazarse. Documentarlo es la diferencia entre "creo que es fiable" y "sé exactamente cuándo podría fallar".</p>
+<hr>
+<h2>Qué NO concluir (rigor)</h2>
+<ul><li><strong>"Es indetectable".</strong> No: se evitan hooks de user-mode, pero el kernel, ETW y los callbacks</li></ul>
+<p>siguen ahí. La Fase 8 mide esa visibilidad.</p>
+<ul><li><strong>"Funciona en cualquier Windows".</strong> Los SSN se resuelven en runtime, pero hay que **probar en</li></ul>
+<p>varias builds** (multi-build) para afirmarlo.</p>
+<ul><li><strong>"Con 8 syscalls ya está todo probado".</strong> El catálogo cubre aridades, pero cada build y cada</li></ul>
+<p>configuración pueden exponer casos nuevos.</p>
+<hr>
+<h2>Errores comunes (Fase 6)</h2>
+<ul><li><strong>Modificar el stub sin <code>VirtualProtect</code></strong>: la escritura falla (página de solo lectura).</li><li><strong>Creer que el hook real es igual al simulado</strong>: es una <strong>emulación</strong> controlada, útil y segura.</li><li><strong>No manejar entradas adversas</strong>: un PE malformado no debe tumbar el analizador.</li><li><strong>Ignorar la concurrencia</strong>: condiciones de carrera silenciosas son las más peligrosas.</li><li><strong>Ocultar los límites</strong>: un informe sin limitaciones no es un informe, es publicidad.</li></ul>
+<hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote>

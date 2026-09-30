@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">02 oct 2026 &middot; 5 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 9 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -173,6 +173,49 @@ rip=00007ffc48540fa2              ; sigue en el gadget de ntdll</code></pre>
 <p>Ambas ya están implementadas y verificadas; las contaré en las siguientes entradas.</p>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><strong>Fase 4: ejecución indirecta real</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<h2>La ABI x64, en detalle (por qué esto funciona)</h2>
+<p>La <strong>ABI</strong> (Application Binary Interface) de Windows x64 es el conjunto de reglas sobre cómo se pasan argumentos y valores de retorno entre funciones. Entenderla es entender por qué nuestro trampolín es correcto:</p>
+<ul><li>Los <strong>4 primeros argumentos</strong> van en registros: <code>RCX</code>, <code>RDX</code>, <code>R8</code>, <code>R9</code>.</li><li>El <strong>5.º y siguientes</strong> van en la <strong>pila</strong> del llamador.</li><li>El valor de retorno va en <code>RAX</code>.</li><li>Además hay <strong>registros volátiles</strong> (que la función puede destruir) y <strong>no volátiles</strong> (que debe</li></ul>
+<p>preservar).</p>
+<p>La instrucción <code>syscall</code> tiene su propia convención, ligeramente distinta:</p>
+<ul><li><strong><code>RCX</code> guarda la dirección de retorno</strong> (la sobrescribe la propia instrucción).</li><li>Por eso el <strong>primer argumento va en <code>R10</code></strong> en lugar de <code>RCX</code>.</li></ul>
+<p>De ahí el <code>mov r10, rcx</code> del stub. Si no hiciéramos esa copia, el kernel leería el argumento del siguiente registro y <strong>fallaría</strong> (o haría algo distinto).</p>
+<h3>El detalle que rompe a los novatos: <code>jmp</code> vs <code>call</code></h3>
+<pre><code class="lang-asm">; INCORRECTO: con call, el ret del gadget no vuelve al wrapper
+call gadget          ; empuja una direccion de retorno extra
+
+; CORRECTO: con jmp (tail call), el frame del wrapper se preserva
+jmp  [g_GadgetTable] ; no toca la pila -&gt; el ret vuelve al wrapper</code></pre>
+<p>Con <code>call</code>, la pila tendría una dirección de retorno de más; el <code>ret</code> del gadget volvería al stub, que volvería a saltar… <strong>bucle o crash</strong>. Con <code>jmp</code>, la pila queda tal como la dejó el wrapper, y el <code>ret</code> del gadget regresa <strong>directamente</strong> a él. Además, los argumentos 5+ que viajan en la pila llegan intactos al kernel.</p>
+<hr>
+<h2>Interpretación de la evidencia, línea a línea</h2>
+<p>Volvamos al transcript y traduzcamos cada línea:</p>
+<pre><code class="lang-text">bp Kagemusha!NtClose_I ; g          ; paramos en el wrapper y dejamos correr
+? poi(Kagemusha!g_GadgetTable) = 00007ffc`48540fa2
+                                    ; el gadget que vamos a usar
+g                                   ; continuamos
+00007ffc`48540fa2 0f05  syscall     ; ESTAMOS EJECUTANDO EL SYSCALL, en esta direccion
+rax=000000000000000f                ; EAX = 0x0F = SSN de NtClose (resuelto en runtime)
+rcx=00000000deadbeef r10=00000000deadbeef
+                                    ; el argumento viaja en RCX y en R10 (ABI syscall)
+rip=00007ffc48540fa2                ; el instruction pointer esta en el gadget
+ntdll 00007ffc`483e0000 - 00647000  ; y ese gadget cae DENTRO de ntdll</code></pre>
+<p>Cuando el <code>RIP</code> (la instrucción que se está ejecutando) está en <code>00007ffc48540fa2</code> y ese valor cae <strong>dentro del rango de <code>ntdll</code></strong>, la definición de "indirecto" se cumple: <strong>el <code>syscall</code> se ejecutó en memoria de <code>ntdll</code></strong>, no en la nuestra. El <code>EAX</code> correcto prueba que el SSN lo puso nuestra tabla. El <code>RCX == R10</code> prueba que la ABI se respetó.</p>
+<hr>
+<h2>El wrapper y el manejo de errores</h2>
+<p>El wrapper hace tres cosas, en orden:</p>
+<ol><li><strong>Valida el estado del marco</strong>: ¿se hizo <code>KageInitialize</code>? ¿la tabla tiene SSN? ¿hay gadget?</li></ol>
+<p>Si algo falta, devuelve un <strong>error propio</strong> (<code>KAGE_STATUS_*</code>), no llama al kernel.</p>
+<ol><li><strong>Llama al stub</strong> (<code>KageNtCloseStub</code>).</li><li><strong>Devuelve el <code>NTSTATUS</code> tal cual</strong>, sin traducirlo a código Win32 (precisión NT).</li></ol>
+<p>Separar los errores del <strong>marco</strong> (nuestro sistema) de los del <strong>kernel</strong> es clave para depurar: si recibes <code>KAGE_STATUS_SSN_UNRESOLVED</code>, el problema es tuyo (init/SSN); si recibes <code>STATUS_INVALID_HANDLE</code>, el kernel hizo su trabajo y el argumento era malo.</p>
+<hr>
+<h2>Contraste con la llamada nativa</h2>
+<p>Para convencerse de que hay una diferencia real, se puede comparar el <strong>stack trace</strong> de una llamada nativa (que pasa por el stub, zona de hooks) con el de nuestra ruta indirecta (que salta al gadget). En la nativa, el retorno aparece vinculado al stub de <code>ntdll</code>; en la indirecta, el retorno cae en <strong>nuestro wrapper</strong> (<code>Kagemusha!NtClose_I+0x13</code>), como vimos en <code>dps @rsp</code>.</p>
+<p>Esto, lejos de ser un detalle cosmético, es <strong>el dato que un defensor usaría</strong>: el <em>caller</em> inmediato del indirecto puro es el módulo propio. Por eso lo documentamos (y no lo escondemos).</p>
+<hr>
+<h2>Errores comunes (Fase 4)</h2>
+<ul><li><strong>Usar <code>call</code> en vez de <code>jmp</code></strong>: rompe el retorno. Debe ser <em>tail call</em>.</li><li><strong>Olvidar <code>mov r10, rcx</code></strong>: el kernel lee el argumento equivocado.</li><li><strong>Hardcodear el SSN en el ASM</strong>: rompe entre builds; debe leerse de la tabla.</li><li><strong>Devolver un error propio como si fuera del kernel</strong>: confunde el diagnóstico.</li><li><strong>No verificar <code>RIP</code> dentro de <code>ntdll</code></strong>: creer que es indirecto sin probarlo.</li></ul>
+<hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>

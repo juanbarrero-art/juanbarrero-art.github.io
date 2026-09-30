@@ -110,6 +110,103 @@ tesis está confirmada **y es falsable**: cada afirmación tiene su oráculo y s
 que queda (ledger, `!kage`, análisis de detección) es donde el proyecto deja de ser "una
 implementación más" y empieza a aportar **conocimiento medido**.
 
+## Cómo simular un hook sin un EDR real
+
+No hace falta un EDR para probar la resiliencia. En el propio laboratorio:
+
+1. Localizamos el stub de `NtClose` en `ntdll`.
+2. Con `VirtualProtect` lo hacemos escribible.
+3. Escribimos un **prólogo de hook** (`E9 00 00 00 00`): un `jmp` relativo a "ninguna parte".
+4. Restauramos la protección.
+
+Como `ntdll` es una sección de memoria compartida con **Copy-On-Write**, escribir en el stub de
+nuestro proceso crea una **copia privada**: no afectamos al resto del sistema, así que el
+experimento es seguro. Después, `KageIsStubHooked` debe responder `TRUE`.
+
+> Este es el mismo efecto que produce un EDR de user-mode, pero **bajo nuestro control** y
+> reproducible. Nada de "magia": un `jmp` al inicio del stub.
+
+---
+
+## Por qué FreshyCalls es inmune (explicado)
+
+La clave está en **qué lee** cada técnica:
+
+- **Hell's Gate / Halo's Gate** leen los **bytes del stub** (`mov eax, SSN`). Si esos bytes están
+  modificados por un hook, leen **basura** → SSN incorrecto → comportamiento errático.
+- **FreshyCalls** lee el **orden de los exports por dirección virtual**. Esa información **no
+  depende de los bytes del stub**: modificar el prólogo no cambia la dirección del export ni el
+  orden.
+
+Por eso, con el stub hookeado, FreshyCalls devuelve **el mismo SSN**. Y como el gadget se busca
+**fuera** del stub hookeado (en el pool), la ejecución indirecta sigue funcionando: se salta al
+`syscall;ret` limpio de `ntdll` y **nunca se ejecuta el `jmp` del hook**.
+
+---
+
+## Endurecer el parser PE
+
+Un sistema que lee cabeceras PE (para encontrar exports) puede **reventar** con un PE malformado:
+si `e_lfanew` (el offset que apunta a la cabecera NT) es enorme, leer "allí" provoca una
+**lectura fuera de rango**. Por eso el parser:
+
+- Rechaza `e_lfanew` fuera de `[0x40, 0x1000]` **antes** de tocar las cabeceras NT.
+- Valida tamaños y límites antes de recorrer arrays.
+
+El experimento de **fuzz** le da **9 PEs malformados** (con `e_lfanew` extremo) y comprueba que
+el parser devuelve `NULL`/error **sin crashear**. Endurecer la entrada es tan importante como la
+lógica principal.
+
+---
+
+## Concurrencia e idempotencia
+
+Dos pruebas que suelen olvidarse:
+
+- **Concurrencia:** 4 hilos × 1000 syscalls cada uno, sin fallos. Sirve para detectar condiciones
+  de carrera en el uso de las tablas.
+- **Init idempotente:** llamar a `KageInitialize()` 100 veces deja las tablas **estables** (mismos
+  valores). Un init que "se pisa" a sí mismo sería un bug latente.
+
+---
+
+## El límite real: 488 de 490
+
+El hallazgo más importante no es un éxito, sino un **límite documentado**. En la build de
+referencia:
+
+- **490** exports `Nt*`.
+- **488** tienen el prólogo de stub de syscall (`4C 8B D1 B8`).
+- **2** no lo tienen (`NtGetTickCount`, `NtQuerySystemTime` → `jmp Rtl*`).
+
+FreshyCalls los **cuenta** al ordenar por VA. En esta build, el índice coincide con el SSN real
+para **los 488 stubs** (0 discrepancias), incluido todo nuestro catálogo. Pero **es un límite a
+vigilar**: si otra build cambia cuántos exports "no-stub" hay, el índice podría desplazarse.
+Documentarlo es la diferencia entre "creo que es fiable" y "sé exactamente cuándo podría fallar".
+
+---
+
+## Qué NO concluir (rigor)
+
+- **"Es indetectable".** No: se evitan hooks de user-mode, pero el kernel, ETW y los callbacks
+  siguen ahí. La Fase 8 mide esa visibilidad.
+- **"Funciona en cualquier Windows".** Los SSN se resuelven en runtime, pero hay que **probar en
+  varias builds** (multi-build) para afirmarlo.
+- **"Con 8 syscalls ya está todo probado".** El catálogo cubre aridades, pero cada build y cada
+  configuración pueden exponer casos nuevos.
+
+---
+
+## Errores comunes (Fase 6)
+
+- **Modificar el stub sin `VirtualProtect`**: la escritura falla (página de solo lectura).
+- **Creer que el hook real es igual al simulado**: es una **emulación** controlada, útil y segura.
+- **No manejar entradas adversas**: un PE malformado no debe tumbar el analizador.
+- **Ignorar la concurrencia**: condiciones de carrera silenciosas son las más peligrosas.
+- **Ocultar los límites**: un informe sin limitaciones no es un informe, es publicidad.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.
