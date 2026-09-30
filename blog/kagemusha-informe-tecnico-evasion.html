@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, edr, evasion, investigacion, informe">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot;">
+  <meta property="og:description" content="Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-11">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="red team">
+  <meta property="article:tag" content="blue team">
+  <meta property="article:tag" content="edr">
+  <meta property="article:tag" content="evasion">
+  <meta property="article:tag" content="investigacion">
+  <meta property="article:tag" content="informe">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot;">
+  <meta name="twitter:description" content="Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)\"",
+  "description": "Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta>ejecución>mecanismo, la matriz de evasión y las recomendaciones para el lado azul.",
+  "datePublished": "2026-10-11",
+  "dateModified": "2026-10-11",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, edr, evasion, investigacion, informe",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">11 oct 2026 &middot; 4 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#blue team</span> <span class="tag">#edr</span> <span class="tag">#evasion</span> <span class="tag">#investigacion</span> <span class="tag">#informe</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Informe técnico: evasión de EDR</h1>
+<p>Esta entrada documenta el <strong>informe técnico</strong> del repositorio (<code>docs/research/informe-tecnico-evasion.md</code>), un documento de análisis conceptual y técnico.</p>
+<blockquote><p>Del informe: <em>"No contiene recetas operativas ni código malicioso; describe principios, arquitectura y hallazgos empíricos obtenidos con un harness propio y reproducible."</em></p></blockquote>
+<h2>Las cinco conclusiones (resumen ejecutivo del informe)</h2>
+<ol><li><strong>Visibilidad no es detección.</strong> <em>"Un EDR puede ver cada syscall y no alertar…"</em> Lo comprobaron: Defender observó los syscalls y no generó ninguna detección.</li><li><strong>Jerarquía de impacto: conducta/OPSEC &gt; técnica de ejecución &gt; mecanismo de syscall.</strong></li><li><strong>El indirecto resuelve exactamente un vector</strong> (hooks inline de user-mode); el <strong>stack spoofing</strong> resuelve un segundo (la firma de pila). Ambos son necesarios contra un EDR que hookea o inspecciona pilas.</li><li><strong>CET y stack spoofing clásico son mutuamente excluyentes.</strong></li><li><strong>El techo es el kernel:</strong> ETW-TI y los callbacks no se pueden cegar desde user-mode (se resuelve bajando a kernel, BYOVD, con privilegios de un paso previo).</li></ol>
+<h2>Arquitectura de un EDR y sus planos (del informe)</h2>
+<p>Cuatro planos: <strong>usuario, kernel, memoria y telemetría</strong>. Tabla del informe:</p>
+<table><thead><tr><th>Plano</th><th>Mecanismo</th><th>¿Ve el indirect?</th><th>Neutralizable desde user-mode</th></tr></thead><tbody><tr><td>Usuario</td><td>hooks inline en <code>Nt*</code></td><td>No</td><td>— (ya lo evita)</td></tr><tr><td>Usuario</td><td>instrumentation callback</td><td>Sí</td><td>Sí (limpiar/capar)</td></tr><tr><td>Telemetría user</td><td>ETW (<code>EtwEventWrite</code>)</td><td>Sí</td><td>Sí (patch)</td></tr><tr><td>Kernel</td><td>ETW-TI / callbacks</td><td>Sí</td><td><strong>No</strong></td></tr><tr><td>Memoria</td><td>scans</td><td>Depende</td><td>Parcial (sleep obfuscation)</td></tr></tbody></table>
+<h2>El límite user / kernel (del informe)</h2>
+<p>El código de user-mode <strong>solo puede modificar cosas dentro de su espacio y con su token</strong>. De ahí:</p>
+<ol><li><strong>Toda la evasión de user-mode está disponible en contexto usuario</strong> (patchear su propio <code>ntdll</code>, su ETW, su callback; indirect syscalls).</li><li>No puede tocar callbacks de kernel ni ETW-TI ni el driver del EDR.</li><li>La evasión tiene <strong>dos techos</strong>: user-mode y kernel. <em>"Explica por qué la evasión es incremental y no un acto único."</em></li></ol>
+<h2>Jerarquía de evasión (del informe)</h2>
+<ol><li><strong>Conducta / OPSEC (lo que haces)</strong> — dominante; el EDR alerta por el <strong>patrón</strong>, no por un syscall aislado.</li><li><strong>Técnica de ejecución (cómo arrancas/cargas)</strong> — define la huella inicial.</li><li><strong>Mecanismo de syscall (cómo invocas el kernel)</strong> — evita hooks y oculta la pila, pero <strong>no cambia qué hace el proceso</strong>.</li></ol>
+<blockquote><p><em>"El mecanismo de syscall es como abrir bien la cerradura; la ejecución es no hacer ruido…"</em></p></blockquote>
+<h2>Visibilidad vs detección (del informe)</h2>
+<p>Separar <strong>sensor</strong>, <strong>telemetría</strong>, <strong>regla</strong> y <strong>alerta</strong>: un hecho puede ser <strong>observado</strong> y <strong>no detectado</strong>. La evasión consiste en <strong>reducir la señal</strong> y <strong>evitar los patrones</strong> que las reglas describen. <em>"'El EDR me ve' no implica 'el EDR me pilla'."</em></p>
+<h3>Mapa de los experimentos sobre el marco (tabla del informe)</h3>
+<table><thead><tr><th>Experimento</th><th>Qué midió</th><th>Lectura</th></tr></thead><tbody><tr><td>Defender (estático/conductual)</td><td>¿Alerta?</td><td>No, conducta benigna</td></tr><tr><td>E2 (instrumentation callback)</td><td>¿Ve?</td><td>Sí, ve cada syscall</td></tr><tr><td>E3 (call-stack)</td><td>¿Firma?</td><td>Sí: return address en módulo propio</td></tr><tr><td>E4c (CET vs spoofing)</td><td>¿Compatible?</td><td>Incompatibles</td></tr><tr><td>E4b (ETW patch)</td><td>¿Ciega user?</td><td>Sí</td></tr></tbody></table>
+<h2>Matriz de evasión (Apéndice E del informe)</h2>
+<table><thead><tr><th>Vector</th><th>Técnica requerida</th><th>Kagemusha</th><th>Límite</th></tr></thead><tbody><tr><td>Hooks inline user-mode</td><td>Indirect + FreshyCalls</td><td>✅</td><td>—</td></tr><tr><td>Pila / return address</td><td>Stack spoofing</td><td>✅ (stealth)</td><td>incompatible con CET</td></tr><tr><td>Instrumentation callback in-proceso</td><td>Limpiar callback</td><td>✅</td><td>por-proceso</td></tr><tr><td>ETW user-mode</td><td>ETW patch</td><td>✅</td><td>solo user-mode</td></tr><tr><td>AMSI</td><td>(patch AMSI)</td><td>—</td><td>solo scripting</td></tr><tr><td>Memoria en reposo</td><td>Sleep obfuscation</td><td>⏳ futuro</td><td>complejidad</td></tr><tr><td>ETW-TI / callbacks de kernel</td><td>Kernel (BYOVD)</td><td>❌</td><td>techo de user-mode</td></tr><tr><td>Conducta/OPSEC</td><td>Disciplina operativa</td><td>(marco)</td><td>dominante</td></tr></tbody></table>
+<h2>Estado del proyecto (Apéndice B del informe)</h2>
+<ul><li><strong>Builds:</strong> <strong>stealth</strong> (sin CET, con spoofing) y <strong>CET</strong> (<code>/CETCOMPAT</code>).</li><li><strong>Tests:</strong> <strong>178 PASS</strong> (stealth) / <strong>182 PASS</strong> (CET), 0 FAIL.</li></ul>
+<h2>Metodología y verificación (del informe)</h2>
+<p>Se apoya en <strong>oráculos independientes</strong> (nunca validar contra el propio sistema), <strong>falsabilidad</strong>, <strong>evidencia física</strong> (debugger), <strong>fallo ruidoso</strong> y <strong>reproducibilidad</strong>. Ver la entrada <a href="/blog/kagemusha-metodologia-verificacion.html">Metodología de verificación</a>.</p>
+<h2>Recomendaciones para el lado azul (del informe)</h2>
+<ol><li><strong>No confiar solo en hooks de user-mode</strong>: priorizar telemetría de kernel (callbacks, minifiltros, <strong>ETW-TI</strong>).</li><li><strong>Vigilar la integridad</strong> de stubs/módulos (comparar <code>.text</code> en memoria vs disco).</li><li><strong>Inspeccionar la pila</strong> en el punto de syscall (RIP a mitad de stub; caller no-sistema).</li><li><strong>High-signal: la conducta</strong> (patrones, no syscalls aislados).</li><li><strong>Endurecer el kernel</strong> (HVCI, blocklist de drivers, monitorizar cargas de drivers).</li><li><strong>CET / Shadow Stack</strong> donde sea viable (rompe el stack spoofing clásico).</li><li><strong>Correlación XDR</strong>.</li></ol>
+<blockquote><p><em>"Contra un EDR moderno, la defensa del atacante es reducir señal; la del defensor es diversificar sensores."</em></p></blockquote>
+<h2>Preguntas abiertas (Apéndice C del informe)</h2>
+<p>Entre otras: ¿existe un <strong>stack spoofing CET-safe</strong>?; ¿cuál es el <strong>umbral exacto</strong> de detección por ETW-TI?; ¿cuánto de la detección es <strong>conducta vs mecanismo</strong>?; ¿es medible la <strong>señal agregada</strong> en XDR?; ¿se puede cegar ETW-TI desde user-mode de forma soportada? (hasta ahora, no).</p>
+<h2>Artefactos (Apéndice F, extracto)</h2>
+<p><code>src/core/</code> (<code>core.c</code>, <code>ledger.c</code>, <code>instrument.c</code>, <code>telemetry.c</code>, <code>avatest.c</code>), <code>src/ref_layered/HookModule.cpp</code> (stack spoofing, con atribución), <code>tests/run_tests.c</code> (T0–T31), <code>tools/build.cmd</code> / <code>build_cet.cmd</code> / <code>verify.ps1</code> / <code>cdb_scripts/</code>.</p>
+<hr>
+<h2>Cómo sigue la serie</h2>
+<p>Toda la serie (navegable): <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>.</p>
+<hr>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Fuente primaria: <code>docs/research/informe-tecnico-evasion.md</code>.</li><li>Referencias del informe: Microsoft (ETW/ETW-TI, callbacks, CET/HVCI, blocklist de drivers);</li></ul>
+<p><code>paranoidninja/Process-Instrumentation-Syscall-Hook</code> (detector de referencia); <code>WKL-Sec/LayeredSyscall</code> (mecanismo de stack spoofing integrado).</p>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

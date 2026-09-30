@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, kernel, investigacion, informe">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot;">
+  <meta property="og:description" content="Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-10">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="red team">
+  <meta property="article:tag" content="blue team">
+  <meta property="article:tag" content="kernel">
+  <meta property="article:tag" content="investigacion">
+  <meta property="article:tag" content="informe">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot;">
+  <meta name="twitter:description" content="Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)\"",
+  "description": "Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.",
+  "datePublished": "2026-10-10",
+  "dateModified": "2026-10-10",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, kernel, investigacion, informe",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">10 oct 2026 &middot; 4 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#blue team</span> <span class="tag">#kernel</span> <span class="tag">#investigacion</span> <span class="tag">#informe</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Informe técnico: técnicas para alcanzar el kernel</h1>
+<p>Esta entrada documenta el <strong>informe técnico conceptual</strong> del repositorio (<code>docs/research/informe-tecnicas-kernel.md</code>).</p>
+<blockquote><p>El propio informe se define así: <em>"Documento <strong>conceptual y defensivo</strong>: describe </em>categorías<em> de técnicas, por qué funcionan y cómo se mitigan. <strong>No contiene recetas operativas</strong> (ni drivers concretos, ni IOCTLs, ni exploits, ni pasos de ejecución)."</em></p></blockquote>
+<p>&gt;</p>
+<blockquote><p>Pregunta que responde: <em>"si BYOVD no es la única forma, ¿qué rutas existen para ejecutar código en kernel (o por debajo) y cómo se comparan?"</em></p></blockquote>
+<h2>Por qué existe este informe</h2>
+<p>Kagemusha cubre la capa <strong>user-mode</strong>. Este informe define el <strong>mapa de técnicas</strong> y <strong>el techo</strong> de la aproximación user-mode: llegar a <strong>kernel</strong> (ring 0) o <strong>por debajo</strong> permite observar, ocultar o des-registrar casi cualquier cosa —incluidos los sensores de kernel de un EDR.</p>
+<h2>Las rutas (resumen ejecutivo del informe)</h2>
+<ol><li><strong>Escribir y cargar tu propio driver</strong> (exige firma + privilegio).</li><li><strong>Burlar la firma de drivers (DSE)</strong>.</li><li><strong>BYOVD</strong>: reutilizar un driver <strong>firmado pero vulnerable</strong>.</li><li><strong>Abusar de un driver legítimo ya cargado</strong> (IOCTL vulnerable) — puede no requerir admin.</li><li><strong>Explotar una vulnerabilidad de kernel (EoP)</strong>.</li><li><strong>Bootkits / UEFI</strong>: cargar <strong>antes</strong> que el OS.</li><li><strong>Hypervisor / VBS / hyperjacking</strong>: situarse <strong>por debajo</strong> del OS.</li><li><strong>Firmware rootkits</strong>.</li><li><strong>Sin kernel</strong>: matar/deshabilitar el EDR desde user-mode <strong>con admin</strong>.</li></ol>
+<h2>El modelo de privilegios (del informe)</h2>
+<ul><li><strong>Ring 3 (user-mode):</strong> evasión "barata" (indirect syscalls, stack spoofing, ETW patch). <strong>Sin privilegios</strong>.</li><li><strong>Ring 0 (kernel-mode):</strong> ve y controla todo; requiere código de kernel o explotar.</li><li><strong>Below-OS:</strong> bootloader/UEFI, hypervisor, firmware. Máximo sigilo y persistencia.</li></ul>
+<blockquote><p><em>"La frontera user↔kernel es el límite duro: desde ring 3 no puedes des-registrar callbacks de kernel, tocar la SSDT, ni silenciar ETW-TI."</em></p></blockquote>
+<h3>Qué se gana en kernel (del informe)</h3>
+<p>Des-registrar callbacks del EDR; silenciar <strong>ETW-TI</strong>; manipulación de estructuras (DKOM); filtrar telemetría; desactivar integridades (DSE, HVCI) o persistir muy abajo.</p>
+<h2>Comparativa de técnicas (tabla del informe)</h2>
+<table><thead><tr><th>Técnica</th><th>Nivel</th><th>¿Admin?</th><th>¿Firma propia?</th><th>Depende de</th><th>Detectabilidad</th><th>Persistencia</th></tr></thead><tbody><tr><td>Driver propio</td><td>Ring 0</td><td>Sí</td><td>Sí (o bypass)</td><td>DSE</td><td>Alta</td><td>Media</td></tr><tr><td>Bypass de DSE</td><td>Ring 0</td><td>Sí</td><td>Bypass/robado</td><td>Cert/0-day</td><td>Media-Alta</td><td>Media</td></tr><tr><td>BYOVD-privesc</td><td>Ring 0</td><td><strong>No</strong></td><td>No (reusa)</td><td>Driver presente/vuln</td><td>Media</td><td>Media</td></tr><tr><td>BYOVD-blinding</td><td>Ring 0</td><td>Sí (post-ex)</td><td>No (reusa)</td><td>Driver cargable/vuln</td><td>Media</td><td>Media</td></tr><tr><td>Abuso de driver presente</td><td>Ring 0</td><td>A menudo no</td><td>No</td><td>Driver presente</td><td>Media</td><td>—</td></tr><tr><td>Exploit de kernel (EoP)</td><td>Ring 0</td><td>No</td><td>No</td><td>Vulnerabilidad</td><td>Baja-Media</td><td>—</td></tr><tr><td>Kill/disable EDR</td><td>Ring 0/3</td><td>Sí</td><td>No</td><td>Falla del producto</td><td>Media-Alta</td><td>Baja</td></tr><tr><td>Bootkit/UEFI</td><td>Below-OS</td><td>Sí (o físico)</td><td>Firma UEFI/bypass</td><td>Secure Boot</td><td>Muy baja</td><td><strong>Muy alta</strong></td></tr><tr><td>Hypervisor/VBS</td><td>Below-OS</td><td>Sí</td><td>Especial</td><td>Hardware/VBS</td><td>Muy baja</td><td><strong>Muy alta</strong></td></tr><tr><td>Firmware rootkit</td><td>Firmware</td><td>Sí/físico</td><td>Firmware signing</td><td>Hardware</td><td>Muy baja</td><td><strong>Muy alta</strong></td></tr></tbody></table>
+<p><strong>Lectura (del informe):</strong> sin admin se puede llegar a kernel por <strong>BYOVD-privesc</strong>, <strong>abuso de driver presente</strong> o <strong>EoP</strong>; con admin se abre <strong>BYOVD-blinding</strong>, driver propio o kill/disable; below-OS es el extremo en sigilo y persistencia.</p>
+<h2>Defensas por capa (del informe)</h2>
+<p>Defensa en profundidad: <strong>DSE + Secure Boot</strong>; <strong>HVCI/VBS</strong>; <strong>blocklist de drivers vulnerables + LOLDrivers</strong>; auditoría de drivers preinstalados; <strong>ACLs de devices</strong>; <strong>telemetría de kernel + ETW-TI</strong>; <strong>mitigaciones de explotación</strong> (SMEP/SMAP/kCFG/pool hardening); <strong>atestación del arranque</strong> (TPM/Measured Boot); <strong>correlación XDR</strong>. <em>"No hay una única defensa; quien tenga más sensores en más capas gana la carrera."</em></p>
+<h2>La cadena típica (del informe)</h2>
+<pre><code class="lang-text">1. Acceso inicial (0 admin)
+2. Evasión user-mode (0 admin)              &lt;- Kagemusha (este proyecto)
+3. Escalada: LPE/exploit o BYOVD-privesc
+4. Evasión kernel (admin): BYOVD-blinding (quitar callbacks/ETW-TI)
+5. Persistencia avanzada (opcional): bootkit / hypervisor / firmware
+6. Persistencia, movimiento lateral, impacto</code></pre>
+<p><em>"El kernel no es el punto de partida; es un escalón que se sube por pasos."</em></p>
+<h2>Conclusión (del informe)</h2>
+<ul><li><strong>BYOVD no es la única vía.</strong> Hay al menos 9 rutas, con distinto privilegio y coste; ninguna universal.</li><li>La tendencia (DSE + blocklist + HVCI) empujó de "escribir tu driver" a <strong>BYOVD</strong> y, en élites, a <strong>below-OS</strong>.</li><li>Para la defensa: <strong>diversificar y profundizar sensores</strong>.</li></ul>
+<h2>Consideraciones éticas y de alcance (del informe)</h2>
+<p>Documento <strong>conceptual</strong>, en laboratorio propio, <strong>sin recetas operativas</strong>. El objetivo es <strong>entender y defender</strong>. Cualquier trabajo práctico con kernel/BYOVD debe hacerse en <strong>VMs aisladas y sin red</strong>.</p>
+<hr>
+<h2>Cómo sigue la serie</h2>
+<p>Toda la serie (navegable): <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>.</p>
+<hr>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Fuente primaria: <code>docs/research/informe-tecnicas-kernel.md</code>.</li><li>Referencias del informe: Microsoft (DSE, <em>Vulnerable Driver Blocklist</em>, HVCI/VBS, Secure Boot/</li></ul>
+<p>Measured Boot, ETW-TI); <strong>LOLDrivers</strong>; literatura general de <em>exploit-development</em>; literatura de rootkits/bootkits (DKOM, UEFI bootkits, hyperjacking); <strong>CHIPSEC</strong>.</p>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

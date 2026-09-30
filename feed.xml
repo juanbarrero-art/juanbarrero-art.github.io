@@ -5,7 +5,21 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 17:44:41 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 17:48:25 +0000</lastBuildDate>
+  <item>
+    <title>&quot;Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html</guid>
+    <pubDate>Sun, 11 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.</description>
+  </item>
+  <item>
+    <title>&quot;Kagemusha — Informe técnico: técnicas para alcanzar el kernel (mapa conceptual)&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnicas-kernel.html</guid>
+    <pubDate>Sat, 10 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Documentación del informe técnico conceptual del repositorio (docs/research/informe-tecnicas-kernel.md): el mapa de vías para ejecutar código en kernel (driver propio, DSE, BYOVD, abuso de drivers, EoP, bootkit/UEFI, hypervisor/VBS, firmware), con comparativa, defensas por capa y consideraciones éticas.</description>
+  </item>
   <item>
     <title>&quot;Kagemusha — Metodología de verificación (oráculos independientes)&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-metodologia-verificacion.html</link>
