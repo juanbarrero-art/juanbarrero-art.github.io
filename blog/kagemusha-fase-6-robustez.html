@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 15 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 16 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -266,6 +266,18 @@ DESPUES (hook E9):
 <p><strong>priorizar</strong> qué proteger con sensores más robustos.</p>
 <ul><li><strong>Mide tu detección.</strong> Un EDR no es "mejor" por tener más hooks, sino por <strong>detectar</strong> más con</li></ul>
 <p>menos falsos positivos.</p>
+<hr>
+<h2>Sesión anotada: instalar y quitar un hook</h2>
+<p>El experimento, paso a paso (conceptualmente):</p>
+<pre><code class="lang-text">1. localizar el stub:        stub = export &quot;NtClose&quot; de ntdll
+2. hacerlo escribible:       VirtualProtect(stub, 5, RW)
+3. escribir el hook:         memcpy(stub, &quot;\xE9\x00\x00\x00\x00&quot;, 5)
+4. comprobar el sensor:      KageIsStubHooked(stub) == TRUE
+5. ejecutar el indirecto:    NtClose_I(handle_valido) -&gt; STATUS_SUCCESS
+6. restaurar los bytes:      memcpy(stub, &quot;\x4C\x8B\xD1\xB8...&quot;, 5)
+7. comprobar de nuevo:       KageIsStubHooked(stub) == FALSE</code></pre>
+<p>Lo importante del experimento <strong>no</strong> es el resultado de un <code>NtClose</code> concreto: es que, entre los pasos 4 y 5, el stub está <strong>roto</strong> y el sistema <strong>funciona igual</strong>. Eso prueba, de la forma más directa posible, que la ejecución indirecta <strong>no depende</strong> del stub.</p>
+<blockquote><p>Y el auto-hospedaje aparece si hookeas <strong>todos</strong> los stubs: <code>VirtualProtect</code> (que usa <code>NtProtectVirtualMemory</code>) se cuelga, así que el propio sistema se usa para manipular <code>ntdll</code>.</p></blockquote>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

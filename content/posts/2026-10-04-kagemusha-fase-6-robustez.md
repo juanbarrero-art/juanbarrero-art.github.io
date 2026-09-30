@@ -426,6 +426,29 @@ Una matriz así es el **resumen ejecutivo** de la fase: cada fila, una amenaza; 
 
 ---
 
+## Sesión anotada: instalar y quitar un hook
+
+El experimento, paso a paso (conceptualmente):
+
+```text
+1. localizar el stub:        stub = export "NtClose" de ntdll
+2. hacerlo escribible:       VirtualProtect(stub, 5, RW)
+3. escribir el hook:         memcpy(stub, "\xE9\x00\x00\x00\x00", 5)
+4. comprobar el sensor:      KageIsStubHooked(stub) == TRUE
+5. ejecutar el indirecto:    NtClose_I(handle_valido) -> STATUS_SUCCESS
+6. restaurar los bytes:      memcpy(stub, "\x4C\x8B\xD1\xB8...", 5)
+7. comprobar de nuevo:       KageIsStubHooked(stub) == FALSE
+```
+
+Lo importante del experimento **no** es el resultado de un `NtClose` concreto: es que, entre los
+pasos 4 y 5, el stub está **roto** y el sistema **funciona igual**. Eso prueba, de la forma más
+directa posible, que la ejecución indirecta **no depende** del stub.
+
+> Y el auto-hospedaje aparece si hookeas **todos** los stubs: `VirtualProtect` (que usa
+> `NtProtectVirtualMemory`) se cuelga, así que el propio sistema se usa para manipular `ntdll`.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

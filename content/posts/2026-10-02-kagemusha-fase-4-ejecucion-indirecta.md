@@ -515,6 +515,42 @@ Una tabla de fallos es tan útil como una de aciertos: dice **qué buscar** cuan
 
 ---
 
+## Sesión de debugger anotada (de principio a fin)
+
+Así se ve, con comentarios, una verificación completa de `NtClose_I`:
+
+```text
+0:000> bp Kagemusha!NtClose_I
+0:000> g
+; ---- paramos en el wrapper ----
+rcx=00000000000000a4        ; el handle que pasamos (0xa4)
+0:000> t                    ; entramos al stub
+; mov r10, rcx
+0:000> r r10
+r10=00000000000000a4        ; el argumento ya viajo a R10 (ABI syscall)
+0:000> t
+; mov eax, [g_SsnTable]
+0:000> r eax
+eax=0f                      ; SSN de NtClose (resuelto en runtime)
+0:000> t
+; jmp [g_GadgetTable] -> ahora estamos DENTRO de ntdll
+0:000> r rip
+rip=00007ffc`48540fa2
+0:000> lm m ntdll
+ntdll  00007ffc`483e0000 - 00007ffc`48647000   ; rip cae dentro -> indirecto
+0:000> dps @rsp L1
+00000087`59eff9f8  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; volvera al wrapper
+0:000> g
+; el kernel ejecuta NtClose y devuelve el NTSTATUS
+0:000> r eax
+eax=0                       ; STATUS_SUCCESS (cerro un handle valido)
+```
+
+Cada línea del transcript responde a **una** de las seis preguntas del workflow. Es un
+"protocolo", no una curiosidad.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).

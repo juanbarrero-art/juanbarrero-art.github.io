@@ -476,6 +476,35 @@ en cada resultado y re-ejecutar la suite en cada entorno.
 
 ---
 
+## Cómo leer la salida de `--dump`
+
+```text
+[0] NtClose                 SSN=0x00F gadget=00007FFC48540FA2
+ ^   ^                        ^        ^
+ |   |                        |        +-- direccion del gadget (validado en ntdll)
+ |   |                        +----------- SSN resuelto por FreshyCalls
+ |   +------------------------------------ nombre de la funcion
+ +---------------------------------------- slot (indice en las tablas)
+```
+
+Cada campo importa: el **slot** define el orden y las tablas; el **SSN** viene del resolver; el
+**gadget** es lo que se ejecutará. Si vieras un `SSN=0x000` o un gadget sospechoso, sabrías que el
+init falló (y la suite lo habría detectado antes).
+
+---
+
+## El catálogo y el ledger, juntos
+
+Con el **ledger** (Fase 7) y el catálogo, tienes las dos vistas del sistema:
+
+- **Catálogo (`--dump`):** qué **puede** hacer (la tabla estática de SSN y gadgets).
+- **Ledger (`--trace`):** qué **hizo** (la lista de llamadas con resultado).
+
+Comparar ambas es depurar: "esperaba `NtClose` y veo `NtYieldExecution`" te dice que el slot o el
+wrapper está mal.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

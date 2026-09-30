@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">03 oct 2026 &middot; 15 min de lectura</p>
+        <p class="post__meta">03 oct 2026 &middot; 16 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -285,6 +285,20 @@ Aridad 6:  RCX, RDX, R8, R9 + [rsp+0x20..28]-&gt; 5.o y 6.o EN PILA</code></pre>
 <hr>
 <h2>Migrar el catálogo a otra build</h2>
 <p>Como los SSN se resuelven <strong>en runtime</strong>, migrar a otra build de Windows <strong>no</strong> requiere tocar el ASM ni el registro: solo volver a ejecutar. Lo que puede cambiar es <strong>cuántos</strong> exports <code>Nt*</code> hay y cuáles no son stubs (<code>NtQuerySystemTime</code>-like). Por eso la serie recomienda <strong>registrar la build</strong> en cada resultado y re-ejecutar la suite en cada entorno.</p>
+<hr>
+<h2>Cómo leer la salida de <code>--dump</code></h2>
+<pre><code class="lang-text">[0] NtClose                 SSN=0x00F gadget=00007FFC48540FA2
+ ^   ^                        ^        ^
+ |   |                        |        +-- direccion del gadget (validado en ntdll)
+ |   |                        +----------- SSN resuelto por FreshyCalls
+ |   +------------------------------------ nombre de la funcion
+ +---------------------------------------- slot (indice en las tablas)</code></pre>
+<p>Cada campo importa: el <strong>slot</strong> define el orden y las tablas; el <strong>SSN</strong> viene del resolver; el <strong>gadget</strong> es lo que se ejecutará. Si vieras un <code>SSN=0x000</code> o un gadget sospechoso, sabrías que el init falló (y la suite lo habría detectado antes).</p>
+<hr>
+<h2>El catálogo y el ledger, juntos</h2>
+<p>Con el <strong>ledger</strong> (Fase 7) y el catálogo, tienes las dos vistas del sistema:</p>
+<ul><li><strong>Catálogo (<code>--dump</code>):</strong> qué <strong>puede</strong> hacer (la tabla estática de SSN y gadgets).</li><li><strong>Ledger (<code>--trace</code>):</strong> qué <strong>hizo</strong> (la lista de llamadas con resultado).</li></ul>
+<p>Comparar ambas es depurar: "esperaba <code>NtClose</code> y veo <code>NtYieldExecution</code>" te dice que el slot o el wrapper está mal.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
