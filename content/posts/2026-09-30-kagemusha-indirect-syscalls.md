@@ -383,18 +383,6 @@ La regla es simple: **cada afirmación tiene una fuente externa**. Si no la tien
 
 ---
 
-## Errores comunes al investigar esto
-
-- **Confundir "indirecto" con "invisible".** El indirecto evade hooks de user-mode; el kernel,
-  ETW y los callbacks siguen viendo la llamada.
-- **Creer que el SSN es universal.** Cambia por build; hay que resolverlo en runtime.
-- **Saltarse la validación del gadget.** Un gadget "a mitad de instrucción" provoca un crash
-  difícil de diagnosticar.
-- **No registrar el build.** Sin la build de referencia, un resultado no es reproducible.
-- **Optimizar antes de verificar.** Primero que sea **correcto y medible**; luego, más syscalls.
-
----
-
 ## Qué NO es este proyecto
 
 Delimitar también es enseñar:

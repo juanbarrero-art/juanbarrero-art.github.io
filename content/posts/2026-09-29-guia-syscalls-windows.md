@@ -267,19 +267,6 @@ de esto te parece "magia", deja de parecerlo en cuanto lo ves con tus ojos.
 
 ---
 
-## 12. Errores comunes y conceptos erróneos
-
-- **"El SSN es fijo".** No: cambia por build. Hardcodearlo es garantía de romperse.
-- **"Indirect = indetectable".** No: evita *hooks de user-mode*, pero hay demás telemetría.
-- **"`Nt*` y `Zw*` son lo mismo".** En user-mode apuntan a la misma rutina; en kernel-mode se
-  diferencian (anterior/último modo de acceso).
-- **"Todos los exports `Nt*` son stubs de syscall".** Falso: algunos hacen `jmp Rtl*` (p. ej.
-  `NtQuerySystemTime`), y lo veremos en la serie.
-- **"Ejecutar `syscall` sin más es suficiente".** Necesitas el SSN correcto **y**, en indirecto,
-  un gadget válido.
-
----
-
 ## 13. Glosario
 
 | Término | Significado |
