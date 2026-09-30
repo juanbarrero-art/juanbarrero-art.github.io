@@ -528,7 +528,8 @@ La robustez no es un **estado**, es un **proceso**: cada revisión añadió prue
 export directory malicioso `G8`) para que un fallo **no pudiera volver**. Un sistema "robusto" que
 no se vuelve a probar cada vez no es robusto: tiene suerte. Y la suerte, en seguridad, no es una
 estrategia. Probar, medir y documentar: ese es el trabajo. Y ese —**no romperse** cuando el mundo
-se pone hostil— es el único resultado que un investigador serio puede prometer sin mentir.
+se pone hostil— es el único resultado que un investigador serio puede prometer sin mentir. Medir
+es incómodo —a veces desmiente tus deseos—, pero es lo único que separa un hallazgo de una opinión.
 
 ---
 
