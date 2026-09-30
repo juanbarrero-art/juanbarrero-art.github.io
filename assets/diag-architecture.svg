@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Arquitectura por modulos de Kagemusha">
+  <rect width="760" height="420" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Arquitectura de Kagemusha (por capas)</text>
+
+  <g font-family="Consolas,monospace" font-size="13">
+    <rect x="60" y="56" width="640" height="46" rx="8" fill="#111a2e" stroke="#8b93b8"/>
+    <text x="80" y="84" fill="#c9d1e0">tests/  harness de pruebas (oraculos independientes)</text>
+
+    <rect x="60" y="110" width="640" height="46" rx="8" fill="#111a2e" stroke="#39ff14"/>
+    <text x="80" y="138" fill="#c9d1e0">wrappers/  capa C tipada:  NtClose_I(h), NtQuery*_I</text>
+
+    <rect x="60" y="164" width="640" height="46" rx="8" fill="#111a2e" stroke="#00e5ff"/>
+    <text x="80" y="192" fill="#c9d1e0">asm/  trampolines:  mov r10,rcx ; mov eax,[SSN] ; jmp [GADGET]</text>
+
+    <rect x="60" y="218" width="640" height="46" rx="8" fill="#111a2e" stroke="#a855f7"/>
+    <text x="80" y="246" fill="#c9d1e0">core/  tablas + ciclo de vida (g_SsnTable, g_GadgetTable, init transaccional)</text>
+
+    <rect x="60" y="272" width="310" height="70" rx="8" fill="#101a22" stroke="#6366f1"/>
+    <text x="80" y="300" fill="#c9d1e0">resolver/</text>
+    <text x="80" y="322" fill="#8b93b8">freshycalls.c + gadget.c</text>
+
+    <rect x="390" y="272" width="310" height="70" rx="8" fill="#101a22" stroke="#6366f1"/>
+    <text x="410" y="300" fill="#c9d1e0">util/</text>
+    <text x="410" y="322" fill="#8b93b8">peb.c + exhash.c + log.c</text>
+  </g>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M380 102 v8"/><path d="M380 156 v8"/><path d="M380 210 v8"/><path d="M380 264 v8"/>
+  </g>
+
+  <text x="60" y="376" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Flujo: wrapper -&gt; stub ASM -&gt; gadget en ntdll -&gt; kernel -&gt; NTSTATUS de vuelta.</text>
+  <text x="60" y="396" font-family="Consolas,monospace" font-size="12" fill="#39ff14">Propiedad verificable: 0 instrucciones syscall en el modulo.</text>
+</svg>

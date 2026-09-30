@@ -74,6 +74,7 @@ Kagemusha!KageHelloAsm:
 <ul><li><strong>Olvidar <code>/Zi</code> / <code>/DEBUG:FULL</code></strong>: sin PDB no hay símbolos y los <code>bp</code> simbólicos fallan.</li><li><strong>No configurar <code>_NT_SYMBOL_PATH</code></strong>: <code>ntdll!NtClose</code> aparecería sin nombre; imposible verificar.</li><li><strong>Mezclar x86 y x64</strong>: hay que usar el entorno <code>x64 Native Tools</code>.</li></ul>
 <hr>
 <h2>Fase 1 — Utilidades base (<code>util/</code>) · M1 ✅</h2>
+<p><img src="../assets/diag-peb.svg" alt="Diagrama: PEB walk" loading="lazy"></p>
 <h3>El objetivo</h3>
 <p>Acceder a <code>ntdll</code> <strong>sin depender de la IAT</strong> (Import Address Table). La IAT lista las funciones importadas y es visible; evitar <code>GetModuleHandle</code>/<code>GetProcAddress</code> en el camino crítico es parte del diseño. Hacemos "a mano" lo que esas funciones hacen.</p>
 <h3>Pieza 1 — PEB walk (<code>src/util/peb.c</code>)</h3>
@@ -108,6 +109,7 @@ Kagemusha!KageHelloAsm:
 <ul><li><strong>Hash mal calculado</strong>: comparece un nombre pero devuelve otro export → el oráculo lo caza.</li><li><strong>No descartar forwarded</strong>: terminabas con una dirección en otro módulo (no en <code>ntdll</code>).</li><li><strong><code>+1</code> de los ordinales</strong>: el EAT usa ordinales basados en <code>Base</code>; olvidarlo desalinea todo.</li></ul>
 <hr>
 <h2>Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅</h2>
+<p><img src="../assets/diag-freshycalls.svg" alt="Diagrama: FreshyCalls (sort-by-VA)" loading="lazy"></p>
 <h3>El objetivo</h3>
 <p>Obtener el <strong>SSN</strong> (número de servicio) de cada <code>Nt*</code> <strong>sin leer bytes del stub</strong>. Si dependemos de esos bytes y un EDR los modifica (hook), dependemos de que estén intactos. La idea es <strong>no mirar el stub en absoluto</strong>.</p>
 <h3>El invariante</h3>
@@ -137,6 +139,7 @@ ntdll!NtClose:
 <ul><li><strong>No ordenar por VA</strong> correctamente: si el <code>qsort</code> falla, el índice pierde sentido.</li><li><strong>Hardcodear el SSN "porque ya lo sé"</strong> (la tentación): rompe en la próxima build.</li></ul>
 <hr>
 <h2>Fase 3 — Localizar el gadget <code>syscall;ret</code> · M3 ✅</h2>
+<p><img src="../assets/diag-gadget.svg" alt="Diagrama: gadget syscall;ret" loading="lazy"></p>
 <h3>El objetivo</h3>
 <p>Encontrar, <strong>dentro de <code>ntdll</code></strong>, la secuencia real de bytes <strong><code>0F 05 C3</code></strong> (<code>syscall; ret</code>), ejecutable y que no forme parte de un hook. Ese será el punto de salto de la Fase 4.</p>
 <h3>La idea clave</h3>
@@ -165,6 +168,8 @@ ntdll!NtClose:
 <p><strong>¿Qué pasa si dos exports tienen la misma VA?</strong> Se detecta (VAs duplicadas) y el resolver <strong>falla ruidosamente</strong>; no se adivina.</p>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><strong>Fases 0 a 3</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (PEB, Ldr, export directory).</li><li>Microsoft Learn — <em>PEB/Ldr structures</em>, <em>PE format</em>, <em>x64 calling convention</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>thefLink — <em>RecycledGate</em> (<code>github.com/thefLink/RecycledGate</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m0..m3.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

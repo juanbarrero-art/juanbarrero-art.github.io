@@ -41,6 +41,7 @@
       <div class="post__cuerpo"><h1>Kagemusha — Fase 4: ejecución indirecta real</h1>
 <p>Llegamos al <strong>hito central</strong> del proyecto. En las <a href="/blog/kagemusha-fases-0-3.html">fases 0–3</a> preparamos los cimientos: base de <code>ntdll</code>, SSN resueltos por FreshyCalls y un gadget <code>syscall;ret</code> validado. Ahora conectamos todo para <strong>ejecutar de verdad</strong> una función <code>Nt*</code> de forma indirecta —y lo demostramos en el debugger—.</p>
 <blockquote><p>Definición que perseguimos (y que hay que probar): el <code>syscall</code> se ejecuta <strong>dentro de <code>ntdll</code></strong>, el <code>RIP</code> cae en su rango, el SSN lo gobierna nuestra tabla, y <strong>nuestro módulo no contiene ninguna instrucción <code>syscall</code></strong>.</p></blockquote>
+<p><img src="../assets/diag-syscall-flow.svg" alt="Diagrama: flujo de una syscall" loading="lazy"></p>
 <h2>La implementación</h2>
 <p>Tres piezas nuevas más las tablas del núcleo:</p>
 <ul><li><strong><code>src/core/core.c</code></strong> — las tablas <code>g_SsnTable</code> (SSN por slot) y <code>g_GadgetTable</code> (gadget por</li></ul>
@@ -114,6 +115,8 @@ rip=00007ffc48540fa2              ; sigue en el gadget de ntdll</code></pre>
 <p>Ambas ya están implementadas y verificadas; las contaré en las siguientes entradas.</p>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><strong>Fase 4: ejecución indirecta real</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

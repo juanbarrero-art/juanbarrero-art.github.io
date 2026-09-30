@@ -33,7 +33,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">29 sep 2026 &middot; 7 min de lectura</p>
+        <p class="post__meta">29 sep 2026 &middot; 8 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Guía: syscalls en Windows para principiantes&quot;</h1>
         <p class="post__tags"><span class="tag">#guia</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span> <span class="tag">#principiantes</span></p>
@@ -51,6 +51,7 @@
 <p>Piensa en un restaurante:</p>
 <ul><li>Tú (user-mode) eres el cliente. No entras a la cocina.</li><li>El <strong>mesero</strong> (una función del sistema) recibe tu pedido.</li><li>La <strong>cocina</strong> (kernel) prepara la comida y te la devuelve.</li></ul>
 <h2>2. La cadena de capas: de <code>CloseHandle</code> a la syscall</h2>
+<p><img src="../assets/diag-syscall-flow.svg" alt="Diagrama: flujo de una system call" loading="lazy"></p>
 <p>Cuando en C llamas a una función "normal" de Windows, ocurre una cadena de capas. Ejemplo con <code>CloseHandle</code>:</p>
 <pre><code class="lang-text">CloseHandle()            -&gt; kernel32.dll   (API Win32, &quot;cara amable&quot;)
       |
@@ -84,6 +85,7 @@ Kernel: NtClose     -&gt; ntoskrnl.exe   (hace el trabajo real)</code></pre>
 <blockquote><p><strong>El SSN de una función cambia según la versión/build de Windows.</strong></p></blockquote>
 <p>Esto significa que <strong>no puedes</strong> confiar en un número escrito "a fuego" (hardcodeado): en otra build, <code>NtClose</code> podría no ser <code>0x0F</code>. Por eso hay que <strong>resolverlo en runtime</strong>. En la serie veremos cómo (técnica <em>FreshyCalls</em>).</p>
 <h2>5. Syscall directa vs. indirecta</h2>
+<p><img src="../assets/diag-direct-vs-indirect.svg" alt="Diagrama: direct vs indirect" loading="lazy"></p>
 <p>Ahora el corazón del asunto. Hay dos formas de "saltar" al kernel desde tu propio código.</p>
 <h3>Syscall directa (direct syscall)</h3>
 <p>Tu <strong>propio</strong> módulo contiene la instrucción <code>syscall</code>:</p>
@@ -131,6 +133,13 @@ for (int i = 0; i &lt; n; i++) {
 <p>Las próximas fases (generalización a más syscalls, robustez multi-build y análisis de detección) se irán publicando <strong>a medida que avance la investigación</strong>.</p>
 <h2>12. Recursos para seguir aprendiendo</h2>
 <ul><li>Documentación de la <strong>API de Windows</strong> y de <strong><code>ntdll</code></strong> (Microsoft Learn).</li><li><strong>WinDbg / cdb</strong> para observar los stubs y el registro <code>RIP</code> en vivo.</li><li><strong><code>dumpbin</code></strong> y visores PE para inspeccionar exports y bytes.</li></ul>
+<h2>Bibliografía y referencias</h2>
+<p><strong>Documentación oficial</strong></p>
+<ul><li>Microsoft Learn — <em>Ntdll</em> y <em>Register usage / x64 calling convention</em> (<code>https://learn.microsoft.com/windows/win32/</code>).</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (Microsoft Press): kernel, SSDT y transición user/kernel.</li></ul>
+<p><strong>Investigación y herramientas (técnicas de SSN y syscalls)</strong></p>
+<ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>).</li><li>Sektor7 — <em>Halo's Gate</em> (variante que cuenta vecinos).</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>): sort-by-VA, base de esta serie.</li><li>thefLink — <em>RecycledGate</em> (<code>github.com/thefLink/RecycledGate</code>).</li><li>MDSec — <em>LayeredSyscall</em> (resolución vía Exception Directory).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón de stubs MASM.</li></ul>
+<p><strong>Detección y defensa</strong></p>
+<ul><li>Microsoft Learn — <em>Windows Defender Application Control</em> y <em>ETW</em> (telemetría del kernel).</li><li>Documentación de EDR: comportamiento observable (call-stack, callbacks del kernel).</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

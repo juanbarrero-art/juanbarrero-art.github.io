@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-label="Gadget syscall ret dentro de ntdll">
+  <rect width="760" height="360" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">El gadget syscall;ret (0F 05 C3) dentro de ntdll</text>
+
+  <!-- stub block -->
+  <rect x="24" y="60" width="470" height="120" rx="10" fill="#101a22" stroke="#6366f1"/>
+  <text x="40" y="84" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">stub de NtClose (dentro de ntdll .text)</text>
+  <text x="40" y="112" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">... mov r10, rcx</text>
+  <text x="40" y="132" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">... mov eax, 0Fh</text>
+  <text x="40" y="156" font-family="Consolas,monospace" font-size="13" fill="#39ff14">... 0F 05 C3        ; &lt;-- syscall; ret  (nuestro punto de salto)</text>
+
+  <!-- validation -->
+  <rect x="24" y="200" width="712" height="70" rx="10" fill="#0f1424" stroke="#a855f7"/>
+  <text x="40" y="226" font-family="Consolas,monospace" font-size="13" fill="#a855f7">Validacion (3 checks)</text>
+  <text x="40" y="248" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">1) bytes exactos 0F 05 C3    2) direccion dentro de .text de ntdll    3) stub no hookeado</text>
+
+  <!-- oracle -->
+  <rect x="24" y="286" width="712" height="60" rx="10" fill="#111a2e" stroke="#ff2d95"/>
+  <text x="40" y="310" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">Oraculo: db &lt;gadget&gt; L3  -&gt;  0f 05 c3   y   ? &lt;gadget&gt; - ntdll = offset interno</text>
+  <text x="40" y="332" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Un syscall;ret sirve para CUALQUIER syscall: el SSN viaja en EAX.</text>
+
+  <!-- marker -->
+  <text x="516" y="120" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">un gadget</text>
+  <text x="516" y="140" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">agnostico</text>
+  <text x="516" y="160" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">del SSN</text>
+</svg>

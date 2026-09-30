@@ -37,6 +37,8 @@ Piensa en un restaurante:
 
 ## 2. La cadena de capas: de `CloseHandle` a la syscall
 
+![Diagrama: flujo de una system call](../assets/diag-syscall-flow.svg)
+
 Cuando en C llamas a una función "normal" de Windows, ocurre una cadena de capas. Ejemplo
 con `CloseHandle`:
 
@@ -99,6 +101,8 @@ en otra build, `NtClose` podría no ser `0x0F`. Por eso hay que **resolverlo en 
 En la serie veremos cómo (técnica *FreshyCalls*).
 
 ## 5. Syscall directa vs. indirecta
+
+![Diagrama: direct vs indirect](../assets/diag-direct-vs-indirect.svg)
 
 Ahora el corazón del asunto. Hay dos formas de "saltar" al kernel desde tu propio código.
 
@@ -227,5 +231,23 @@ detección) se irán publicando **a medida que avance la investigación**.
 - Documentación de la **API de Windows** y de **`ntdll`** (Microsoft Learn).
 - **WinDbg / cdb** para observar los stubs y el registro `RIP` en vivo.
 - **`dumpbin`** y visores PE para inspeccionar exports y bytes.
+
+## Bibliografía y referencias
+
+**Documentación oficial**
+- Microsoft Learn — *Ntdll* y *Register usage / x64 calling convention* (`https://learn.microsoft.com/windows/win32/`).
+- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (Microsoft Press): kernel, SSDT y transición user/kernel.
+
+**Investigación y herramientas (técnicas de SSN y syscalls)**
+- am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`).
+- Sektor7 — *Halo's Gate* (variante que cuenta vecinos).
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`): sort-by-VA, base de esta serie.
+- thefLink — *RecycledGate* (`github.com/thefLink/RecycledGate`).
+- MDSec — *LayeredSyscall* (resolución vía Exception Directory).
+- jthuraisamy — *SysWhispers* (`github.com/jthuraisamy/SysWhispers`): patrón de stubs MASM.
+
+**Detección y defensa**
+- Microsoft Learn — *Windows Defender Application Control* y *ETW* (telemetría del kernel).
+- Documentación de EDR: comportamiento observable (call-stack, callbacks del kernel).
 
 > Aprender a romper para poder defender.

@@ -17,6 +17,8 @@ de forma indirecta —y lo demostramos en el debugger—.
 > `ntdll`**, el `RIP` cae en su rango, el SSN lo gobierna nuestra tabla, y **nuestro módulo
 > no contiene ninguna instrucción `syscall`**.
 
+![Diagrama: flujo de una syscall](../assets/diag-syscall-flow.svg)
+
 ## La implementación
 
 Tres piezas nuevas más las tablas del núcleo:
@@ -154,5 +156,13 @@ Ambas ya están implementadas y verificadas; las contaré en las siguientes entr
 4. **Fase 4: ejecución indirecta real** (esta entrada)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+
+## Bibliografía y referencias
+
+- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).
+- Microsoft Learn — *x64 calling convention* (por qué el 1.er argumento va en `R10` para `syscall`).
+- jthuraisamy — *SysWhispers* (`github.com/jthuraisamy/SysWhispers`): patrón del stub indirecto.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
+- Fuentes primarias: `docs/evidencias/m4.txt`, `m4_return.txt`, `m4_falsify.txt`, `tools/cdb_scripts/`.
 
 > Aprender a romper para poder defender.

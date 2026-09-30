@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Flujo de una system call en Windows">
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00e5ff"/><stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+  <rect width="760" height="420" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Flujo de una system call (x64)</text>
+
+  <!-- user-mode box -->
+  <rect x="24" y="56" width="300" height="300" rx="12" fill="#0f1424" stroke="#1c2440"/>
+  <text x="40" y="80" font-family="Consolas,monospace" font-size="13" fill="#8b93b8">USER-MODE</text>
+
+  <rect x="44" y="96" width="260" height="52" rx="8" fill="#111a2e" stroke="#3b82f6"/>
+  <text x="60" y="118" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">Aplicacion</text>
+  <text x="60" y="136" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">CloseHandle(h)</text>
+
+  <rect x="44" y="164" width="260" height="52" rx="8" fill="#111a2e" stroke="#6366f1"/>
+  <text x="60" y="186" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">kernel32.dll</text>
+  <text x="60" y="204" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">CloseHandle -&gt; NtClose</text>
+
+  <rect x="44" y="232" width="260" height="104" rx="8" fill="#101a22" stroke="#00e5ff"/>
+  <text x="60" y="254" font-family="Consolas,monospace" font-size="13" fill="#00e5ff">ntdll.dll  (stub NtClose)</text>
+  <text x="60" y="276" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov r10, rcx</text>
+  <text x="60" y="294" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov eax, 0x0F   ; SSN</text>
+  <text x="60" y="312" font-family="Consolas,monospace" font-size="12" fill="#39ff14">syscall          ; 0F 05</text>
+  <text x="60" y="330" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">ret</text>
+
+  <!-- arrows down -->
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M174 148 v16"/><path d="M174 216 v16"/>
+    <path d="M168 156 l6 8 6 -8" fill="#3b82f6" stroke="none"/>
+    <path d="M168 224 l6 8 6 -8" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <!-- boundary -->
+  <line x1="380" y1="40" x2="380" y2="400" stroke="#2a3352" stroke-dasharray="6 6"/>
+  <text x="386" y="60" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">frontera user / kernel</text>
+
+  <!-- syscall arrow across -->
+  <path d="M306 284 H520" stroke="url(#accent)" stroke-width="3"/>
+  <path d="M512 278 l10 6 -10 6" fill="#a855f7"/>
+  <text x="392" y="276" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">syscall (transicion)</text>
+
+  <!-- kernel box -->
+  <rect x="440" y="120" width="296" height="200" rx="12" fill="#0f1424" stroke="#1c2440"/>
+  <text x="456" y="144" font-family="Consolas,monospace" font-size="13" fill="#8b93b8">KERNEL-MODE</text>
+
+  <rect x="460" y="160" width="256" height="56" rx="8" fill="#101a22" stroke="#a855f7"/>
+  <text x="476" y="182" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">SSDT[EAX]</text>
+  <text x="476" y="202" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">tabla de despacho por SSN</text>
+
+  <rect x="460" y="228" width="256" height="56" rx="8" fill="#111a2e" stroke="#39ff14"/>
+  <text x="476" y="250" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">nt!NtClose</text>
+  <text x="476" y="270" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">hace el trabajo real</text>
+
+  <path d="M588 216 v12" stroke="#a855f7" stroke-width="2"/>
+  <path d="M582 222 l6 8 6 -8" fill="#a855f7"/>
+</svg>

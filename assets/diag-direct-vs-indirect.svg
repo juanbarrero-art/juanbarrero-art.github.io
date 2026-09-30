@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="380" viewBox="0 0 760 380" role="img" aria-label="Comparacion entre direct syscall e indirect syscall">
+  <rect width="760" height="380" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Direct syscall vs. Indirect syscall</text>
+
+  <!-- DIRECT -->
+  <rect x="24" y="56" width="340" height="290" rx="12" fill="#160f16" stroke="#ff2d95"/>
+  <text x="44" y="84" font-family="Consolas,monospace" font-size="14" fill="#ff2d95">DIRECT  (0F 05 en tu modulo)</text>
+
+  <rect x="44" y="104" width="300" height="96" rx="8" fill="#1a1020" stroke="#ff2d95"/>
+  <text x="60" y="128" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">TU modulo (.exe)</text>
+  <text x="60" y="152" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov r10, rcx</text>
+  <text x="60" y="170" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov eax, SSN</text>
+  <text x="60" y="188" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">syscall    ; 0F 05 AQUI</text>
+
+  <text x="60" y="238" font-family="Consolas,monospace" font-size="12" fill="#ff2d95">✗ firma evidente:</text>
+  <text x="60" y="258" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">0F 05 dentro de TU binario</text>
+  <text x="60" y="278" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">ntdll NO participa en el salto</text>
+
+  <!-- INDIRECT -->
+  <rect x="396" y="56" width="340" height="290" rx="12" fill="#0d1a16" stroke="#39ff14"/>
+  <text x="416" y="84" font-family="Consolas,monospace" font-size="14" fill="#39ff14">INDIRECT  (syscall en ntdll)</text>
+
+  <rect x="416" y="104" width="300" height="96" rx="8" fill="#101a22" stroke="#00e5ff"/>
+  <text x="432" y="128" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">TU modulo (.exe)</text>
+  <text x="432" y="152" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov r10, rcx</text>
+  <text x="432" y="170" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">mov eax, [g_SsnTable]</text>
+  <text x="432" y="188" font-family="Consolas,monospace" font-size="12" fill="#39ff14">jmp [g_GadgetTable]</text>
+
+  <rect x="416" y="212" width="300" height="76" rx="8" fill="#0f1424" stroke="#a855f7"/>
+  <text x="432" y="234" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">ntdll.dll (gadget)</text>
+  <text x="432" y="256" font-family="Consolas,monospace" font-size="12" fill="#39ff14">syscall ; ret    ; 0F 05 C3</text>
+  <text x="432" y="276" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">el syscall ocurre DENTRO de ntdll</text>
+
+  <text x="416" y="318" font-family="Consolas,monospace" font-size="12" fill="#39ff14">✓ 0 instrucciones syscall en tu modulo</text>
+  <text x="416" y="338" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">✓ RIP cae dentro de ntdll</text>
+</svg>

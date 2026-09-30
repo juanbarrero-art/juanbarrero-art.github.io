@@ -59,6 +59,7 @@ ENDM</code></pre>
 <h3>Los wrappers y las tablas</h3>
 <p><code>src/core/core.c</code> define el catálogo (<strong>el orden define los slots</strong>) e <code>KageInitialize</code> transaccional rellena <code>g_SsnTable</code> y <code>g_GadgetTable</code>. <code>src/wrappers/wrappers.c</code> expone 8 wrappers tipados: <code>NtClose_I</code>, <code>NtQuerySystemInformation_I</code>, … con el sufijo <code>_I</code> (<em>indirect</em>) para no colisionar con los prototipos de <code>ntdll</code>.</p>
 <h2>El corazón de la Fase 5: la aridad</h2>
+<p><img src="../assets/diag-aridad.svg" alt="Diagrama: aridad y el jmp tail-call" loading="lazy"></p>
 <p>Aquí está la razón por la que un <strong>solo</strong> template sirve para cualquier número de argumentos.</p>
 <p>En x64 Windows, los primeros <strong>4 argumentos</strong> van en registros (<code>RCX</code>, <code>RDX</code>, <code>R8</code>, <code>R9</code>), pero del <strong>5.º en adelante viajan en la pila del llamador</strong>. Un trampolín "genérico" que recopilara y reubicara esos argumentos sería frágil. En cambio, nuestro stub termina en <strong><code>jmp</code></strong> (un <em>tail call</em>): <strong>no toca la pila</strong> y <strong>preserva la dirección de retorno</strong>.</p>
 <p>Consecuencia: cuando el gadget de <code>ntdll</code> hace <code>ret</code>, la pila sigue <strong>exactamente</strong> como la dejó el wrapper. Por tanto, los argumentos 5+ que viajen en la pila <strong>llegan intactos al kernel</strong>, sin que el stub tenga que saber cuántos son.</p>
@@ -90,6 +91,8 @@ eax=18  rip=00007ffc485410c2                   ; SSN correcto; RIP dentro de ntd
 <p>Con 8 syscalls, distintas aridades y 15 experimentos en verde, el sistema ya no es una prueba de concepto: es un <strong>catálogo</strong>. El siguiente reto es la <strong>robustez frente a hooks</strong>: qué pasa si un EDR modifica un stub. Eso es la Fase 6.</p>
 <h2>Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><strong>Fase 5: generalización y aridad</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<h2>Bibliografía y referencias</h2>
+<ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

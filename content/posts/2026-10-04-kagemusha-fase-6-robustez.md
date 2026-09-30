@@ -25,6 +25,8 @@ varios hilos ejecutan syscalls a la vez? Aquí dejamos de "demostrar que funcion
 
 ## Los 12 experimentos
 
+![Diagrama: hook de EDR vs ejecucion indirecta](../assets/diag-hook.svg)
+
 | # | Experimento | Cómo se probó | Resultado |
 | --- | --- | --- | --- |
 | 1 | Instalar un hook `E9` en el stub de `NtClose` | `VirtualProtect` + escribir `E9 00 00 00 00` | hook instalado |
@@ -107,6 +109,13 @@ Con M0–M6 verificados, **101 PASS / 0 FAIL** y **0 instrucciones `syscall`** e
 tesis está confirmada **y es falsable**: cada afirmación tiene su oráculo y su transcript. Lo
 que queda (ledger, `!kage`, análisis de detección) es donde el proyecto deja de ser "una
 implementación más" y empieza a aportar **conocimiento medido**.
+
+## Bibliografía y referencias
+
+- am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
+- Microsoft Learn — *ETW*, *kernel callbacks* y telemetría de seguridad.
+- Fuentes primarias: `docs/research/experimentos-fase6.md`, `docs/evidencias/m5.txt`.
 
 > Aprender a romper para poder defender.
 

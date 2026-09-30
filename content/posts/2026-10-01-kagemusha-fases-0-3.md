@@ -86,6 +86,8 @@ Salida: `M0  KageHelloAsm() = 42` (exit 0).
 
 ## Fase 1 — Utilidades base (`util/`) · M1 ✅
 
+![Diagrama: PEB walk](../assets/diag-peb.svg)
+
 ### El objetivo
 
 Acceder a `ntdll` **sin depender de la IAT** (Import Address Table). La IAT lista las funciones
@@ -171,6 +173,8 @@ Salida: `M1  ntdll base = 00007FFC483E0000`, `.text = ... (1482908 bytes)`,
 
 ## Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅
 
+![Diagrama: FreshyCalls (sort-by-VA)](../assets/diag-freshycalls.svg)
+
 ### El objetivo
 
 Obtener el **SSN** (número de servicio) de cada `Nt*` **sin leer bytes del stub**. Si dependemos
@@ -235,6 +239,8 @@ Salida: `M2  FreshyCalls: 8/8 coinciden con el stub`. Para las 12 funciones del 
 ---
 
 ## Fase 3 — Localizar el gadget `syscall;ret` · M3 ✅
+
+![Diagrama: gadget syscall;ret](../assets/diag-gadget.svg)
 
 ### El objetivo
 
@@ -312,5 +318,14 @@ que sea **determinista** y verificable con un oráculo externo.
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+
+## Bibliografía y referencias
+
+- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (PEB, Ldr, export directory).
+- Microsoft Learn — *PEB/Ldr structures*, *PE format*, *x64 calling convention*.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
+- am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.
+- thefLink — *RecycledGate* (`github.com/thefLink/RecycledGate`).
+- Fuentes primarias: `docs/evidencias/m0..m3.txt`, `tools/cdb_scripts/`.
 
 > Aprender a romper para poder defender.

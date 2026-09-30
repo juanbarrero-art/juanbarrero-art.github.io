@@ -18,6 +18,10 @@ verificamos que lo que decimos es cierto**.
 > para Windows x64, escrito en **C + MASM**, con **una sola técnica**: el `syscall` se ejecuta
 > dentro de `ntdll`, nunca en nuestro módulo.
 
+> **Serie de nicho para investigadores en malware y Windows internals.** Cada entrada es una
+> pieza de un laboratorio reproducible: objetivo, implementación, pruebas con **oráculos
+> independientes**, evidencia de debugger y **bibliografía**. Nada se da por cierto sin prueba.
+
 ---
 
 ## 1. El contexto: por qué los EDR miran `ntdll`
@@ -142,6 +146,8 @@ motor que WinDbg, símbolos perfectos con MSVC.
 ---
 
 ## 7. Arquitectura por módulos
+
+![Diagrama: arquitectura por capas](../assets/diag-architecture.svg)
 
 ```text
 +--------------------------------------------------------------+
@@ -306,5 +312,27 @@ Entender la técnica es requisito para **detectarla**.
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+
+## 15. Bibliografía y referencias
+
+**Fundamentos**
+- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (Microsoft Press).
+- Microsoft Learn — *System Calls*, *Ntdll*, *x64 calling convention* (`learn.microsoft.com/windows/win32/`).
+
+**Técnicas de resolución de SSN**
+- am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`).
+- Sektor7 — *Halo's Gate*.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
+- thefLink — *RecycledGate* (`github.com/thefLink/RecycledGate`).
+- MDSec — *LayeredSyscall*.
+- jthuraisamy — *SysWhispers* (`github.com/jthuraisamy/SysWhispers`).
+
+**Fuera de alcance v1 (referencias)**
+- klezvirus — *SilentMoonwalk* (`github.com/klezvirus/SilentMoonwalk`).
+- Kudaes — *Unwinder* (`github.com/Kudaes/Unwinder`).
+- mgeeky — *CallStackSpoofer*.
+
+**Fuentes primarias**
+- Repositorio Kagemusha (privado): `docs/evidencias/`, `docs/research/`, `docs/plan-arquitectura-v1.md`.
 
 > Aprender a romper para poder defender.

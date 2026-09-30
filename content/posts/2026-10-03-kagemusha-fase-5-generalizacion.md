@@ -62,6 +62,8 @@ wrappers tipados: `NtClose_I`, `NtQuerySystemInformation_I`, … con el sufijo `
 
 ## El corazón de la Fase 5: la aridad
 
+![Diagrama: aridad y el jmp tail-call](../assets/diag-aridad.svg)
+
 Aquí está la razón por la que un **solo** template sirve para cualquier número de argumentos.
 
 En x64 Windows, los primeros **4 argumentos** van en registros (`RCX`, `RDX`, `R8`, `R9`), pero
@@ -152,5 +154,12 @@ si un EDR modifica un stub. Eso es la Fase 6.
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. **Fase 5: generalización y aridad** (esta entrada)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+
+## Bibliografía y referencias
+
+- Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).
+- jthuraisamy — *SysWhispers* (`github.com/jthuraisamy/SysWhispers`): un stub por función.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
+- Fuentes primarias: `docs/research/experimentos-fase5.md`, `docs/evidencias/m5.txt`.
 
 > Aprender a romper para poder defender.

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-label="Recorrido del PEB para encontrar ntdll">
+  <rect width="760" height="360" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">PEB walk: encontrar ntdll sin GetModuleHandle</text>
+
+  <rect x="24" y="60" width="200" height="80" rx="10" fill="#101a22" stroke="#39ff14"/>
+  <text x="40" y="92" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">TEB</text>
+  <text x="40" y="114" font-family="Consolas,monospace" font-size="12" fill="#39ff14">gs:[0x60] -&gt; PEB</text>
+
+  <rect x="264" y="60" width="200" height="80" rx="10" fill="#101a22" stroke="#00e5ff"/>
+  <text x="280" y="92" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">PEB</text>
+  <text x="280" y="114" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Ldr -&gt; module list</text>
+
+  <rect x="504" y="60" width="232" height="80" rx="10" fill="#101a22" stroke="#a855f7"/>
+  <text x="520" y="88" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">InLoadOrderModuleList</text>
+  <text x="520" y="110" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">lista enlazada de modulos</text>
+  <text x="520" y="130" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">(ntdll, kernel32, ...)</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M224 100 H264"/><path d="M256 94 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M464 100 H504"/><path d="M496 94 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <!-- nodes list -->
+  <rect x="180" y="196" width="120" height="56" rx="8" fill="#111a2e" stroke="#1c2440"/>
+  <text x="196" y="222" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">ntdll.dll</text>
+  <text x="196" y="240" font-family="Consolas,monospace" font-size="11" fill="#39ff14">hash match!</text>
+
+  <rect x="320" y="196" width="120" height="56" rx="8" fill="#111a2e" stroke="#1c2440"/>
+  <text x="336" y="222" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">kernel32.dll</text>
+  <text x="336" y="240" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">hash !=</text>
+
+  <rect x="460" y="196" width="140" height="56" rx="8" fill="#111a2e" stroke="#1c2440"/>
+  <text x="476" y="222" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">kernelbase.dll</text>
+  <text x="476" y="240" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">hash !=</text>
+
+  <path d="M390 176 v20" stroke="#3b82f6" stroke-width="2"/>
+  <path d="M384 188 l6 8 6 -8" fill="#3b82f6"/>
+
+  <text x="40" y="232" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">comparamos el</text>
+  <text x="40" y="250" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">nombre por</text>
+  <text x="40" y="268" font-family="Consolas,monospace" font-size="12" fill="#39ff14">hash DJB2</text>
+
+  <text x="24" y="330" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Oraculo: GetModuleHandleW("ntdll.dll") debe dar la MISMA base.</text>
+</svg>
