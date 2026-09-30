@@ -245,7 +245,7 @@ la build, se registra el build junto al resultado.
 
 Resultados de la build de referencia (Windows 11):
 
-- **Suite en verde (0 FAIL).** El `README.md` cita cifras en varias secciones (155 en *Resultados de la suite*, 166 en el experimento de Defender, 171 en Fase 7); se toma **171** (la más reciente) y se deja constancia de la inconsistencia del README.
+- **Suite en verde (0 FAIL).** El `README.md` cita cifras en varias secciones (155 en *Resultados de la suite*, 116 en Fase 6, 172 en Fase 7); se toma **172** (la más reciente) y se deja constancia de la inconsistencia del README.
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 

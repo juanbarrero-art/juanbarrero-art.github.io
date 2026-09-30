@@ -151,6 +151,42 @@ Kagemusha_tests.exe             :: T27
 Esto conecta con la Fase 7 (T22): el trampolín `jmp` es **CET-safe por diseño**, pero intentar
 cerrar la firma de pila con un `ret`/ROP clásico **rompe** bajo shadow stack.
 
+### E4c/2a — CET permite la redirección de RIP vía VEH (test T28)
+
+De `docs/research/experimento-e4c2a-veh-rip.md`.
+
+**Método:** modo `Kagemusha.exe --vehprobe`: `AddVectoredExceptionHandler` → `RaiseException(0xE0000002)`
+→ el handler VEH modifica el contexto (`Rip = &KageVehResumeTarget` y `Rsp` a una pila propia) →
+`KageVehResumeTarget` marca la bandera y `TerminateProcess(0)`. Test **T28** (proceso hijo).
+
+**Resultado:**
+
+```text
+vehprobe: RaiseException + redireccion de RIP...
+exit=0
+```
+
+Del documento: *"La redirección se ejecutó (se alcanzó `KageVehResumeTarget`) pese a CET → salida
+limpia `0`."* (Nota de la iteración: el primer intento dio AV en el teardown de `ExitProcess`; se
+resolvió con `TerminateProcess`.)
+
+**Conclusión (del documento):** *"CET no bloquea la redirección de RIP por contexto de excepción.
+Por tanto, el enfoque CET-safe es viable."*
+
+### E4c/2b — mecanismo completo (pendiente, según el repo)
+
+De `docs/research/experimento-e4c2b-status.md`.
+
+Se implementó un módulo propio (`KageSpoof`) con el mecanismo completo (HW breakpoint en el opcode
+`syscall` + VEH + Trace Flag + frame legítimo de `ntdll` + ejecutar el syscall + restaurar `RSP`).
+**Resultado: no completado** — la implementación entraba en un **bucle de single-step** que no
+convergía; se **retiró el scaffold** para no dejar código colgado. El documento lo declara
+explícitamente como *"tarea de I+D mayor, no un port trivial"*, y confirma con evidencia de
+referencia (`docs/evidencias/ref-layeredsyscall.txt`) que **LayeredSyscall funciona en este equipo**
+(VEH + HW bp + TraceFlag + pila legitimada). Opciones para continuar (del documento): port fiel del
+mecanismo de referencia, implementación propia, o enfoques CET-safe alternativos (call-based o
+desde un callback del SO). El proyecto queda limpio con **172 PASS**.
+
 ---
 
 ## Síntesis (del README, secciones E2/E3/Defender)
@@ -169,7 +205,7 @@ inline, pero deja firma en la pila**, y la telemetría de kernel (ETW-TI / callb
 
 ## Resultados (del README)
 
-- **171 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0).
+- **172 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0). *(El `README.md` cita cifras por sección: 155 en Resultados, 116 en Fase 6, 172 en Fase 7; se toma 172 como la más reciente.)*
 - Módulo sin `syscall`: `verify.ps1` → 0 instrucciones.
 - Defender: 0 amenazas en escaneo estático; 0 eventos conductuales.
 

@@ -134,7 +134,7 @@ Ejemplo `--trace` (del README):
 
 **Pendiente:** extensión de cdb `!kage` (I1) para volcar tabla y ledger desde el debugger.
 
-Del README: *"T23 (ledger) → 5 checks, parte de los **171 PASS / 0 FAIL**."*
+Del README: *"T23 (ledger) → 5 checks, parte de los **172 PASS / 0 FAIL**."*
 
 ---
 
@@ -153,7 +153,7 @@ Del README:
 
 ## Resultados (del README)
 
-- **171 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0).
+- **172 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0).
 - Módulo sin `syscall`: `verify.ps1` → 0 instrucciones.
 - M4: `NtClose_I(0xDEADBEEF)=0xC0000008`, `NtClose_I(handle válido)=0x00000000`.
 
