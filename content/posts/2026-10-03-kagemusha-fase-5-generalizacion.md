@@ -154,6 +154,7 @@ si un EDR modifica un stub. Eso es la Fase 6.
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. **Fase 5: generalización y aridad** (esta entrada)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
 
 ## El catálogo: por qué esas 8
 

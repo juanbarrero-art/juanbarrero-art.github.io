@@ -156,6 +156,7 @@ Ambas ya están implementadas y verificadas; las contaré en las siguientes entr
 4. **Fase 4: ejecución indirecta real** (esta entrada)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
 
 ## La ABI x64, en detalle (por qué esto funciona)
 

@@ -96,18 +96,18 @@ documentado para futuros transcripts.
 
 ## Próximos pasos
 
-- **Fase 7 (I+D propia):** macro propia consolidada, *hashes* en tiempo de compilación, un
-  ***ledger*** de syscalls (ring buffer volcable por CLI y por la extensión de debugger `!kage`)
-  y modos de línea de comandos.
+- **Fase 7 (I+D propia):** ya hechos el ***ledger*** de syscalls y los **modos CLI**
+  (`--dump`/`--trace`/`--json`); queda la extensión de debugger `!kage`. Ver la
+  [entrada de la Fase 7 y baterías](/blog/kagemusha-fase-7-baterias-cet.html).
 - **Fase 8 (visibilidad):** el informe publicable y —lo más interesante— el **análisis de
   detección**: qué *ve* realmente un EDR con el indirect puro (stack walk, telemetría, ETW). Sin
   esconder nada: midiendo.
 
 ## Cierre (por ahora)
 
-Con M0–M6 verificados, **101 PASS / 0 FAIL** y **0 instrucciones `syscall`** en el módulo, la
+Con M0–M6 (y ya las baterías T19–T23) verificados, **155 PASS / 0 FAIL** y **0 instrucciones `syscall`** en el módulo, la
 tesis está confirmada **y es falsable**: cada afirmación tiene su oráculo y su transcript. Lo
-que queda (ledger, `!kage`, análisis de detección) es donde el proyecto deja de ser "una
+que queda (el `!kage`, el análisis de detección) es donde el proyecto deja de ser "una
 implementación más" y empieza a aportar **conocimiento medido**.
 
 ## Cómo simular un hook sin un EDR real
@@ -224,3 +224,4 @@ Documentarlo es la diferencia entre "creo que es fiable" y "sé exactamente cuá
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. **Fase 6: robustez, hooks y límites reales** (esta entrada)
+7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)

@@ -240,12 +240,12 @@ la build, se registra el build junto al resultado.
 | 4 | Ejecución indirecta real (`NtClose_I`) | ✅ verificado (M4) |
 | 5 | Generalización a ≥ 8 syscalls | ✅ verificado (M5) |
 | 6 | Robustez multi-build + hook simulado | ✅ verificado (M6) |
-| 7 | Núcleo macro + ledger + `!kage` | 📋 planificada |
+| 7 | Núcleo macro + ledger + CLI + `!kage` | 🟡 en curso (ledger + CLI hechos) |
 | 8 | Visibilidad / informe publicable | 📋 en curso |
 
 Resultados de la build de referencia (Windows 11):
 
-- **101 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0).
+- **155 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T19–T23.
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 
@@ -312,6 +312,7 @@ Entender la técnica es requisito para **detectarla**.
 4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+7. [Fase 7 y baterías (T19–T22): ledger, CLI y CET](/blog/kagemusha-fase-7-baterias-cet.html)
 
 ## Diseño en profundidad: por qué cada decisión
 

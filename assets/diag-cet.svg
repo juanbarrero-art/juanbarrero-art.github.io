@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="380" viewBox="0 0 760 380" role="img" aria-label="El trampolin indirecto es CET-safe con shadow stack">
+  <rect width="760" height="380" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">CET / Shadow Stack: por que el jmp es compatible</text>
+
+  <!-- call chain -->
+  <rect x="24" y="60" width="200" height="70" rx="10" fill="#111a2e" stroke="#3b82f6"/>
+  <text x="44" y="90" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">wrapper C</text>
+  <text x="44" y="112" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">NtClose_I</text>
+
+  <rect x="280" y="60" width="200" height="70" rx="10" fill="#111a2e" stroke="#00e5ff"/>
+  <text x="300" y="90" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">stub ASM</text>
+  <text x="300" y="112" font-family="Consolas,monospace" font-size="11" fill="#39ff14">jmp (NO push)</text>
+
+  <rect x="536" y="60" width="200" height="70" rx="10" fill="#101a22" stroke="#a855f7"/>
+  <text x="556" y="90" font-family="Consolas,monospace" font-size="13" fill="#c9d1e0">gadget ntdll</text>
+  <text x="556" y="112" font-family="Consolas,monospace" font-size="11" fill="#c9d1e0">syscall ; ret</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M224 95 H280"/><path d="M272 89 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M480 95 H536"/><path d="M528 89 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+  <text x="232" y="86" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">call</text>
+  <text x="488" y="86" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">jmp</text>
+
+  <!-- shadow stack -->
+  <text x="24" y="182" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Shadow stack (CET): pila paralela de direcciones de retorno</text>
+  <rect x="24" y="196" width="712" height="60" rx="10" fill="#101a22" stroke="#39ff14"/>
+  <g font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">
+    <text x="44" y="222">call del wrapper  ->  empuja 1 entrada al shadow stack</text>
+    <text x="44" y="244">stub hace jmp     ->  NO empuja nada; ret del gadget consume esa misma entrada</text>
+  </g>
+
+  <!-- result -->
+  <rect x="24" y="276" width="712" height="72" rx="10" fill="#0d1a16" stroke="#39ff14"/>
+  <text x="44" y="302" font-family="Consolas,monospace" font-size="12" fill="#39ff14">Resultado: el shadow stack NO se desalinea -> CET-safe por diseno</text>
+  <text x="44" y="326" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">1000 syscalls con EnableUserShadowStack=1  -&gt;  OK. Binario marcado /CETCOMPAT.</text>
+</svg>

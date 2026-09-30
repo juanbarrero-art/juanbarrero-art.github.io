@@ -5,7 +5,14 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 14:35:29 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 14:39:25 +0000</lastBuildDate>
+  <item>
+    <title>&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</guid>
+    <pubDate>Mon, 05 Oct 2026 00:00:00 +0000</pubDate>
+    <description>El proyecto pasa a modo industrial. Baterías extendida, pesada y global (pruebas diferenciales contra ntdll, soak de 500k llamadas, multi-proceso), ledger de syscalls y CLI, y la prueba clave de compatibilidad con CET / Shadow Stack.</description>
+  </item>
   <item>
     <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</link>

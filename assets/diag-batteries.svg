@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="400" viewBox="0 0 760 400" role="img" aria-label="Baterias de verificacion T19 a T22 y total 155 PASS">
+  <rect width="760" height="400" fill="#0b0f1c"/>
+  <text x="24" y="34" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Baterias de verificacion (T19-T23)</text>
+
+  <g font-family="Consolas,monospace" font-size="12">
+    <rect x="24" y="56" width="712" height="60" rx="10" fill="#101a22" stroke="#00e5ff"/>
+    <text x="44" y="80" fill="#c9d1e0">T19 - Extendida (diferencial vs ntdll)</text>
+    <text x="44" y="102" fill="#8b93b8">mismos argumentos, comparar resultado con la funcion nativa; 300 PE fuzz</text>
+
+    <rect x="24" y="124" width="712" height="60" rx="10" fill="#101a22" stroke="#3b82f6"/>
+    <text x="44" y="148" fill="#c9d1e0">T20 - Pesada (soak, 4 hilos, hook total)</text>
+    <text x="44" y="170" fill="#8b93b8">500k llamadas; al hookear los 8 stubs -&gt; auto-hospedaje con NtProtectVirtualMemory_I</text>
+
+    <rect x="24" y="192" width="712" height="60" rx="10" fill="#101a22" stroke="#6366f1"/>
+    <text x="44" y="216" fill="#c9d1e0">T21 - Global (multi-proceso, otros modulos)</text>
+    <text x="44" y="238" fill="#8b93b8">4 procesos; parser en kernel32/kernelbase; rendimiento 200k: indirecto ~ nativo</text>
+
+    <rect x="24" y="260" width="712" height="60" rx="10" fill="#101a22" stroke="#a855f7"/>
+    <text x="44" y="284" fill="#c9d1e0">T22 - CET / Shadow Stack</text>
+    <text x="44" y="306" fill="#8b93b8">shadow stack ON -&gt; 1000 syscalls OK; trampolin CET-safe por diseno; /CETCOMPAT</text>
+
+    <rect x="24" y="328" width="712" height="52" rx="10" fill="#0d1a16" stroke="#39ff14"/>
+    <text x="44" y="352" fill="#39ff14">Suite total: 155 PASS / 0 FAIL   (incluye T23 ledger)</text>
+    <text x="44" y="372" fill="#8b93b8">y 0 instrucciones syscall en el modulo (verify.ps1)</text>
+  </g>
+</svg>

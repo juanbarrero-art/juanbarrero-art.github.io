@@ -129,12 +129,12 @@
 <ul><li><strong>La concurrencia cuenta.</strong> 4 hilos × 1000 syscalls sin fallos dan confianza en que las tablas</li></ul>
 <p>y el init transaccional están bien hechos.</p>
 <h2>Próximos pasos</h2>
-<ul><li><strong>Fase 7 (I+D propia):</strong> macro propia consolidada, <em>hashes</em> en tiempo de compilación, un</li></ul>
-<p><em><strong>ledger</strong></em> de syscalls (ring buffer volcable por CLI y por la extensión de debugger <code>!kage</code>) y modos de línea de comandos.</p>
+<ul><li><strong>Fase 7 (I+D propia):</strong> ya hechos el <em><strong>ledger</strong></em> de syscalls y los <strong>modos CLI</strong></li></ul>
+<p>(<code>--dump</code>/<code>--trace</code>/<code>--json</code>); queda la extensión de debugger <code>!kage</code>. Ver la <a href="/blog/kagemusha-fase-7-baterias-cet.html">entrada de la Fase 7 y baterías</a>.</p>
 <ul><li><strong>Fase 8 (visibilidad):</strong> el informe publicable y —lo más interesante— el **análisis de</li></ul>
 <p>detección**: qué <em>ve</em> realmente un EDR con el indirect puro (stack walk, telemetría, ETW). Sin esconder nada: midiendo.</p>
 <h2>Cierre (por ahora)</h2>
-<p>Con M0–M6 verificados, <strong>101 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (ledger, <code>!kage</code>, análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
+<p>Con M0–M6 (y ya las baterías T19–T23) verificados, <strong>155 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (el <code>!kage</code>, el análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
 <h2>Cómo simular un hook sin un EDR real</h2>
 <p>No hace falta un EDR para probar la resiliencia. En el propio laboratorio:</p>
 <ol><li>Localizamos el stub de <code>NtClose</code> en <code>ntdll</code>.</li><li>Con <code>VirtualProtect</code> lo hacemos escribible.</li><li>Escribimos un <strong>prólogo de hook</strong> (<code>E9 00 00 00 00</code>): un <code>jmp</code> relativo a "ninguna parte".</li><li>Restauramos la protección.</li></ol>
@@ -181,7 +181,7 @@
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote>
 <h2>Cómo sigue la serie</h2>
-<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><strong>Fase 6: robustez, hooks y límites reales</strong> (esta entrada)</li></ol></div>
+<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><strong>Fase 6: robustez, hooks y límites reales</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol></div>
     </article>
   </main>
 
