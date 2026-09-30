@@ -245,7 +245,7 @@ la build, se registra el build junto al resultado.
 
 Resultados de la build de referencia (Windows 11):
 
-- **155 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T19–T23.
+- **166 PASS / 0 FAIL** en `Kagemusha_tests.exe` (exit 0), incluidas las baterías T0–T24.
 - **0 instrucciones `syscall`** en ambos ejecutables (`verify.ps1` con `dumpbin`).
 - `NtClose_I(0xDEADBEEF)` → `0xC0000008`; `NtClose_I(handle válido)` → `0x00000000`.
 

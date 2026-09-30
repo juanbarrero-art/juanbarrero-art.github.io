@@ -105,7 +105,7 @@ documentado para futuros transcripts.
 
 ## Cierre (por ahora)
 
-Con M0–M6 (y ya las baterías T19–T23) verificados, **155 PASS / 0 FAIL** y **0 instrucciones `syscall`** en el módulo, la
+Con M0–M6 (y ya las baterías T0–T24) verificados, **166 PASS / 0 FAIL** y **0 instrucciones `syscall`** en el módulo, la
 tesis está confirmada **y es falsable**: cada afirmación tiene su oráculo y su transcript. Lo
 que queda (el `!kage`, el análisis de detección) es donde el proyecto deja de ser "una
 implementación más" y empieza a aportar **conocimiento medido**.

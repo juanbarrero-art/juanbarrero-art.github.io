@@ -134,7 +134,7 @@
 <ul><li><strong>Fase 8 (visibilidad):</strong> el informe publicable y —lo más interesante— el **análisis de</li></ul>
 <p>detección**: qué <em>ve</em> realmente un EDR con el indirect puro (stack walk, telemetría, ETW). Sin esconder nada: midiendo.</p>
 <h2>Cierre (por ahora)</h2>
-<p>Con M0–M6 (y ya las baterías T19–T23) verificados, <strong>155 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (el <code>!kage</code>, el análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
+<p>Con M0–M6 (y ya las baterías T0–T24) verificados, <strong>166 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (el <code>!kage</code>, el análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
 <h2>Cómo simular un hook sin un EDR real</h2>
 <p>No hace falta un EDR para probar la resiliencia. En el propio laboratorio:</p>
 <ol><li>Localizamos el stub de <code>NtClose</code> en <code>ntdll</code>.</li><li>Con <code>VirtualProtect</code> lo hacemos escribible.</li><li>Escribimos un <strong>prólogo de hook</strong> (<code>E9 00 00 00 00</code>): un <code>jmp</code> relativo a "ninguna parte".</li><li>Restauramos la protección.</li></ol>

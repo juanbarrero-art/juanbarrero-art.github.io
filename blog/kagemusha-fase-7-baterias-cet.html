@@ -99,7 +99,7 @@
       </header>
       <div class="post__cuerpo"><h1>Kagemusha — Fase 7 y baterías de verificación (T19–T22)</h1>
 <p>El proyecto dejó de ser "una implementación que funciona" para volverse un <strong>sistema medido a escala</strong>. Esta entrada documenta el salto: <strong>cuatro baterías nuevas de verificación</strong> (T19–T22), el <strong>ledger de syscalls</strong> y los <strong>modos CLI</strong> de la Fase 7, y —probablemente lo más interesante— la demostración de que el trampolín indirecto es <strong>compatible con CET / Shadow Stack</strong>.</p>
-<blockquote><p>Resultado de la build de referencia: <strong>155 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo. Y todo, como siempre, verificado con oráculos independientes.</p></blockquote>
+<blockquote><p>Resultado de la build de referencia: <strong>166 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo. Y todo, como siempre, verificado con oráculos independientes.</p></blockquote>
 <p><img src="../assets/diag-batteries.svg" alt="Diagrama: baterias de verificacion T19-T23" loading="lazy"></p>
 <hr>
 <h2>T19 — Batería extendida: la prueba diferencial</h2>
@@ -161,8 +161,18 @@ NtClose_I(handle)                   ==   ntdll!NtClose(handle)</code></pre>
 [INF] [2] NtQueryInformationProcess SSN=0x019 gadget=00007FFC485410E2 status=0x00000000</code></pre>
 <p><strong>Pendiente:</strong> la extensión de debugger <strong><code>!kage</code></strong> (I1) para volcar tabla y ledger desde <code>cdb</code>.</p>
 <hr>
+<h2>Endurecimiento tras una revisión de código</h2>
+<p>Una revisión interna añadió pruebas y blindó dos puntos débiles:</p>
+<ul><li><strong>A1 — parser PE:</strong> ahora se validan las **RVAs del <em>export directory</em> contra <code>SizeOfImage</code>**</li></ul>
+<p>(evita lecturas fuera de rango con un PE malformado) y se añadió <strong>fuzz con un export directory malicioso</strong> (G8).</p>
+<ul><li><strong>A2 — wrappers:</strong> <strong>guardia de inicialización</strong>: si no se llamó a <code>KageInitialize</code>, el wrapper</li></ul>
+<p>devuelve <code>KAGE_STATUS_NOT_INITIALIZED</code> y <strong>nunca</strong> hace <code>jmp</code> a <code>NULL</code>.</p>
+<ul><li><strong>Tests nuevos:</strong> <strong>T0</strong> (uso sin init) y <strong>T24</strong> (wrap-around del ledger, errores del resolver,</li></ul>
+<p>parser malicioso, <code>KageSlotName</code> fuera de rango).</p>
+<p>Este endurecimiento subió la suite a <strong>166 PASS / 0 FAIL</strong>. Es el patrón de la serie: cada revisión no solo arregla, <strong>añade pruebas que impiden que el fallo vuelva</strong>.</p>
+<hr>
 <h2>Resultados consolidados</h2>
-<table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody><tr><td>Suite completa</td><td><strong>155 PASS / 0 FAIL</strong></td></tr><tr><td>Instrucciones <code>syscall</code> en el módulo</td><td><strong>0</strong></td></tr><tr><td>SSN coincidentes con el stub real</td><td><strong>488/488</strong></td></tr><tr><td>Stubs baseline hookeados</td><td><strong>484/484</strong> limpios (o 0 hookeados)</td></tr><tr><td>Rendimiento (200k)</td><td>indirecto ≈ nativo</td></tr><tr><td>CET / Shadow Stack</td><td><strong>compatible</strong></td></tr></tbody></table>
+<table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody><tr><td>Suite completa</td><td><strong>166 PASS / 0 FAIL</strong></td></tr><tr><td>Instrucciones <code>syscall</code> en el módulo</td><td><strong>0</strong></td></tr><tr><td>SSN coincidentes con el stub real</td><td><strong>488/488</strong></td></tr><tr><td>Stubs baseline hookeados</td><td><strong>484/484</strong> limpios (o 0 hookeados)</td></tr><tr><td>Rendimiento (200k)</td><td>indirecto ≈ nativo</td></tr><tr><td>CET / Shadow Stack</td><td><strong>compatible</strong></td></tr></tbody></table>
 <h2>Qué aprendimos</h2>
 <ul><li><strong>La prueba diferencial es el estándar de oro.</strong> Comparar con la función nativa, mismos args.</li><li><strong>El auto-hospedaje emerge solo.</strong> Hookear todo reveló que el sistema puede operar sobre</li></ul>
 <p><code>ntdll</code> usando su propio indirecto.</p>

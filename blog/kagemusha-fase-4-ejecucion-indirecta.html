@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">02 oct 2026 &middot; 9 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 11 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -215,6 +215,35 @@ ntdll 00007ffc`483e0000 - 00647000  ; y ese gadget cae DENTRO de ntdll</code></p
 <hr>
 <h2>Errores comunes (Fase 4)</h2>
 <ul><li><strong>Usar <code>call</code> en vez de <code>jmp</code></strong>: rompe el retorno. Debe ser <em>tail call</em>.</li><li><strong>Olvidar <code>mov r10, rcx</code></strong>: el kernel lee el argumento equivocado.</li><li><strong>Hardcodear el SSN en el ASM</strong>: rompe entre builds; debe leerse de la tabla.</li><li><strong>Devolver un error propio como si fuera del kernel</strong>: confunde el diagnóstico.</li><li><strong>No verificar <code>RIP</code> dentro de <code>ntdll</code></strong>: creer que es indirecto sin probarlo.</li></ul>
+<hr>
+<h2>🧪 Experimenta tú — observa el salto con tus ojos</h2>
+<p><em>(Nivel 🟡. Si no compilas el proyecto, puedes seguir la idea leyendo; el "ver" es lo divertido.)</em></p>
+<p>Con el binario compilado (<code>tools\build.cmd</code>) y <code>cdb</code> en el <code>PATH</code>:</p>
+<pre><code class="lang-text">cdbX64 -cf tools\cdb_scripts\m4_nclose.txt -logo docs\evidencias\m4.txt bin\Kagemusha.exe</code></pre>
+<p><strong>Qué deberías ver</strong> (resumido):</p>
+<pre><code class="lang-text">bp Kagemusha!NtClose_I ; g
+00007ffc`48540fa2 0f05  syscall
+rax=000000000000000f
+ntdll 00007ffc`483e0000 - 00007ffc`48647000</code></pre>
+<p>Traducción para humanos: el programa paró justo en la instrucción <code>syscall</code>, y esa instrucción está <strong>dentro de <code>ntdll</code></strong>. <code>RAX = 0x0F</code> es el número que nuestra tabla puso. Si hicieras lo mismo con un <em>direct syscall</em>, esa dirección estaría <strong>fuera</strong> de <code>ntdll</code> (en tu <code>.exe</code>) y el ejercicio fallaría —y esa es, precisamente, la diferencia.</p>
+<blockquote><p><strong>Mini-reto:</strong> busca con <code>s -a Kagemusha L? 0f05</code> (dentro de nuestro módulo) y comprueba que devuelve <strong>cero</strong>. Esa "ausencia" es el resultado.</p></blockquote>
+<hr>
+<h2>Diario: el error que me costó una tarde</h2>
+<p>Cuando escribí el primer trampolín, usé <code>call</code> en vez de <code>jmp</code>. El programa compilaba, arrancaba… y <strong>se colgaba</strong> al primer <code>NtClose</code>. Tardé en entenderlo: el <code>call</code> empuja una dirección de retorno, el <code>ret</code> del gadget devuelve el control al <strong>stub</strong> (no al wrapper), el stub vuelve a saltar al gadget… y entramos en un bucle. <strong>La solución era un <code>jmp</code></strong>, un <em>tail call</em> que no toca la pila. Moraleja: en esta técnica, "ir" y "llamar" <strong>no</strong> son lo mismo.</p>
+<p>Lo cuento porque forma parte del método: los errores, documentados, enseñan más que los aciertos.</p>
+<hr>
+<h2>Fondo: ¿por qué el kernel se cree nuestro <code>EAX</code>?</h2>
+<p>Alguien podría preguntarse: si el SSN viaja en <code>EAX</code>, <strong>yo podría poner cualquier número</strong>. Y es cierto: si pones el SSN de <code>NtAllocateVirtualMemory</code> cuando querías cerrar un handle, el kernel ejecutará <strong>esa otra</strong> función. El kernel <strong>no comprueba</strong> que tú "tengas derecho" a esa syscall en el sentido de la API Win32: confía en el número.</p>
+<p>Justo por eso el SSN correcto importa tanto. Un error de 1 en el índice no da "un fallo elegante"; da una <strong>llamada a otra función</strong>, con argumentos que no encajan. Y por eso el oráculo (bytes reales del stub) es <strong>obligatorio</strong>, no opcional.</p>
+<hr>
+<h2>Cómo se vería desde una defensa</h2>
+<p>Entender la técnica es la mitad; la otra es saber <strong>cómo se detecta</strong>. Un defensor no vería "Kagemusha", pero sí podría observar:</p>
+<table><thead><tr><th>Señal</th><th>Qué vería</th></tr></thead><tbody><tr><td><strong>Stack walk</strong></td><td>La dirección de retorno apunta a un módulo <strong>no-ntdll</strong> (el nuestro).</td></tr><tr><td><strong>Consistencia RIP/EAX</strong></td><td>Un <code>syscall</code> en <code>ntdll</code> cuyo <em>caller</em> no es un stub habitual.</td></tr><tr><td><strong>ETW / callbacks del kernel</strong></td><td>La operación real (cerrar handle, asignar memoria) llega al kernel igual.</td></tr><tr><td><strong>Binario estático</strong></td><td>Ausencia de <code>0F 05</code> (no prueba nada por sí sola, pero es una pista).</td></tr></tbody></table>
+<p>Ninguna de estas señales es "prueba irrefutable" por separado. La lección defensiva es que <strong>combatir el indirecto puro es un problema de correlación de telemetría</strong>, no de una firma mágica. Y medirlo es la Fase 8.</p>
+<hr>
+<h2>Comparación rápida: directo vs. indirecto (recordatorio)</h2>
+<table><thead><tr><th>Aspecto</th><th>Direct</th><th>Indirect (Kagemusha)</th></tr></thead><tbody><tr><td>¿<code>0F 05</code> en tu módulo?</td><td>Sí</td><td><strong>No</strong></td></tr><tr><td><code>syscall</code> en <code>ntdll</code></td><td>No</td><td><strong>Sí</strong></td></tr><tr><td>Necesita SSN</td><td>Sí</td><td>Sí</td></tr><tr><td>Necesita gadget</td><td>No</td><td><strong>Sí</strong></td></tr><tr><td>Evita hooks de user-mode</td><td>Sí</td><td>Sí</td></tr><tr><td>Invisible al kernel</td><td>No</td><td>No</td></tr></tbody></table>
+<p>La tabla resume el compromiso: el indirecto <strong>mueve</strong> el <code>syscall</code> a <code>ntdll</code> sin eliminar el hecho de que el kernel lo ve.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>

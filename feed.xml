@@ -5,7 +5,7 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 14:39:25 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 14:51:39 +0000</lastBuildDate>
   <item>
     <title>&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-7-baterias-cet.html</link>
@@ -68,6 +68,13 @@
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</guid>
     <pubDate>Tue, 29 Sep 2026 00:00:00 +0000</pubDate>
     <description>Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.</description>
+  </item>
+  <item>
+    <title>&quot;Cómo leer esta serie + Misión 0: ve una syscall con tus ojos&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html</guid>
+    <pubDate>Mon, 28 Sep 2026 00:00:00 +0000</pubDate>
+    <description>El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.</description>
   </item>
 </channel>
 </rss>

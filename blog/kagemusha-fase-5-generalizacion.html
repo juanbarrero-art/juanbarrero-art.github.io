@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">03 oct 2026 &middot; 8 min de lectura</p>
+        <p class="post__meta">03 oct 2026 &middot; 10 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -180,6 +180,33 @@ ENDM</code></pre>
 <hr>
 <h2>Errores comunes (Fase 5)</h2>
 <ul><li><strong>Desalinear slot y tabla</strong>: un <code>slot*4</code> vs <code>slot*8</code> mal puesto lee basura como SSN/gadget.</li><li><strong>Asumir que todos los <code>Nt*</code> son stubs</strong>: <code>NtQuerySystemTime</code> te lo desmiente.</li><li><strong>Probar solo aridad 1</strong>: el bug de la pila aparece con 5+ argumentos.</li><li><strong>No incluir casos negativos</strong>: sin un "debe fallar", no sabes si valida o solo "no crashea".</li></ul>
+<hr>
+<h2>🧪 Experimenta tú — mira el catálogo</h2>
+<p><em>(Nivel 🟡. Con el proyecto compilado.)</em></p>
+<p>Ejecuta la suite y observa cómo pasan los 15 experimentos del catálogo:</p>
+<pre><code class="lang-text">bin\Kagemusha_tests.exe</code></pre>
+<p>Y, con la Fase 7 ya implementada, puedes <strong>ver la tabla</strong> sin debugger:</p>
+<pre><code class="lang-text">bin\Kagemusha.exe --dump</code></pre>
+<p><strong>Qué deberías ver</strong> (resumido):</p>
+<pre><code class="lang-text">[0] NtClose                    SSN=0x00F gadget=00007FFC48540FA2
+[1] NtQuerySystemInformation   SSN=0x036 gadget=00007FFC48541482
+[3] NtAllocateVirtualMemory    SSN=0x018 gadget=00007FFC485410C2
+...</code></pre>
+<p>Esa tabla es el <strong>estado en runtime</strong> de todo el sistema: el SSN que resolvió FreshyCalls y el gadget que se usará para cada función. Añadir una syscall nueva = una línea en el registro y re-ejecutar.</p>
+<blockquote><p><strong>Mini-reto:</strong> compara dos builds distintas (o dos máquinas) y observa que los <strong>SSN cambian</strong> pero el mecanismo no. Esa es la razón de resolverlo en runtime.</p></blockquote>
+<hr>
+<h2>El día que un <code>Nt*</code> me tomó el pelo</h2>
+<p>Cuando amplié el catálogo, uno de los 8 fallaba el experimento 6 ("SSN == SSN del stub real"). Resultó que <strong><code>NtQuerySystemTime</code> no es un stub de syscall</strong>: se exporta como un <code>jmp</code> a <code>RtlQuerySystemTime</code>, una implementación en user-mode. O sea, <strong>no tiene</strong> el prólogo <code>4C 8B D1 B8</code> de los stubs reales.</p>
+<p>Lo interesante: <strong>FreshyCalls le asigna un SSN correcto igualmente</strong> (por su posición en el orden de exports), y la ejecución indirecta <strong>funciona</strong> (devuelve tiempo válido y monótono). Es decir, la técnica tolera este caso… pero conviene <strong>saberlo y documentarlo</strong>. En la Fase 6 se cuantificó: de 490 exports <code>Nt*</code>, <strong>488 son stubs reales y 2 no</strong>.</p>
+<hr>
+<h2>Qué cubre (y qué no) este catálogo</h2>
+<p><strong>Cubre:</strong> varias aridades (0, 1, 4, 5, 6), un caso especial (<code>NtQuerySystemTime</code>), un <em>round-trip</em> de memoria (<code>protect</code> + <code>free</code>) y negativos (clase inválida). Con eso, cualquier error de paso de argumentos o de tabla saldría a la luz.</p>
+<p><strong>No cubre:</strong> todas las formas de la API ni todas las builds de Windows. La Fase 6 ataca hooks; la Fase 7 añade herramientas; la Fase 8 mide detección. Cada fase <strong>no</strong> pretende ser el final, sino un <strong>escalón con su prueba</strong>.</p>
+<hr>
+<h2>Fondo: leer los <code>NTSTATUS</code> como un investigador</h2>
+<p>Cuando ejecutas el catálogo, verás códigos. Reconocerlos rápido ahorra tiempo:</p>
+<table><thead><tr><th>Código</th><th>Significado</th><th>Cuándo aparece</th></tr></thead><tbody><tr><td><code>0x00000000</code></td><td><code>STATUS_SUCCESS</code></td><td>la llamada funcionó</td></tr><tr><td><code>0xC0000008</code></td><td><code>STATUS_INVALID_HANDLE</code></td><td>cerramos algo que no existía</td></tr><tr><td><code>0xC0000003</code></td><td><code>STATUS_INVALID_INFO_CLASS</code></td><td>pedimos una clase inválida</td></tr><tr><td><code>0xC000000D</code></td><td><code>STATUS_INVALID_PARAMETER</code></td><td>un argumento no cuadra</td></tr><tr><td><code>0xC0000017</code></td><td><code>STATUS_NO_MEMORY</code></td><td>asignación imposible</td></tr></tbody></table>
+<p>Que un <em>negativo</em> devuelva el <strong>mismo</strong> <code>NTSTATUS</code> que la función nativa de <code>ntdll</code> no es un detalle: es una <strong>prueba diferencial</strong> (la usaremos a fondo en la Fase 7).</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

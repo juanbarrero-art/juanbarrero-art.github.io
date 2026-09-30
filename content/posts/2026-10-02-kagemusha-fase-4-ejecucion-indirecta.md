@@ -256,6 +256,94 @@ inmediato del indirecto puro es el módulo propio. Por eso lo documentamos (y no
 
 ---
 
+## 🧪 Experimenta tú — observa el salto con tus ojos
+
+*(Nivel 🟡. Si no compilas el proyecto, puedes seguir la idea leyendo; el "ver" es lo divertido.)*
+
+Con el binario compilado (`tools\build.cmd`) y `cdb` en el `PATH`:
+
+```text
+cdbX64 -cf tools\cdb_scripts\m4_nclose.txt -logo docs\evidencias\m4.txt bin\Kagemusha.exe
+```
+
+**Qué deberías ver** (resumido):
+
+```text
+bp Kagemusha!NtClose_I ; g
+00007ffc`48540fa2 0f05  syscall
+rax=000000000000000f
+ntdll 00007ffc`483e0000 - 00007ffc`48647000
+```
+
+Traducción para humanos: el programa paró justo en la instrucción `syscall`, y esa instrucción
+está **dentro de `ntdll`**. `RAX = 0x0F` es el número que nuestra tabla puso. Si hicieras lo mismo
+con un *direct syscall*, esa dirección estaría **fuera** de `ntdll` (en tu `.exe`) y el ejercicio
+fallaría —y esa es, precisamente, la diferencia.
+
+> **Mini-reto:** busca con `s -a Kagemusha L? 0f05` (dentro de nuestro módulo) y comprueba que
+> devuelve **cero**. Esa "ausencia" es el resultado.
+
+---
+
+## Diario: el error que me costó una tarde
+
+Cuando escribí el primer trampolín, usé `call` en vez de `jmp`. El programa compilaba, arrancaba…
+y **se colgaba** al primer `NtClose`. Tardé en entenderlo: el `call` empuja una dirección de
+retorno, el `ret` del gadget devuelve el control al **stub** (no al wrapper), el stub vuelve a
+saltar al gadget… y entramos en un bucle. **La solución era un `jmp`**, un *tail call* que no
+toca la pila. Moraleja: en esta técnica, "ir" y "llamar" **no** son lo mismo.
+
+Lo cuento porque forma parte del método: los errores, documentados, enseñan más que los aciertos.
+
+---
+
+## Fondo: ¿por qué el kernel se cree nuestro `EAX`?
+
+Alguien podría preguntarse: si el SSN viaja en `EAX`, **yo podría poner cualquier número**. Y es
+cierto: si pones el SSN de `NtAllocateVirtualMemory` cuando querías cerrar un handle, el kernel
+ejecutará **esa otra** función. El kernel **no comprueba** que tú "tengas derecho" a esa syscall
+en el sentido de la API Win32: confía en el número.
+
+Justo por eso el SSN correcto importa tanto. Un error de 1 en el índice no da "un fallo
+elegante"; da una **llamada a otra función**, con argumentos que no encajan. Y por eso el oráculo
+(bytes reales del stub) es **obligatorio**, no opcional.
+
+---
+
+## Cómo se vería desde una defensa
+
+Entender la técnica es la mitad; la otra es saber **cómo se detecta**. Un defensor no vería
+"Kagemusha", pero sí podría observar:
+
+| Señal | Qué vería |
+| --- | --- |
+| **Stack walk** | La dirección de retorno apunta a un módulo **no-ntdll** (el nuestro). |
+| **Consistencia RIP/EAX** | Un `syscall` en `ntdll` cuyo *caller* no es un stub habitual. |
+| **ETW / callbacks del kernel** | La operación real (cerrar handle, asignar memoria) llega al kernel igual. |
+| **Binario estático** | Ausencia de `0F 05` (no prueba nada por sí sola, pero es una pista). |
+
+Ninguna de estas señales es "prueba irrefutable" por separado. La lección defensiva es que
+**combatir el indirecto puro es un problema de correlación de telemetría**, no de una firma
+mágica. Y medirlo es la Fase 8.
+
+---
+
+## Comparación rápida: directo vs. indirecto (recordatorio)
+
+| Aspecto | Direct | Indirect (Kagemusha) |
+| --- | --- | --- |
+| ¿`0F 05` en tu módulo? | Sí | **No** |
+| `syscall` en `ntdll` | No | **Sí** |
+| Necesita SSN | Sí | Sí |
+| Necesita gadget | No | **Sí** |
+| Evita hooks de user-mode | Sí | Sí |
+| Invisible al kernel | No | No |
+
+La tabla resume el compromiso: el indirecto **mueve** el `syscall` a `ntdll` sin eliminar el
+hecho de que el kernel lo ve.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).

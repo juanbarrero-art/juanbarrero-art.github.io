@@ -13,7 +13,7 @@ escala**. Esta entrada documenta el salto: **cuatro baterías nuevas de verifica
 el **ledger de syscalls** y los **modos CLI** de la Fase 7, y —probablemente lo más interesante—
 la demostración de que el trampolín indirecto es **compatible con CET / Shadow Stack**.
 
-> Resultado de la build de referencia: **155 PASS / 0 FAIL** y **0 instrucciones `syscall`** en
+> Resultado de la build de referencia: **166 PASS / 0 FAIL** y **0 instrucciones `syscall`** en
 > el módulo. Y todo, como siempre, verificado con oráculos independientes.
 
 ![Diagrama: baterias de verificacion T19-T23](../assets/diag-batteries.svg)
@@ -154,11 +154,28 @@ Ejemplo de `--trace`:
 
 ---
 
+## Endurecimiento tras una revisión de código
+
+Una revisión interna añadió pruebas y blindó dos puntos débiles:
+
+- **A1 — parser PE:** ahora se validan las **RVAs del *export directory* contra `SizeOfImage`**
+  (evita lecturas fuera de rango con un PE malformado) y se añadió **fuzz con un export directory
+  malicioso** (G8).
+- **A2 — wrappers:** **guardia de inicialización**: si no se llamó a `KageInitialize`, el wrapper
+  devuelve `KAGE_STATUS_NOT_INITIALIZED` y **nunca** hace `jmp` a `NULL`.
+- **Tests nuevos:** **T0** (uso sin init) y **T24** (wrap-around del ledger, errores del resolver,
+  parser malicioso, `KageSlotName` fuera de rango).
+
+Este endurecimiento subió la suite a **166 PASS / 0 FAIL**. Es el patrón de la serie: cada
+revisión no solo arregla, **añade pruebas que impiden que el fallo vuelva**.
+
+---
+
 ## Resultados consolidados
 
 | Métrica | Valor |
 | --- | --- |
-| Suite completa | **155 PASS / 0 FAIL** |
+| Suite completa | **166 PASS / 0 FAIL** |
 | Instrucciones `syscall` en el módulo | **0** |
 | SSN coincidentes con el stub real | **488/488** |
 | Stubs baseline hookeados | **484/484** limpios (o 0 hookeados) |

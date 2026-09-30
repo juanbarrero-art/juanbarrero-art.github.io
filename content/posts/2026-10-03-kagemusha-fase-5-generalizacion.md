@@ -234,6 +234,83 @@ convierte "funciona" en "está verificado".
 
 ---
 
+## 🧪 Experimenta tú — mira el catálogo
+
+*(Nivel 🟡. Con el proyecto compilado.)*
+
+Ejecuta la suite y observa cómo pasan los 15 experimentos del catálogo:
+
+```text
+bin\Kagemusha_tests.exe
+```
+
+Y, con la Fase 7 ya implementada, puedes **ver la tabla** sin debugger:
+
+```text
+bin\Kagemusha.exe --dump
+```
+
+**Qué deberías ver** (resumido):
+
+```text
+[0] NtClose                    SSN=0x00F gadget=00007FFC48540FA2
+[1] NtQuerySystemInformation   SSN=0x036 gadget=00007FFC48541482
+[3] NtAllocateVirtualMemory    SSN=0x018 gadget=00007FFC485410C2
+...
+```
+
+Esa tabla es el **estado en runtime** de todo el sistema: el SSN que resolvió FreshyCalls y el
+gadget que se usará para cada función. Añadir una syscall nueva = una línea en el registro y
+re-ejecutar.
+
+> **Mini-reto:** compara dos builds distintas (o dos máquinas) y observa que los **SSN cambian**
+> pero el mecanismo no. Esa es la razón de resolverlo en runtime.
+
+---
+
+## El día que un `Nt*` me tomó el pelo
+
+Cuando amplié el catálogo, uno de los 8 fallaba el experimento 6 ("SSN == SSN del stub real").
+Resultó que **`NtQuerySystemTime` no es un stub de syscall**: se exporta como un `jmp` a
+`RtlQuerySystemTime`, una implementación en user-mode. O sea, **no tiene** el prólogo
+`4C 8B D1 B8` de los stubs reales.
+
+Lo interesante: **FreshyCalls le asigna un SSN correcto igualmente** (por su posición en el orden
+de exports), y la ejecución indirecta **funciona** (devuelve tiempo válido y monótono). Es decir,
+la técnica tolera este caso… pero conviene **saberlo y documentarlo**. En la Fase 6 se cuantificó:
+de 490 exports `Nt*`, **488 son stubs reales y 2 no**.
+
+---
+
+## Qué cubre (y qué no) este catálogo
+
+**Cubre:** varias aridades (0, 1, 4, 5, 6), un caso especial (`NtQuerySystemTime`), un
+*round-trip* de memoria (`protect` + `free`) y negativos (clase inválida). Con eso, cualquier
+error de paso de argumentos o de tabla saldría a la luz.
+
+**No cubre:** todas las formas de la API ni todas las builds de Windows. La Fase 6 ataca hooks; la
+Fase 7 añade herramientas; la Fase 8 mide detección. Cada fase **no** pretende ser el final, sino
+un **escalón con su prueba**.
+
+---
+
+## Fondo: leer los `NTSTATUS` como un investigador
+
+Cuando ejecutas el catálogo, verás códigos. Reconocerlos rápido ahorra tiempo:
+
+| Código | Significado | Cuándo aparece |
+| --- | --- | --- |
+| `0x00000000` | `STATUS_SUCCESS` | la llamada funcionó |
+| `0xC0000008` | `STATUS_INVALID_HANDLE` | cerramos algo que no existía |
+| `0xC0000003` | `STATUS_INVALID_INFO_CLASS` | pedimos una clase inválida |
+| `0xC000000D` | `STATUS_INVALID_PARAMETER` | un argumento no cuadra |
+| `0xC0000017` | `STATUS_NO_MEMORY` | asignación imposible |
+
+Que un *negativo* devuelva el **mismo** `NTSTATUS` que la función nativa de `ntdll` no es un
+detalle: es una **prueba diferencial** (la usaremos a fondo en la Fase 7).
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).
