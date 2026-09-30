@@ -46,16 +46,40 @@
 <li>
   <a class="entrada" href="../kagemusha-indirect-syscalls.html">
     <p class="entrada__fecha">// 30 sep 2026</p>
-    <h3 class="entrada__titulo">&quot;Kagemusha: indirect syscalls en Windows x64&quot;</h3>
-    <p class="entrada__resumen">Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.</p>
+    <h3 class="entrada__titulo">&quot;Kagemusha: visión general, tesis y metodología&quot;</h3>
+    <p class="entrada__resumen">Documento maestro de la serie: el problema, la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6 verificados).</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="../kagemusha-fases-0-3.html">
+    <p class="entrada__fecha">// 01 oct 2026</p>
+    <h3 class="entrada__titulo">&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</h3>
+    <p class="entrada__resumen">Construimos los cimientos del sistema paso a paso desde cero: toolchain C+MASM y debugger, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo y su evidencia.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
 <li>
   <a class="entrada" href="../kagemusha-fase-4-ejecucion-indirecta.html">
-    <p class="entrada__fecha">// 01 oct 2026</p>
+    <p class="entrada__fecha">// 02 oct 2026</p>
     <h3 class="entrada__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h3>
-    <p class="entrada__resumen">Trampolín ASM en C + MASM que salta al syscall;ret de ntdll. NtClose_I devuelve el NTSTATUS real y el módulo no contiene ninguna instrucción syscall.</p>
+    <p class="entrada__resumen">El hito central. NtClose_I ejecuta el syscall dentro de ntdll, el módulo no contiene ninguna instrucción syscall, y tres experimentos de falsabilidad lo demuestran en el debugger.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="../kagemusha-fase-5-generalizacion.html">
+    <p class="entrada__fecha">// 03 oct 2026</p>
+    <h3 class="entrada__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h3>
+    <p class="entrada__resumen">Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="../kagemusha-fase-6-robustez.html">
+    <p class="entrada__fecha">// 04 oct 2026</p>
+    <h3 class="entrada__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h3>
+    <p class="entrada__resumen">Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>

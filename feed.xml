@@ -5,7 +5,21 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 13:51:11 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 13:59:11 +0000</lastBuildDate>
+  <item>
+    <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</guid>
+    <pubDate>Sun, 04 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.</description>
+  </item>
+  <item>
+    <title>&quot;Kagemusha — Fase 5: generalización y aridad&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html</guid>
+    <pubDate>Sat, 03 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.</description>
+  </item>
   <item>
     <title>&quot;Análisis de malware 101: por dónde empezar&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/analisis-malware-101.html</link>
@@ -17,8 +31,15 @@
     <title>&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</guid>
+    <pubDate>Fri, 02 Oct 2026 00:00:00 +0000</pubDate>
+    <description>El hito central. NtClose_I ejecuta el syscall dentro de ntdll, el módulo no contiene ninguna instrucción syscall, y tres experimentos de falsabilidad lo demuestran en el debugger.</description>
+  </item>
+  <item>
+    <title>&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</guid>
     <pubDate>Thu, 01 Oct 2026 00:00:00 +0000</pubDate>
-    <description>Trampolín ASM en C + MASM que salta al syscall;ret de ntdll. NtClose_I devuelve el NTSTATUS real y el módulo no contiene ninguna instrucción syscall.</description>
+    <description>Construimos los cimientos del sistema paso a paso desde cero: toolchain C+MASM y debugger, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo y su evidencia.</description>
   </item>
   <item>
     <title>Bienvenido al blog</title>
@@ -28,11 +49,11 @@
     <description>Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.</description>
   </item>
   <item>
-    <title>&quot;Kagemusha: indirect syscalls en Windows x64&quot;</title>
+    <title>&quot;Kagemusha: visión general, tesis y metodología&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</guid>
     <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
-    <description>Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.</description>
+    <description>Documento maestro de la serie: el problema, la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6 verificados).</description>
   </item>
   <item>
     <title>&quot;Guía: syscalls en Windows para principiantes&quot;</title>

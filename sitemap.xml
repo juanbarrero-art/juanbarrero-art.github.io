@@ -2,8 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://juanbarrero-art.github.io/</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/</loc></url>
+  <url><loc>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</loc></url>
+  <url><loc>https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/analisis-malware-101.html</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</loc></url>
+  <url><loc>https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/bienvenido-al-blog.html</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</loc></url>
   <url><loc>https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</loc></url>

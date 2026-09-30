@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Fase 5: generalización y aridad&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">03 oct 2026 &middot; 5 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Fase 5: generalización y aridad</h1>
+<p>En la <a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4</a> hicimos <strong>una</strong> syscall indirecta (<code>NtClose</code>). Pero un sistema con una sola syscall no sirve para nada. La Fase 5 responde a la pregunta incómoda: <strong>¿la técnica escala?</strong> Y añade un segundo reto: la <strong>aridad</strong> (el número de argumentos), porque no es lo mismo una función sin argumentos que una con seis.</p>
+<h2>El objetivo</h2>
+<p>Ejecutar un <strong>catálogo de 8 syscalls</strong> con <strong>un único template ASM</strong>. Es decir: en vez de escribir a mano cada stub, definir <strong>una macro</strong> y que cada syscall del catálogo se convierta en un <code>PROC</code> a partir de la misma plantilla. Añadir una función nueva debería ser <strong>una línea</strong>.</p>
+<h2>La implementación</h2>
+<h3>La macro <code>KAGE_STUB</code></h3>
+<pre><code class="lang-asm">; Un unico template fuente, instanciado por cada slot del catalogo
+KAGE_STUB MACRO name, slot
+name PROC
+    mov  r10, rcx
+    mov  eax, DWORD PTR [g_SsnTable + slot*4]     ; SSN de este slot
+    jmp  QWORD PTR [g_GadgetTable + slot*8]        ; gadget de este slot
+name ENDP
+ENDM</code></pre>
+<p>Cada syscall del catálogo genera un <code>PROC</code> que <strong>solo cambia el <code>slot</code></strong> (el desplazamiento a las tablas). El patrón es idéntico; lo que varía es de dónde lee el SSN y el gadget.</p>
+<h3>El catálogo (8 syscalls)</h3>
+<p>Elegidas para cubrir <strong>distintas aridades</strong> y casos interesantes:</p>
+<table><thead><tr><th>Slot</th><th>Syscall</th><th>Aridad</th><th>Nota</th></tr></thead><tbody><tr><td>0</td><td><code>NtClose</code></td><td>1</td><td>la de la Fase 4</td></tr><tr><td>1</td><td><code>NtQuerySystemInformation</code></td><td>4</td><td>consulta de sistema</td></tr><tr><td>2</td><td><code>NtQueryInformationProcess</code></td><td>5</td><td><strong>arg 5 en la pila</strong></td></tr><tr><td>3</td><td><code>NtAllocateVirtualMemory</code></td><td>6</td><td><strong>args en la pila</strong></td></tr><tr><td>4</td><td><code>NtFreeVirtualMemory</code></td><td>4</td><td>round-trip con 3</td></tr><tr><td>5</td><td><code>NtProtectVirtualMemory</code></td><td>5</td><td>round-trip con 3/4</td></tr><tr><td>6</td><td><code>NtQuerySystemTime</code></td><td>1</td><td>export especial (ver hallazgo)</td></tr><tr><td>7</td><td><code>NtYieldExecution</code></td><td>0</td><td><strong>sin argumentos</strong></td></tr></tbody></table>
+<h3>Los wrappers y las tablas</h3>
+<p><code>src/core/core.c</code> define el catálogo (<strong>el orden define los slots</strong>) e <code>KageInitialize</code> transaccional rellena <code>g_SsnTable</code> y <code>g_GadgetTable</code>. <code>src/wrappers/wrappers.c</code> expone 8 wrappers tipados: <code>NtClose_I</code>, <code>NtQuerySystemInformation_I</code>, … con el sufijo <code>_I</code> (<em>indirect</em>) para no colisionar con los prototipos de <code>ntdll</code>.</p>
+<h2>El corazón de la Fase 5: la aridad</h2>
+<p>Aquí está la razón por la que un <strong>solo</strong> template sirve para cualquier número de argumentos.</p>
+<p>En x64 Windows, los primeros <strong>4 argumentos</strong> van en registros (<code>RCX</code>, <code>RDX</code>, <code>R8</code>, <code>R9</code>), pero del <strong>5.º en adelante viajan en la pila del llamador</strong>. Un trampolín "genérico" que recopilara y reubicara esos argumentos sería frágil. En cambio, nuestro stub termina en <strong><code>jmp</code></strong> (un <em>tail call</em>): <strong>no toca la pila</strong> y <strong>preserva la dirección de retorno</strong>.</p>
+<p>Consecuencia: cuando el gadget de <code>ntdll</code> hace <code>ret</code>, la pila sigue <strong>exactamente</strong> como la dejó el wrapper. Por tanto, los argumentos 5+ que viajen en la pila <strong>llegan intactos al kernel</strong>, sin que el stub tenga que saber cuántos son.</p>
+<blockquote><p>Esto es exactamente el patrón que usan las librerías de referencia (SysWhispers) y es la solución <strong>mínima correcta</strong>: no hay que adaptar el stub a la aridad.</p></blockquote>
+<h2>Pruebas y experimentos</h2>
+<p>El test <strong>T12</strong> ejecuta las 8 syscalls y valida los <code>NTSTATUS</code> (incluyendo casos negativos). Pero para no quedarnos cortos, añadimos <strong>15 experimentos dedicados</strong> (T18). Algunos:</p>
+<ul><li>Resolución del catálogo e igualdad de las 8 entradas de <code>g_SsnTable</code> con el resolver.</li><li>El bloque ASM contiene <strong>≥ 8 stubs</strong>.</li><li><strong>Aridad 0</strong> (<code>NtYieldExecution</code>), <strong>1</strong> (<code>NtClose</code>), <strong>4</strong>, <strong>5</strong> y <strong>6</strong> — cada una ejecutada.</li><li><strong>Round-trip</strong> <code>NtProtectVirtualMemory</code> + <code>NtFreeVirtualMemory</code> sobre memoria real.</li><li>Caso negativo: clase de información inválida → <code>STATUS_INVALID_INFO_CLASS</code>.</li></ul>
+<p>Los 15 en verde. La <strong>aridad 5</strong> (<code>NtQueryInformationProcess</code>) y la <strong>6</strong> (<code>NtAllocateVirtualMemory</code>) confirman que los argumentos en la pila llegan bien.</p>
+<h2>Hallazgo: un slot del catálogo no es un stub de syscall</h2>
+<p>Aquí salió algo interesante. <code>NtQuerySystemTime</code> <strong>no</strong> se exporta como un stub de syscall. En su lugar es un <code>jmp</code> a otra función de <code>ntdll</code>:</p>
+<pre><code class="lang-text">NtQuerySystemTime:  jmp ntdll!RtlQuerySystemTime   ; implementado en user-mode
+NtGetTickCount:     jmp ...                        ; tampoco es syscall</code></pre>
+<p>Es decir: no tiene el prólogo <code>4C 8B D1 B8</code> de los stubs reales. Entonces, ¿FreshyCalls falla? <strong>No.</strong> FreshyCalls lo <strong>cuenta</strong> igual (por su posición en el orden de exports) y le asigna un SSN; y <strong>la ejecución indirecta funciona</strong>: el experimento 15 lee el tiempo dos veces y comprueba que es <strong>válido y monótono creciente</strong>.</p>
+<table><thead><tr><th>Métrica</th><th>Resultado</th></tr></thead><tbody><tr><td>SSN del catálogo vs stub real</td><td><strong>7/8</strong> (los que <em>son</em> stubs)</td></tr><tr><td>Los 7 stubs coinciden al 100%</td><td>✅</td></tr><tr><td><code>NtQuerySystemTime</code> (no-stub) ejecuta correctamente</td><td>✅</td></tr></tbody></table>
+<blockquote><p>Lección: no todos los exports <code>Nt*</code> son stubs de syscall. FreshyCalls los tolera, pero hay que <strong>documentarlo</strong> (en la Fase 6 se cuantifica a nivel de todo <code>ntdll</code>).</p></blockquote>
+<h2>Evidencia (cdb)</h2>
+<pre><code class="lang-text">u Kagemusha!KageStubStart L6          ; mismo patron, distinto offset de tabla por slot
+  mov r10,rcx ; mov eax,[g_SsnTable+0x0] ; jmp [g_GadgetTable+0x0]
+  mov r10,rcx ; mov eax,[g_SsnTable+0x4] ; jmp [g_GadgetTable+0x8]
+
+bp Kagemusha!NtAllocateVirtualMemory_I ; g     (syscall de 6 argumentos)
+? poi(Kagemusha!g_GadgetTable+18) = 00007ffc`485410c2
+eax=18  rip=00007ffc485410c2                   ; SSN correcto; RIP dentro de ntdll</code></pre>
+<h3>Nota de seguridad (para scripts de cdb)</h3>
+<p><code>NtClose(handle inválido)</code> genera una <strong>excepción first-chance</strong> <code>c0000008</code> que <code>ntdll</code> maneja internamente. Los scripts de <code>cdb</code> deben <strong>ignorarla</strong> con <code>sxi c0000008</code>, o el script se detiene. Lo dejamos documentado para el futuro.</p>
+<h2>Qué aprendimos</h2>
+<ul><li><strong>Un template, muchas funciones.</strong> La macro elimina la repetición y garantiza consistencia.</li><li><strong>El <code>jmp</code> es la clave de la aridad.</strong> No hay que adaptar el stub a 0, 4 o 6 argumentos.</li><li><strong>No todos los <code>Nt*</code> son syscalls.</strong> Los <code>jmp Rtl*</code> existen y hay que tratarlos con cuidado.</li><li><strong>Probar la aridad importa.</strong> Una técnica que "funciona" con 1 argumento puede fallar con 6</li></ul>
+<p>si se equivoca el manejo de la pila.</p>
+<p>Con 8 syscalls, distintas aridades y 15 experimentos en verde, el sistema ya no es una prueba de concepto: es un <strong>catálogo</strong>. El siguiente reto es la <strong>robustez frente a hooks</strong>: qué pasa si un EDR modifica un stub. Eso es la Fase 6.</p>
+<h2>Cómo sigue la serie</h2>
+<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><strong>Fase 5: generalización y aridad</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

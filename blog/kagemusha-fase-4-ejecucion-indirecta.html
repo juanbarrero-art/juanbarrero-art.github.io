@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Trampolín ASM en C + MASM que salta al syscall;ret de ntdll. NtClose_I devuelve el NTSTATUS real y el módulo no contiene ninguna instrucción syscall.">
+  <meta name="description" content="El hito central. NtClose_I ejecuta el syscall dentro de ntdll, el módulo no contiene ninguna instrucción syscall, y tres experimentos de falsabilidad lo demuestran en el debugger.">
   <meta name="theme-color" content="#060810">
   <title>&quot;Kagemusha — Fase 4: ejecución indirecta real&quot; | KANON UFO</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
@@ -33,57 +33,87 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">01 oct 2026 &middot; 2 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 5 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
       </header>
       <div class="post__cuerpo"><h1>Kagemusha — Fase 4: ejecución indirecta real</h1>
-<p>En la <a href="/blog/kagemusha-indirect-syscalls.html">primera entrada</a> dejamos la tesis y las fases M0–M3 verificadas. Hoy toca lo importante: <strong>ejecutar de verdad</strong> una <code>Nt*</code> de forma indirecta y demostrarlo en el debugger.</p>
-<blockquote><p>Objetivo: que el <code>syscall</code> ocurra <strong>dentro de <code>ntdll</code></strong> y que nuestro módulo <strong>no contenga ninguna instrucción <code>syscall</code></strong>.</p></blockquote>
-<h2>Implementación</h2>
-<ul><li><code>src/core/core.c</code> — tablas del núcleo (<code>g_SsnTable</code>, <code>g_GadgetTable</code>) e <code>KageInitialize</code></li></ul>
-<p><strong>transaccional</strong> (o todo o nada).</p>
-<ul><li><code>src/asm/syscalls.asm</code> — el trampolín <code>KageNtCloseStub</code>:</li></ul>
-<pre><code class="lang-asm">; KageNtCloseStub: sin 0F 05
-mov  r10, rcx                 ; arg1 -&gt; R10 (ABI syscall)
-mov  eax, [g_SsnTable]        ; EAX = SSN
-jmp  qword ptr [g_GadgetTable]; salta al syscall;ret de ntdll
-KageStubStart:
-KageStubEnd:</code></pre>
-<ul><li><code>src/wrappers/wrappers.c</code> — <code>NtClose_I(HANDLE)</code> que devuelve el <code>NTSTATUS</code> real del kernel.</li></ul>
-<h2>Cómo funciona</h2>
-<p>El wrapper llama al stub; el stub mueve el primer argumento a <strong><code>R10</code></strong> (ABI de syscall), carga el <strong>SSN</strong> en <code>EAX</code> y hace <code>jmp</code> al gadget <code>syscall;ret</code> de <code>ntdll</code>. El <code>ret</code> del gadget vuelve al wrapper porque el <code>jmp</code> <strong>preservó la dirección de retorno</strong>.</p>
-<h2>Pruebas (T9 + T10)</h2>
-<ul><li><code>NtClose_I(0xDEADBEEF)</code> → <code>STATUS_INVALID_HANDLE</code> (<code>0xC0000008</code>).</li><li><code>NtClose_I(handle de NUL)</code> → <code>STATUS_SUCCESS</code> (<code>0</code>).</li><li>El stub indirecto tiene <strong>0 bytes <code>0F 05</code></strong>.</li><li>El <strong>módulo completo</strong> tiene <strong>0 instrucciones <code>syscall</code></strong> (verificado con <code>dumpbin</code> a nivel</li></ul>
-<p>de mnemónico en <code>tools/verify.ps1</code>).</p>
-<h2>Evidencia (cdb — <code>docs/evidencias/m4.txt</code>)</h2>
+<p>Llegamos al <strong>hito central</strong> del proyecto. En las <a href="/blog/kagemusha-fases-0-3.html">fases 0–3</a> preparamos los cimientos: base de <code>ntdll</code>, SSN resueltos por FreshyCalls y un gadget <code>syscall;ret</code> validado. Ahora conectamos todo para <strong>ejecutar de verdad</strong> una función <code>Nt*</code> de forma indirecta —y lo demostramos en el debugger—.</p>
+<blockquote><p>Definición que perseguimos (y que hay que probar): el <code>syscall</code> se ejecuta <strong>dentro de <code>ntdll</code></strong>, el <code>RIP</code> cae en su rango, el SSN lo gobierna nuestra tabla, y <strong>nuestro módulo no contiene ninguna instrucción <code>syscall</code></strong>.</p></blockquote>
+<h2>La implementación</h2>
+<p>Tres piezas nuevas más las tablas del núcleo:</p>
+<ul><li><strong><code>src/core/core.c</code></strong> — las tablas <code>g_SsnTable</code> (SSN por slot) y <code>g_GadgetTable</code> (gadget por</li></ul>
+<p>slot), y <strong><code>KageInitialize</code> transaccional</strong>: o resuelve <strong>todo</strong> el catálogo y valida <strong>un gadget para cada uno</strong>, o falla con un error detallado. Nada queda a medio inicializar.</p>
+<ul><li><strong><code>src/asm/syscalls.asm</code></strong> — el trampolín <code>KageNtCloseStub</code>, con etiquetas <code>KageStubStart</code></li></ul>
+<p>y <code>KageStubEnd</code> (para poder verificar el bloque por símbolo).</p>
+<ul><li><strong><code>src/wrappers/wrappers.c</code></strong> — el wrapper tipado <code>NtClose_I(HANDLE)</code> que devuelve el</li></ul>
+<p><code>NTSTATUS</code> real del kernel.</p>
+<h3>El stub (el "guerrero sombra")</h3>
+<pre><code class="lang-asm">KageNtCloseStub PROC
+    mov  r10, rcx                      ; arg1 -&gt; R10 (ABI syscall)
+    mov  eax, DWORD PTR [g_SsnTable]   ; EAX = SSN resuelto en runtime
+    jmp  QWORD PTR [g_GadgetTable]     ; salta al syscall;ret de ntdll
+KageNtCloseStub ENDP</code></pre>
+<p>Fíjate en lo que <strong>no</strong> hay: no hay <code>syscall</code> (<code>0F 05</code>). El stub <strong>solo prepara</strong> (<code>r10</code>, <code>eax</code>) y <strong>salta</strong>. La secuencia mágica vive en <code>ntdll</code>.</p>
+<h3>El wrapper</h3>
+<pre><code class="lang-c">NTSTATUS NtClose_I(HANDLE h) {
+    if (!g_Initialized)            return KAGE_STATUS_NOT_INITIALIZED;
+    if (g_SsnTable[0] == 0)        return KAGE_STATUS_SSN_UNRESOLVED;
+    if (g_GadgetTable[0] == NULL)  return KAGE_STATUS_NO_GADGET;
+    return KageNtCloseStub(h);     /* NTSTATUS del kernel, sin traducir */
+}</code></pre>
+<p>Devolvemos el <code>NTSTATUS</code> del kernel <strong>tal cual</strong> (precisión NT), y los errores de <em>nuestro</em> marco se distinguen con prefijo <code>KAGE_STATUS_*</code>.</p>
+<h2>Cómo funciona (y por qué el <code>jmp</code>, no <code>call</code>)</h2>
+<p>Este es el detalle que hace que todo encaje. En la ABI x64 de Windows:</p>
+<ul><li>El primer argumento va en <code>RCX</code>, pero la instrucción <code>syscall</code> <strong>usa <code>RCX</code> para el retorno</strong>,</li></ul>
+<p>así que la convención de syscall manda el primer argumento por <code>R10</code>. De ahí el <code>mov r10, rcx</code>.</p>
+<ul><li>Al usar <strong><code>jmp</code></strong> (un <em>tail call</em>), <strong>no metemos una nueva dirección de retorno en la pila</strong>:</li></ul>
+<p>heredamos la que puso el wrapper al llamar al stub. Por eso, cuando el gadget ejecuta su <code>ret</code>, <strong>regresa directamente al wrapper</strong>. Y como no tocamos la pila, los argumentos 5+ (que viajan en la pila) llegan intactos al kernel.</p>
+<blockquote><p>Si usáramos <code>call</code>, añadiríamos un frame extra y el <code>ret</code> del gadget no volvería al wrapper. El <code>jmp</code> es la solución <strong>mínima correcta</strong>.</p></blockquote>
+<h2>Pruebas T9 y T10</h2>
+<ul><li><strong>T9 — ejecución real:</strong> <code>NtClose_I(0xDEADBEEF)</code> devuelve <code>STATUS_INVALID_HANDLE</code></li></ul>
+<p>(<code>0xC0000008</code>); <code>NtClose_I(handle válido)</code> devuelve <code>STATUS_SUCCESS</code> (<code>0</code>). Son <strong>exactamente</strong> los <code>NTSTATUS</code> que daría la API nativa (mismo kernel, mismo contrato).</p>
+<ul><li><strong>T10 — propiedad anti-directa:</strong> el stub no contiene bytes <code>0F 05</code>, y el <strong>módulo completo</strong></li></ul>
+<p>tampoco: <code>verify.ps1</code> lo comprueba con <code>dumpbin</code> <strong>a nivel de mnemónico</strong> y da <strong>0</strong> en ambos ejecutables.</p>
+<h2>Evidencia (cdb) — el momento clave</h2>
+<p>Ponemos un breakpoint en el wrapper, dejamos correr y observamos el <code>RIP</code> <strong>dentro de <code>ntdll</code></strong>:</p>
 <pre><code class="lang-text">bp Kagemusha!NtClose_I ; g
 ? poi(Kagemusha!g_GadgetTable) = 00007ffc`48540fa2
 g
-00007ffc`48540fa2 0f05        syscall            ; RIP DENTRO de ntdll
-rax=000000000000000f                            ; EAX = SSN de NtClose
-rcx=00000000deadbeef  r10=00000000deadbeef      ; arg1 en RCX y R10 (ABI syscall)
+00007ffc`48540fa2 0f05            syscall          ; RIP DENTRO de ntdll
+rax=000000000000000f                               ; EAX = SSN de NtClose
+rcx=00000000deadbeef  r10=00000000deadbeef         ; arg1 en RCX y R10 (ABI syscall)
 rip=00007ffc48540fa2
-ntdll  00007ffc`483e0000 - 00007ffc`48647000    ; RIP dentro del rango</code></pre>
+ntdll  00007ffc`483e0000 - 00007ffc`48647000       ; RIP dentro del rango de ntdll</code></pre>
+<p>Lee esto despacio, porque es <strong>la tesis hecha realidad</strong>:</p>
+<ol><li>El <code>syscall</code> que se ejecuta está en <code>00007ffc48540fa2</code>, que cae <strong>dentro</strong> del rango de</li></ol>
+<p><code>ntdll</code> (<code>483e0000</code>–<code>48647000</code>).</p>
+<ol><li><code>EAX = 0x0F</code> es el SSN de <code>NtClose</code> (el que resolvió FreshyCalls).</li><li><code>RCX</code> y <code>R10</code> contienen el mismo argumento (<code>0xdeadbeef</code>): la ABI de syscall funcionó.</li></ol>
 <h2>M4+ — Experimentos de falsabilidad</h2>
-<p>Dos pruebas cierran la fase intentando <strong>tumbar</strong> la afirmación:</p>
-<p><strong>1. La línea de retorno vuelve a nuestro código.</strong></p>
+<p>Verificar que "funciona una vez" no basta. Intentamos <strong>tumbar</strong> la afirmación con tres experimentos:</p>
+<p><strong>1. La línea de retorno vuelve a nuestro código.</strong> Si el <code>jmp</code> no hubiera preservado el frame, el <code>ret</code> del gadget no volvería al wrapper. La pila lo demuestra:</p>
 <pre><code class="lang-text">u Kagemusha!KageNtCloseStub L5
   4c8bd1        mov  r10, rcx
   8b05.....     mov  eax, dword ptr [Kagemusha!g_SsnTable]
   ff25.....     jmp  qword ptr [Kagemusha!g_GadgetTable]
 dps @rsp L2
-  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; vuelve al wrapper</code></pre>
-<p><strong>2. El SSN de la tabla gobierna el syscall</strong> (sin llegar a ejecutarlo):</p>
+  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; &lt;-- vuelve al wrapper</code></pre>
+<p><strong>2. El SSN de la tabla gobierna el syscall</strong> (sin llegar a ejecutarlo): cambiamos el SSN en memoria y observamos que el stub carga el nuevo valor —el SSN <strong>no</strong> está atado a los bytes del stub, sino a nuestra tabla—:</p>
 <pre><code class="lang-text">ew Kagemusha!g_SsnTable 0x55
 g
-eax=55                    ; el stub cargó 0x55 (no depende de los bytes del stub)
-rip=00007ffc48540fa2      ; sigue en el gadget de ntdll</code></pre>
+eax=55                            ; el stub cargó 0x55 (no depende del stub)
+rip=00007ffc48540fa2              ; sigue en el gadget de ntdll</code></pre>
+<p><strong>3. Repetibilidad:</strong> T11 ejecuta <strong>1000</strong> <code>NtClose_I</code> consecutivos con resultado idéntico (PASS).</p>
+<h2>Qué queda fuera (y por qué se dice)</h2>
+<p>En el breakpoint del gadget, <code>dps @rsp</code> muestra que la dirección de retorno apunta a <strong>nuestro wrapper</strong> (<code>Kagemusha!NtClose_I</code>). Esto <strong>no se oculta</strong> en la v1: significa que un <em>stack walk</em> vería que el <em>caller</em> inmediato es nuestro módulo. El <em>stack spoofing</em> está <strong>fuera de alcance</strong> de la v1 y se medirá (no se esconderá) en la Fase de visibilidad. Decirlo es parte del rigor.</p>
 <h2>Próximos pasos</h2>
-<ul><li><strong>Fase 5:</strong> generalizar a ≥ 8 syscalls (registro tabular, misma técnica).</li><li><strong>Fase 6:</strong> robustez multi-build y <strong>test de hook simulado</strong>.</li><li>Y, de forma honesta, seguir midiendo la <strong>superficie de detección</strong> (stack walk incluido).</li></ul>
-<h2>Cierre</h2>
-<p>Tesis confirmada y <strong>falsable</strong>: el módulo no contiene <code>syscall</code>, el <code>RIP</code> cae dentro de <code>ntdll</code>, el SSN lo gobierna nuestra tabla en runtime y el retorno vuelve a nuestro código. Cada afirmación tiene su oráculo y su transcript reproducible.</p>
+<ul><li><strong>Fase 5:</strong> generalizar a un catálogo de ≥ 8 syscalls con <strong>un único template ASM</strong> (macro),</li></ul>
+<p>ejercitando distintas aridades (argumentos en la pila).</p>
+<ul><li><strong>Fase 6:</strong> robustez ante <strong>hooks</strong> y entradas adversas.</li></ul>
+<p>Ambas ya están implementadas y verificadas; las contaré en las siguientes entradas.</p>
+<h2>Cómo sigue la serie</h2>
+<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><strong>Fase 4: ejecución indirecta real</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

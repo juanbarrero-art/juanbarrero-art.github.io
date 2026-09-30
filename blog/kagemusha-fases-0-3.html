@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Construimos los cimientos del sistema paso a paso desde cero: toolchain C+MASM y debugger, PEB walk y hash DJB2, resolución de SSN por FreshyCalls y validación del gadget syscall;ret. Cada hito con su oráculo y su evidencia.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">01 oct 2026 &middot; 7 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Fases 0 a 3: del toolchain al gadget</h1>
+<p>En la <a href="/blog/kagemusha-indirect-syscalls.html">visión general</a> pusimos la tesis y la metodología. Aquí empezamos a <strong>construir</strong>. Estas cuatro fases (M0–M3) no ejecutan todavía ninguna syscall: preparan <strong>los cimientos</strong> para que, en la Fase 4, el <code>syscall</code> ocurra dentro de <code>ntdll</code>. Y lo mejor: cada fase termina con una <strong>prueba objetiva</strong> contra una fuente independiente.</p>
+<p>Si algún término te suena raro (stub, SSN, <code>ntdll</code>), la <a href="/blog/guia-syscalls-windows.html">guía de syscalls</a> es el mejor punto de partida.</p>
+<hr>
+<h2>Fase 0 — Toolchain + debugger + "hola ASM" · M0 ✅</h2>
+<h3>El objetivo</h3>
+<p>Antes de escribir nada "serio", quería validar el <strong>pipeline completo</strong>: compilar C y ASM juntos, generar símbolos (PDB) y poder depurar <strong>por línea de comandos</strong>. Si esta base falla, todo lo demás es castillos en el aire.</p>
+<h3>El entorno</h3>
+<ul><li><strong>MSVC 19.51</strong> (Build Tools 2026), <strong>MASM <code>ml64</code> 14.51</strong>, <strong>Windows SDK 10.0.26100</strong>.</li><li><strong><code>cdb</code> v10.0.29617</strong> (Debugging Tools for Windows), con <code>_NT_SYMBOL_PATH</code> configurado.</li></ul>
+<p>Instalar solo los <em>debuggers</em> del SDK es tan simple como:</p>
+<pre><code class="lang-powershell"># Configurar el servidor de simbolos de Microsoft (una vez)
+[Environment]::SetEnvironmentVariable(&quot;_NT_SYMBOL_PATH&quot;,
+    &quot;srv*C:\symbols*https://msdl.microsoft.com/download/symbols&quot;, &quot;User&quot;)</code></pre>
+<h3>La implementación</h3>
+<p>Dos piezas mínimas:</p>
+<pre><code class="lang-asm">; src/asm/hello.asm
+KageHelloAsm PROC
+    mov eax, 42
+    ret
+KageHelloAsm ENDP</code></pre>
+<pre><code class="lang-c">/* src/main.c (extracto): el selftest imprime el resultado del ASM */
+int main(void) {
+    int v = KageHelloAsm();
+    printf(&quot;M0  KageHelloAsm() = %d\n&quot;, v);
+    return v == 42 ? 0 : 1;
+}</code></pre>
+<p>Y un <code>tools/build.cmd</code> que llama a <code>vcvars64</code>, ensambla con <code>ml64</code>, compila con <code>cl</code> y enlaza con <code>link /DEBUG:FULL</code> (PDB completo).</p>
+<h3>La prueba (y por qué PDB importa)</h3>
+<p>El milestone no es "compila", sino <strong>"puedo poner un breakpoint simbólico y ver el <code>mov</code>"</strong>:</p>
+<pre><code class="lang-text">bp Kagemusha!KageHelloAsm
+Kagemusha!KageHelloAsm:
+00007ff6`1cf72a30 b82a000000      mov     eax,2Ah   ; 42</code></pre>
+<p>Salida: <code>M0  KageHelloAsm() = 42</code> (exit 0).</p>
+<blockquote><p><strong>Por qué importa:</strong> sin símbolos, en la Fase 4 no podríamos hacer <code>bp Kagemusha!NtClose_I</code> ni leer el <code>RIP</code> con nombre. El PDB es lo que convierte el debugger en una herramienta de <strong>evidencia</strong>, no de adivinación.</p></blockquote>
+<hr>
+<h2>Fase 1 — Utilidades base (<code>util/</code>) · M1 ✅</h2>
+<h3>El objetivo</h3>
+<p>Acceder a <code>ntdll</code> <strong>sin depender de la IAT</strong> (Import Address Table). La IAT es una lista de funciones importadas que cualquiera puede ver; evitar <code>GetModuleHandle</code>/<code>GetProcAddress</code> en el camino crítico es parte del diseño. En su lugar, hacemos "a mano" lo que esas funciones hacen.</p>
+<h3>Las piezas</h3>
+<p><strong>1. PEB walk (<code>src/util/peb.c</code>).</strong> El <strong>PEB</strong> (Process Environment Block) es la estructura del proceso que el kernel mantiene; en x64 se localiza con <code>gs:[0x60]</code>. Dentro, <code>Ldr</code> guarda la lista de módulos <strong>en orden de carga</strong> (<code>InLoadOrderModuleList</code>). Recorriéndola, comparamos cada nombre contra un <strong>hash</strong> hasta dar con <code>ntdll</code>:</p>
+<pre><code class="lang-c">PPEB UtlGetCurrentPeb(void) {
+    return (PPEB)__readgsqword(0x60);   /* magia del TEB -&gt; PEB */
+}
+/* UtlFindModuleByHash: camina InLoadOrderModuleList comparando hashes */</code></pre>
+<p><strong>2. Hash DJB2 (<code>src/util/exhash.c</code>).</strong> En vez de comparar cadenas carácter a carácter (visible y clásico), comparamos <strong>enteros</strong>: el hash del nombre. Usamos <strong>DJB2</strong> (<code>hash = hash*33 + c</code>), con variantes <em>case-insensitive</em> para ANSI y Wide.</p>
+<pre><code class="lang-c">DWORD UtlHashStrAnsi(PCSTR s) {
+    DWORD h = 5381;
+    while (*s) { h = ((h &lt;&lt; 5) + h) + (BYTE)tolower(*s++); }
+    return h;
+}</code></pre>
+<p><strong>3. Exports por hash (<code>UtlGetExportByHash</code>).</strong> Dado el base de <code>ntdll</code>, recorremos su <strong>export directory</strong> (EAT) y devolvemos la dirección de la función cuyo hash coincide, <strong>descartando forwarded</strong> (exports que son meros punteros a otro módulo).</p>
+<p><strong>4. Rango <code>.text</code> (<code>UtlGetModuleRange</code>).</strong> Leemos las cabeceras PE y obtenemos el rango real de la sección <code>.text</code>. Lo necesitaremos para <strong>validar que un gadget está dentro de <code>ntdll</code></strong>.</p>
+<p><strong>5. Log (<code>src/util/log.c</code>).</strong> <code>UtlLog</code> con niveles, a <code>stdout</code> <strong>con <code>flush</code></strong>, para que la salida aparezca en el transcript de <code>cdb</code> sin perderse.</p>
+<h3>La prueba (oráculo independiente)</h3>
+<p>El test <strong>no</strong> dice "creo que es correcto". Lo contrasta con la API de Windows:</p>
+<pre><code class="lang-text">rax=00007ffc48540f90                        ; lo que resuelve NUESTRO codigo
+00007ffc`48540f90 ntdll!NtClose (NtClose)   ; lo que dice el SIMBOLO de Microsoft
+? (rax - ntdll!NtClose) = 0                 ; IDENTICOS</code></pre>
+<p>Salida: <code>M1  ntdll base = 00007FFC483E0000</code>, <code>.text = ... (1482908 bytes)</code>, <code>NtClose = 00007FFC48540F90</code>.</p>
+<blockquote><p>Si nuestro PEB walk devolviera una base falsa, <code>GetModuleHandleW</code> lo delataría. Si el hash estuviera mal, <code>GetProcAddress</code> daría otra dirección. <strong>Nunca nos creemos a nosotros mismos.</strong></p></blockquote>
+<hr>
+<h2>Fase 2 — Resolución de SSN por FreshyCalls · M2 ✅</h2>
+<h3>El objetivo</h3>
+<p>Obtener el <strong>SSN</strong> (número de servicio) de cada <code>Nt*</code> <strong>sin leer bytes del stub</strong>. ¿Por qué sin leer bytes? Porque un EDR puede modificar esos bytes (hook). Si dependemos de ellos, dependemos de que estén intactos.</p>
+<h3>El invariante</h3>
+<p>FreshyCalls explota un hecho de Windows 10/11:</p>
+<blockquote><p>Los stubs <code>Nt*</code> están en <code>.text</code> <strong>en el mismo orden que sus SSN</strong>.</p></blockquote>
+<p>Por tanto:</p>
+<pre><code class="lang-c">/* 1) coleccionar TODAS las exports &quot;Nt*&quot; (prefijo estricto Nt + mayuscula) */
+/* 2) ordenarlas por direccion virtual (VA) ascendente */
+qsort(NtExports, n, sizeof(*NtExports), cmp_por_va);
+/* 3) el INDICE que ocupa cada una ES su SSN */
+for (DWORD i = 0; i &lt; n; i++)
+    NtExports[i].ssn = i;</code></pre>
+<p>Nada de leer <code>mov eax, SSN</code> del stub: <strong>solo ordenamos direcciones</strong>. Eso lo hace inmune a que los bytes del stub estén "modificados".</p>
+<h3>Los checks (fallar ruidoso)</h3>
+<p>El resolver <strong>falla con error</strong> si: la lista está vacía, hay <strong>VAs duplicadas</strong>, aparece un forwarded, o algún objetivo del catálogo no resuelve. Nada de continuar a medias.</p>
+<h3>La prueba (oráculo independiente)</h3>
+<p>Contrastamos nuestro SSN contra el que dice el <strong>stub real</strong> de Microsoft:</p>
+<pre><code class="lang-text">uf ntdll!NtClose
+ntdll!NtClose:
+00007ffc`48540f93 b80f000000      mov     eax,0Fh    ; SSN real, lo dice el stub</code></pre>
+<p>Salida: <code>M2  FreshyCalls: 8/8 coinciden con el stub</code>. Para las 12 funciones del registro:</p>
+<table><thead><tr><th>Función</th><th>SSN</th><th>Función</th><th>SSN</th></tr></thead><tbody><tr><td>NtClose</td><td>0x00F</td><td>NtAllocateVirtualMemory</td><td>0x018</td></tr><tr><td>NtCreateFile</td><td>0x055</td><td>NtProtectVirtualMemory</td><td>0x050</td></tr><tr><td>NtOpenProcess</td><td>0x026</td><td>NtReadFile</td><td>0x006</td></tr><tr><td>NtQuerySystemInformation</td><td>0x036</td><td>NtQueryInformationProcess</td><td>0x019</td></tr></tbody></table>
+<blockquote><p>Un SSN equivocado no "casi funciona": ejecutarías <strong>otra</strong> función del kernel. Por eso el oráculo es obligatorio.</p></blockquote>
+<hr>
+<h2>Fase 3 — Localizar el gadget <code>syscall;ret</code> · M3 ✅</h2>
+<h3>El objetivo</h3>
+<p>Encontrar, <strong>dentro de <code>ntdll</code></strong>, la secuencia real de bytes <strong><code>0F 05 C3</code></strong> (<code>syscall; ret</code>) y garantizar que es ejecutable y que no forma parte de un hook. Ese será nuestro punto de salto en la Fase 4.</p>
+<h3>La idea clave</h3>
+<p>Un gadget <code>syscall;ret</code> es <strong>agnóstico del SSN</strong>: sirve para <em>cualquier</em> syscall, porque el número viaja en <code>EAX</code>. Eso permite tener un <strong>pool</strong> de gadgets de respaldo.</p>
+<h3>La validación (3 checks)</h3>
+<p>Localizar los bytes no basta; hay que <strong>validar</strong> el candidato:</p>
+<ol><li>En esa dirección están exactamente <code>0F 05</code> y, dos bytes después, <code>C3</code>.</li><li>La dirección cae <strong>dentro de <code>.text</code> de <code>ntdll</code></strong> (el rango del M1).</li><li>El stub de origen <strong>no empieza con un prólogo de hook</strong> (<code>E9</code> / <code>FF 25</code>).</li></ol>
+<p>El orden de selección es determinista (para que las pruebas sean reproducibles): primero el stub de la propia función; si está hookeado, el de su gemela <code>Zw*</code>; y si no, el pool ordenado por menor VA.</p>
+<h3>La prueba</h3>
+<pre><code class="lang-text">db poi(Kagemusha!g_Entries+0x18) L3
+00007ffc`48540fa2  0f 05 c3                 ; syscall; ret
+? poi(Kagemusha!g_Entries+0x18) - ntdll = 0x160fa2   ; dentro de ntdll</code></pre>
+<p>Salida: <code>M3  gadgets validos (0F 05 C3 en .text): 8/8</code>.</p>
+<blockquote><p>Doble comprobación: <strong>los bytes</strong> son los correctos <strong>y</strong> la dirección pertenece a <code>ntdll</code>. Un gadget "a mitad de instrucción" provocaría un crash; por eso anclamos a inicio de stub validado y patrón exacto.</p></blockquote>
+<hr>
+<h2>Qué aprendimos en estas cuatro fases</h2>
+<ul><li><strong>El PDB no es opcional.</strong> Sin símbolos no hay evidencia, solo fe.</li><li><strong>El hash convierte comparaciones visibles en comparaciones de enteros.</strong> Menos superficie,</li></ul>
+<p>más orden.</p>
+<ul><li><strong>Nunca hardcodear el SSN.</strong> La tentación de "poner 0x0F y ya" rompe en la próxima build.</li><li><strong>Validar, no asumir.</strong> Un gadget se <em>valida</em> (bytes + rango + no-hook), no se <em>confía</em>.</li><li><strong>Fallar ruidoso.</strong> Un error claro vale más que un resultado silenciosamente incorrecto.</li></ul>
+<p>Con los cimientos listos (base de <code>ntdll</code>, SSN resueltos y gadget validado), ya podemos hacer lo importante: <strong>ejecutar de verdad</strong> una <code>Nt*</code> de forma indirecta. Eso es la <a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4</a>.</p>
+<h2>Cómo sigue la serie</h2>
+<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><strong>Fases 0 a 3</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
