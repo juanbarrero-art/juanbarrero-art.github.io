@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://juanbarrero-art.github.io/sitemap.xml

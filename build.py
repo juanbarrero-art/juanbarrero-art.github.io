@@ -18,6 +18,7 @@ Uso:
 import html
 import os
 import re
+import email.utils
 import datetime
 import glob
 
@@ -28,6 +29,8 @@ TPL_DIR = os.path.join(ROOT, "templates")
 INDEX = os.path.join(ROOT, "index.html")
 
 SITE = "KANON UFO"
+SITE_URL = "https://juanbarrero-art.github.io"
+SITE_DESC = "Blog personal de ciberseguridad: notas, writeups y laboratorio."
 # Cuantas entradas mostrar en la portada
 HOME_COUNT = 3
 
@@ -251,6 +254,60 @@ def serie_html(post):
     return f'<p class="post__serie">Serie: <a href="serie/{s}.html">{html.escape(post["serie"])}</a></p>'
 
 
+def rss_date(iso):
+    try:
+        d = datetime.datetime.fromisoformat(iso)
+    except ValueError:
+        d = datetime.datetime.now()
+    return email.utils.format_datetime(d.replace(tzinfo=datetime.timezone.utc))
+
+
+def build_rss(posts):
+    items = []
+    for p in posts:
+        url = f"{SITE_URL}/blog/{p['slug']}.html"
+        items.append(
+            "  <item>\n"
+            f"    <title>{html.escape(p['title'])}</title>\n"
+            f"    <link>{url}</link>\n"
+            f'    <guid isPermaLink="true">{url}</guid>\n'
+            f"    <pubDate>{rss_date(p['date'])}</pubDate>\n"
+            f"    <description>{html.escape(p['summary'])}</description>\n"
+            "  </item>"
+        )
+    now = email.utils.format_datetime(datetime.datetime.now(datetime.timezone.utc))
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<rss version="2.0">\n<channel>\n'
+        f"  <title>{SITE}</title>\n"
+        f"  <link>{SITE_URL}</link>\n"
+        f"  <description>{SITE_DESC}</description>\n"
+        "  <language>es</language>\n"
+        f"  <lastBuildDate>{now}</lastBuildDate>\n"
+        + "\n".join(items)
+        + "\n</channel>\n</rss>\n"
+    )
+
+
+def build_sitemap(posts):
+    urls = [f"{SITE_URL}/", f"{SITE_URL}/blog/"]
+    for p in posts:
+        urls.append(f"{SITE_URL}/blog/{p['slug']}.html")
+    for s in sorted({slugify(p["serie"]) for p in posts if p.get("serie")}):
+        urls.append(f"{SITE_URL}/blog/serie/{s}.html")
+    body = "".join(f"  <url><loc>{u}</loc></url>\n" for u in urls)
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + body
+        + "</urlset>\n"
+    )
+
+
+def build_robots():
+    return f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+
+
 def build():
     os.makedirs(BLOG_DIR, exist_ok=True)
     posts = load_posts()
@@ -313,6 +370,14 @@ def build():
         if new != idx:
             with open(INDEX, "w", encoding="utf-8") as f:
                 f.write(new)
+
+    # RSS, sitemap y robots
+    with open(os.path.join(ROOT, "feed.xml"), "w", encoding="utf-8") as f:
+        f.write(build_rss(posts))
+    with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as f:
+        f.write(build_sitemap(posts))
+    with open(os.path.join(ROOT, "robots.txt"), "w", encoding="utf-8") as f:
+        f.write(build_robots())
 
     print(f"OK -> {len(posts)} post(s) generado(s)")
     for p in posts:

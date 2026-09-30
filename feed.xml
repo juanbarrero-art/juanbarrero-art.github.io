@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>KANON UFO</title>
+  <link>https://juanbarrero-art.github.io</link>
+  <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
+  <language>es</language>
+  <lastBuildDate>Wed, 30 Sep 2026 13:28:14 +0000</lastBuildDate>
+  <item>
+    <title>&quot;Análisis de malware 101: por dónde empezar&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/analisis-malware-101.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/analisis-malware-101.html</guid>
+    <pubDate>Fri, 02 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Una ruta de entrada al análisis de malware y qué necesitas en tu laboratorio.</description>
+  </item>
+  <item>
+    <title>&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-fase-4-ejecucion-indirecta.html</guid>
+    <pubDate>Thu, 01 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Trampolín ASM en C + MASM que salta al syscall;ret de ntdll. NtClose_I devuelve el NTSTATUS real y el módulo no contiene ninguna instrucción syscall.</description>
+  </item>
+  <item>
+    <title>Bienvenido al blog</title>
+    <link>https://juanbarrero-art.github.io/blog/bienvenido-al-blog.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/bienvenido-al-blog.html</guid>
+    <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
+    <description>Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.</description>
+  </item>
+  <item>
+    <title>&quot;Kagemusha: indirect syscalls en Windows x64&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</guid>
+    <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
+    <description>Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.</description>
+  </item>
+</channel>
+</rss>

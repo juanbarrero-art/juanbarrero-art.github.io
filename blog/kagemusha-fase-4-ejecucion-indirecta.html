@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Trampolín ASM en C + MASM que salta al syscall;ret de ntdll. NtClose_I devuelve el NTSTATUS real y el módulo no contiene ninguna instrucción syscall.">
+  <meta name="theme-color" content="#060810">
+  <title>&quot;Kagemusha — Fase 4: ejecución indirecta real&quot; | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">01 oct 2026 &middot; 2 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha — Fase 4: ejecución indirecta real</h1>
+<p>En la <a href="/blog/kagemusha-indirect-syscalls.html">primera entrada</a> dejamos la tesis y las fases M0–M3 verificadas. Hoy toca lo importante: <strong>ejecutar de verdad</strong> una <code>Nt*</code> de forma indirecta y demostrarlo en el debugger.</p>
+<blockquote><p>Objetivo: que el <code>syscall</code> ocurra <strong>dentro de <code>ntdll</code></strong> y que nuestro módulo <strong>no contenga ninguna instrucción <code>syscall</code></strong>.</p></blockquote>
+<h2>Implementación</h2>
+<ul><li><code>src/core/core.c</code> — tablas del núcleo (<code>g_SsnTable</code>, <code>g_GadgetTable</code>) e <code>KageInitialize</code></li></ul>
+<p><strong>transaccional</strong> (o todo o nada).</p>
+<ul><li><code>src/asm/syscalls.asm</code> — el trampolín <code>KageNtCloseStub</code>:</li></ul>
+<pre><code class="lang-asm">; KageNtCloseStub: sin 0F 05
+mov  r10, rcx                 ; arg1 -&gt; R10 (ABI syscall)
+mov  eax, [g_SsnTable]        ; EAX = SSN
+jmp  qword ptr [g_GadgetTable]; salta al syscall;ret de ntdll
+KageStubStart:
+KageStubEnd:</code></pre>
+<ul><li><code>src/wrappers/wrappers.c</code> — <code>NtClose_I(HANDLE)</code> que devuelve el <code>NTSTATUS</code> real del kernel.</li></ul>
+<h2>Cómo funciona</h2>
+<p>El wrapper llama al stub; el stub mueve el primer argumento a <strong><code>R10</code></strong> (ABI de syscall), carga el <strong>SSN</strong> en <code>EAX</code> y hace <code>jmp</code> al gadget <code>syscall;ret</code> de <code>ntdll</code>. El <code>ret</code> del gadget vuelve al wrapper porque el <code>jmp</code> <strong>preservó la dirección de retorno</strong>.</p>
+<h2>Pruebas (T9 + T10)</h2>
+<ul><li><code>NtClose_I(0xDEADBEEF)</code> → <code>STATUS_INVALID_HANDLE</code> (<code>0xC0000008</code>).</li><li><code>NtClose_I(handle de NUL)</code> → <code>STATUS_SUCCESS</code> (<code>0</code>).</li><li>El stub indirecto tiene <strong>0 bytes <code>0F 05</code></strong>.</li><li>El <strong>módulo completo</strong> tiene <strong>0 instrucciones <code>syscall</code></strong> (verificado con <code>dumpbin</code> a nivel</li></ul>
+<p>de mnemónico en <code>tools/verify.ps1</code>).</p>
+<h2>Evidencia (cdb — <code>docs/evidencias/m4.txt</code>)</h2>
+<pre><code class="lang-text">bp Kagemusha!NtClose_I ; g
+? poi(Kagemusha!g_GadgetTable) = 00007ffc`48540fa2
+g
+00007ffc`48540fa2 0f05        syscall            ; RIP DENTRO de ntdll
+rax=000000000000000f                            ; EAX = SSN de NtClose
+rcx=00000000deadbeef  r10=00000000deadbeef      ; arg1 en RCX y R10 (ABI syscall)
+rip=00007ffc48540fa2
+ntdll  00007ffc`483e0000 - 00007ffc`48647000    ; RIP dentro del rango</code></pre>
+<h2>M4+ — Experimentos de falsabilidad</h2>
+<p>Dos pruebas cierran la fase intentando <strong>tumbar</strong> la afirmación:</p>
+<p><strong>1. La línea de retorno vuelve a nuestro código.</strong></p>
+<pre><code class="lang-text">u Kagemusha!KageNtCloseStub L5
+  4c8bd1        mov  r10, rcx
+  8b05.....     mov  eax, dword ptr [Kagemusha!g_SsnTable]
+  ff25.....     jmp  qword ptr [Kagemusha!g_GadgetTable]
+dps @rsp L2
+  00007ff6`c7712da3  Kagemusha!NtClose_I+0x13   ; vuelve al wrapper</code></pre>
+<p><strong>2. El SSN de la tabla gobierna el syscall</strong> (sin llegar a ejecutarlo):</p>
+<pre><code class="lang-text">ew Kagemusha!g_SsnTable 0x55
+g
+eax=55                    ; el stub cargó 0x55 (no depende de los bytes del stub)
+rip=00007ffc48540fa2      ; sigue en el gadget de ntdll</code></pre>
+<h2>Próximos pasos</h2>
+<ul><li><strong>Fase 5:</strong> generalizar a ≥ 8 syscalls (registro tabular, misma técnica).</li><li><strong>Fase 6:</strong> robustez multi-build y <strong>test de hook simulado</strong>.</li><li>Y, de forma honesta, seguir midiendo la <strong>superficie de detección</strong> (stack walk incluido).</li></ul>
+<h2>Cierre</h2>
+<p>Tesis confirmada y <strong>falsable</strong>: el módulo no contiene <code>syscall</code>, el <code>RIP</code> cae dentro de <code>ntdll</code>, el SSN lo gobierna nuestra tabla en runtime y el retorno vuelve a nuestro código. Cada afirmación tiene su oráculo y su transcript reproducible.</p>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
