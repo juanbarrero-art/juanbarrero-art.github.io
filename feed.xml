@@ -5,7 +5,7 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 13:28:14 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 13:51:11 +0000</lastBuildDate>
   <item>
     <title>&quot;Análisis de malware 101: por dónde empezar&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/analisis-malware-101.html</link>
@@ -33,6 +33,13 @@
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-indirect-syscalls.html</guid>
     <pubDate>Wed, 30 Sep 2026 00:00:00 +0000</pubDate>
     <description>Cómo construí un sistema de indirect syscalls en C + MASM que resuelve los SSN en runtime con FreshyCalls y verifica cada afirmación con oráculos independientes.</description>
+  </item>
+  <item>
+    <title>&quot;Guía: syscalls en Windows para principiantes&quot;</title>
+    <link>https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</guid>
+    <pubDate>Tue, 29 Sep 2026 00:00:00 +0000</pubDate>
+    <description>Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.</description>
   </item>
 </channel>
 </rss>
