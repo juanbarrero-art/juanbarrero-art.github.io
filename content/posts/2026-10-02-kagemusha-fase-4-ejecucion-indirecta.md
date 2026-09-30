@@ -577,6 +577,24 @@ Con esta tabla puedes reproducir la fase **tú mismo** sin memorizar nada.
 
 ---
 
+## Glosario de la Fase 4
+
+| Término | Significado en esta fase |
+| --- | --- |
+| **Trampolín / stub** | El `PROC` ASM que prepara `R10`/`EAX` y hace `jmp` |
+| **Tail call** | Un `jmp` que no empuja dirección de retorno (preserva el frame) |
+| **ABI de syscall** | Convención: 1.er arg en `R10`, retorno de la instrucción en `RCX` |
+| **Gadget** | Fragmento `syscall;ret` dentro de `ntdll` |
+| **`NTSTATUS`** | Código de retorno preciso del kernel |
+| **Init transaccional** | `KageInitialize`: resuelve todo el registro o falla |
+| **`KAGE_STATUS_*`** | Errores del marco (init, SSN, gadget) |
+| **Falsabilidad** | Que un experimento pueda **contradecir** la afirmación |
+
+Con esto, la Fase 4 queda **cerrada y reproducible**: cualquier lector con el mismo Windows puede
+repetir la sesión y obtener el mismo transcript.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).

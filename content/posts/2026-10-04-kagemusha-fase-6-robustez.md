@@ -485,6 +485,25 @@ al instalar el hook, y a `FALSE` al restaurar —mientras `NtClose_I` sigue devo
 
 ---
 
+## Glosario de la Fase 6
+
+| Término | Significado en esta fase |
+| --- | --- |
+| **Hook** | Desvío colocado en el código para observar/alterar llamadas |
+| **Inline hook** | Parchear el inicio del stub (`E9`/`FF 25`) |
+| **IAT hook** | Parchear la *Import Address Table* del proceso |
+| **COW (Copy-On-Write)** | Al escribir en una página compartida, el SO crea una copia privada |
+| **Callback de kernel** | Notificación del kernel a drivers (procesos, hilos, imágenes) |
+| **ETW** | Sistema de trazas del sistema (telemetría independiente) |
+| **Fuzz** | Alimentar con entradas adversas para buscar crashes |
+| **Idempotente** | Que repetir una operación no cambie el resultado |
+| **Auto-hospedaje** | Usar el propio sistema para operar sobre `ntdll` |
+
+Con esto, la Fase 6 queda como el **escudo**: no promete invisibilidad, promete que el sistema
+**no se rompe** cuando el mundo se pone hostil. Y lo demuestra con pruebas, no con titulares.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">02 oct 2026 &middot; 18 min de lectura</p>
+        <p class="post__meta">02 oct 2026 &middot; 19 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -369,6 +369,10 @@ eax=0                       ; STATUS_SUCCESS (cerro un handle valido)</code></pr
 <h2>Referencia rápida (<code>cdb</code>) para la Fase 4</h2>
 <table><thead><tr><th>Comando</th><th>Para qué</th></tr></thead><tbody><tr><td><code>bp Kagemusha!NtClose_I</code></td><td>Parar en nuestro wrapper</td></tr><tr><td><code>u Kagemusha!KageNtCloseStub L5</code></td><td>Desensamblar el trampolín (ver el <code>jmp</code>)</td></tr><tr><td><code>? poi(Kagemusha!g_GadgetTable)</code></td><td>Ver el gadget que se usará</td></tr><tr><td><code>lm m ntdll</code></td><td>Rango de <code>ntdll</code> (¿cae el RIP dentro?)</td></tr><tr><td><code>r @eax @r10 @rcx @rip</code></td><td>SSN, argumento (ABI) y dónde estamos</td></tr><tr><td><code>dps @rsp L2</code></td><td>A dónde vuelve el <code>ret</code> (nuestro wrapper)</td></tr><tr><td><code>s -a Kagemusha L? 0f05</code></td><td>Buscar <code>syscall</code> en <strong>nuestro</strong> módulo (debe dar 0)</td></tr></tbody></table>
 <p>Con esta tabla puedes reproducir la fase <strong>tú mismo</strong> sin memorizar nada.</p>
+<hr>
+<h2>Glosario de la Fase 4</h2>
+<table><thead><tr><th>Término</th><th>Significado en esta fase</th></tr></thead><tbody><tr><td><strong>Trampolín / stub</strong></td><td>El <code>PROC</code> ASM que prepara <code>R10</code>/<code>EAX</code> y hace <code>jmp</code></td></tr><tr><td><strong>Tail call</strong></td><td>Un <code>jmp</code> que no empuja dirección de retorno (preserva el frame)</td></tr><tr><td><strong>ABI de syscall</strong></td><td>Convención: 1.er arg en <code>R10</code>, retorno de la instrucción en <code>RCX</code></td></tr><tr><td><strong>Gadget</strong></td><td>Fragmento <code>syscall;ret</code> dentro de <code>ntdll</code></td></tr><tr><td><strong><code>NTSTATUS</code></strong></td><td>Código de retorno preciso del kernel</td></tr><tr><td><strong>Init transaccional</strong></td><td><code>KageInitialize</code>: resuelve todo el registro o falla</td></tr><tr><td><strong><code>KAGE_STATUS_*</code></strong></td><td>Errores del marco (init, SSN, gadget)</td></tr><tr><td><strong>Falsabilidad</strong></td><td>Que un experimento pueda <strong>contradecir</strong> la afirmación</td></tr></tbody></table>
+<p>Con esto, la Fase 4 queda <strong>cerrada y reproducible</strong>: cualquier lector con el mismo Windows puede repetir la sesión y obtener el mismo transcript.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>

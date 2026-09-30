@@ -539,6 +539,24 @@ está sana. Si algo chirría, el `--dump` te dice **qué** entrada está mal.
 
 ---
 
+## Glosario de la Fase 5
+
+| Término | Significado en esta fase |
+| --- | --- |
+| **Slot** | Índice de una syscall en las tablas (`g_SsnTable`/`g_GadgetTable`) |
+| **Aridad** | Número de argumentos de una función (0, 1, 4, 5, 6…) |
+| **Registro central** | La tabla del core que define qué syscalls existen y en qué orden |
+| **Macro `KAGE_STUB`** | Template ASM que genera un `PROC` por slot |
+| **Wrapper `_I`** | Función C tipada que llama al stub y devuelve el `NTSTATUS` |
+| **Round-trip** | Probar reservar+liberar (o proteger+liberar) sobre memoria real |
+| **Caso negativo** | Comprobar que **falla** cuando debe (clase inválida) |
+| **FreshyCalls** | Resolver SSN por orden de exports (sin leer el stub) |
+
+La lección de la Fase 5 es de **ingeniería**: generalizar no es "añadir funciones", es **diseñar
+para que añadir funciones sea trivial y seguro**. La macro y el registro lo consiguen.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).
