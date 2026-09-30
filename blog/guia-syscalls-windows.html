@@ -92,7 +92,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">29 sep 2026 &middot; 11 min de lectura</p>
+        <p class="post__meta">29 sep 2026 &middot; 14 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Guía completa: syscalls en Windows para investigadores&quot;</h1>
         <p class="post__tags"><span class="tag">#guia</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span> <span class="tag">#principiantes</span> <span class="tag">#malware</span></p>
@@ -231,6 +231,48 @@ lm m ntdll
 <hr>
 <h2>15. Cómo sigue la serie</h2>
 <ol><li><strong>Guía de syscalls</strong> (esta entrada) — contexto para principiantes e investigadores.</li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a> — el proyecto completo.</li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a>.</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a>.</li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a>.</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a>.</li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a>.</li></ol>
+<hr>
+<h2>🧪 Experimenta tú (nivel 🟢): encuentra al "mesero"</h2>
+<p>No hace falta programar. Vamos a <strong>ver</strong> las piezas de las que hablamos.</p>
+<ol><li><strong>Localiza <code>ntdll.dll</code>.</strong> Abre esta carpeta y busca el archivo:</li></ol>
+<p><code>C:\Windows\System32\ntdll.dll</code> (suele pesar ~2 MB). Es la DLL que contiene las funciones <code>Nt*</code>; el "mesero" del que hablaremos todo el rato.</p>
+<ol><li><strong>Mira qué DLLs carga un proceso</strong> con <strong>Process Explorer</strong> (Sysinternals): abre el Bloc de</li></ol>
+<p>notas y, en Process Explorer, dale a <em>View → Lower Pane → DLLs</em>. Verás <code>ntdll.dll</code> en la lista: <strong>todos</strong> los procesos la cargan, siempre.</p>
+<ol><li><strong>Mira sus peticiones</strong> con <strong>Process Monitor</strong> (Sysinternals): guarda un archivo con el Bloc</li></ol>
+<p>de notas y observa los eventos <code>CreateFile</code>, <code>WriteFile</code>, <code>CloseFile</code>. Esas son las "comandas" al kernel.</p>
+<p><strong>Qué deberías concluir:</strong> todo programa <strong>pide cosas</strong> a Windows, y esas peticiones pasan por <code>ntdll.dll</code>. Ya tienes el 80% del mapa mental de esta guía.</p>
+<hr>
+<h2>El mapa de herramientas</h2>
+<p>A medida que avances, estas son las herramientas que verás una y otra vez:</p>
+<table><thead><tr><th>Herramienta</th><th>Para qué sirve</th><th>Nivel</th></tr></thead><tbody><tr><td><strong>Process Monitor</strong> (Procmon)</td><td>Ver operaciones en vivo (archivos, registro, red)</td><td>🟢</td></tr><tr><td><strong>Process Explorer</strong></td><td>Ver procesos, handles y <strong>DLLs cargadas</strong></td><td>🟢</td></tr><tr><td><strong>Process Hacker / System Informer</strong></td><td>Alternativa potente a Process Explorer</td><td>🟡</td></tr><tr><td><strong>WinDbg / cdb</strong></td><td>Ver el <code>syscall</code> a nivel de instrucción (lo usamos en la serie)</td><td>🔴</td></tr><tr><td><strong>Dependencies / PE-bear / CFF Explorer</strong></td><td>Inspeccionar un <code>.exe</code>/<code>.dll</code> estáticamente</td><td>🟡</td></tr><tr><td><strong>x64dbg</strong></td><td>Depurar en vivo con interfaz gráfica</td><td>🟡</td></tr></tbody></table>
+<p>Empieza con las dos primeras; con ellas ya "ves" los conceptos. El debugger dejalo para cuando quieras bajar al detalle.</p>
+<hr>
+<h2>Cómo está organizada la API de Windows</h2>
+<p>Un detalle que confunde a muchos: <code>kernel32.dll</code> <strong>no</strong> es "la" API del sistema. En Windows moderno, la capa cómoda está partida:</p>
+<pre><code class="lang-text">kernel32.dll      -&gt;  la &quot;cara&quot; clasica (CloseHandle, CreateFile...)
+kernelbase.dll    -&gt;  gran parte de la implementacion real en user-mode
+ntdll.dll         -&gt;  la capa nativa Nt* (la que habla con el kernel)</code></pre>
+<ul><li><strong><code>kernel32</code></strong> reenvía muchísimas funciones a <strong><code>kernelbase</code></strong> (y algunas a <code>ntdll</code>).</li><li><strong><code>ntdll</code></strong> contiene las funciones <strong><code>Nt*</code></strong> (syscalls) y <strong><code>Rtl*</code></strong> (rutinas de runtime).</li><li>Por eso decimos que <strong>casi todo termina en <code>ntdll</code></strong>: es la última capa antes del kernel.</li></ul>
+<p>Saber esto te permite leer mejor los <em>stack traces</em>: si ves <code>KERNELBASE!...</code> → <code>ntdll!Nt...</code>, ya sabes que el programa está en la antesala del kernel.</p>
+<hr>
+<h2>Un poco de historia (por qué existen tantas técnicas)</h2>
+<p>Entender el pasado ayuda a entender el presente:</p>
+<ol><li><strong>Antes:</strong> se llamaba a la API Win32 y ya. Los antivirus de firmas no miraban "cómo".</li><li><strong>EDR con hooks:</strong> para observar comportamiento, empezaron a <strong>interceptar</strong> los stubs de</li></ol>
+<p><code>ntdll</code> (un <code>jmp</code> al principio).</p>
+<ol><li><strong>Direct syscalls:</strong> "si el stub está hookeado, lo ejecuto yo". Nace la instrucción <code>0F 05</code></li></ol>
+<p>en el propio binario… y con ella, una <strong>firma</strong>.</p>
+<ol><li><strong>Indirect syscalls:</strong> "vale, no lo ejecuto yo; salto a un <code>syscall;ret</code> que ya está en</li></ol>
+<p><code>ntdll</code>". Se evita la firma y el hook de user-mode.</p>
+<ol><li><strong>Resolución del SSN:</strong> Hell's Gate, Halo's Gate, <strong>FreshyCalls</strong>… cada una responde a una</li></ol>
+<p>debilidad de la anterior (sobre todo, a depender de <strong>leer bytes del stub</strong>).</p>
+<p>Esta serie se coloca en el paso 4–5: <strong>indirecto puro + FreshyCalls</strong>, con una obsesión por <strong>verificar</strong>. Cada técnica nueva nace de una <strong>detección</strong> nueva; entender la carrera es entender el problema.</p>
+<hr>
+<h2>Preguntas frecuentes (principiantes)</h2>
+<p><strong>¿Necesito saber ensamblador (ASM) para entender la serie?</strong> Para la guía y las primeras entradas, no. Para las fases 4–7, ayuda: leerás <code>mov</code>, <code>jmp</code>, <code>ret</code>. Aun así, todo va explicado.</p>
+<p><strong>¿Puedo romper mi PC?</strong> La serie trabaja en una <strong>máquina virtual aislada</strong>. No ejecutes nada de esto en tu equipo de trabajo.</p>
+<p><strong>¿Es legal?</strong> Esto es <strong>investigación educativa y defensiva</strong> en tu laboratorio. El objetivo es <strong>entender para detectar</strong>, no atacar a nadie.</p>
+<p><strong>¿Por dónde empiezo?</strong> Misión 0 → esta guía → Visión general. Luego, si quieres, las fases. <em>(Enlaza: <a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a>.)</em></p>
+<p><strong>¿Qué pasa si un EDR me bloquea los experimentos?</strong> Es <strong>parte del juego</strong>: ese bloqueo es información. La serie mide esa visibilidad en la Fase 8.</p>
 <hr>
 <h2>16. Bibliografía y referencias</h2>
 <p><strong>Documentación oficial</strong></p>

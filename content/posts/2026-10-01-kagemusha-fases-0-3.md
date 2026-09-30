@@ -435,6 +435,73 @@ resultado de hoy se puede **reproducir** mañana, en la misma build.
 
 ---
 
+## 🧪 Experimenta tú — compila y mira los símbolos
+
+*(Nivel 🟡. Requiere VS Build Tools + `cdb`.)*
+
+```text
+tools\build.cmd                              :: compila (genera .exe + .pdb)
+bin\Kagemusha_tests.exe                      :: corre la suite (esperado: 0 FAIL)
+bin\Kagemusha.exe                            :: selftest M0..M5
+cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe
+```
+
+**Qué deberías ver (m1):** la dirección de `ntdll!NtClose` resuelta por nuestro PEB walk y la
+misma resuelta por el símbolo de Microsoft, **idénticas** (diferencia `0`). Esa igualdad es la
+prueba de la Fase 1.
+
+> **Mini-reto:** cambia a propósito el hash de `NtClose` por otro y observa cómo el test **falla**
+> (o resuelve un export equivocado). Ver el fallo es entender por qué el oráculo importa.
+
+---
+
+## Fondo: cómo es una cabecera PE (por qué leemos "a mano")
+
+Para resolver exports sin `GetProcAddress`, hay que recorrer el archivo/DLL a bajo nivel. Un PE
+(Portable Executable) tiene capas:
+
+```text
++------------------+  <- inicio
+| DOS header       |   e_magic ("MZ"), e_lfanew -> apunta a la cabecera NT
++------------------+
+| NT headers       |   FileHeader + OptionalHeader (SizeOfImage, secciones...)
++------------------+
+| Section headers  |   .text, .rdata, .data... (cada una con su RVA y tamaño)
++------------------+
+| .text            |   codigo
+| .rdata           |   import/export directories
+| .data            |   datos
++------------------+
+```
+
+- **`e_lfanew`** dice **dónde** empieza la cabecera NT. Un valor absurdo (malicioso o corrupto)
+  llevaría a leer "fuera del archivo" → por eso el proyecto **valida** ese offset.
+- El **export directory** (en `.rdata`) lista los nombres y sus **RVAs**; para ordenar por
+  **dirección virtual** (FreshyCalls) necesitamos `SizeOfImage` y la base del módulo.
+
+Entender esto explica **por qué** la Fase 6 hace fuzz del parser: un PE malformado es una
+*vulnerabilidad* si confías en él a ciegas.
+
+---
+
+## Fondo: el PEB y la lista de módulos
+
+El **PEB** es la estructura del proceso que mantiene el kernel. Nos interesa sobre todo la lista
+de módulos cargados (`PEB->Ldr->InLoadOrderModuleList`), que es una **lista doblemente enlazada**
+de entradas `LDR_DATA_TABLE_ENTRY`:
+
+```text
+PEB
+ └─ Ldr
+     └─ InLoadOrderModuleList  <-> [ ntdll ] <-> [ kernel32 ] <-> [ kernelbase ] <-> ...
+```
+
+Cada nodo tiene `BaseDllName` (el nombre) y `DllBase` (la dirección base). Nuestro walker la
+recorre **comparando hashes** en lugar de cadenas. ¿Por qué `InLoadOrder` y no otra lista?
+Porque el orden de carga es estable y predecible, y `ntdll` suele estar entre los primeros.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (PEB, Ldr, export directory).

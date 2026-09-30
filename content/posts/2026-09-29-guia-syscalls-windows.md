@@ -326,6 +326,102 @@ serie documenta **cómo se ve** desde fuera para que la comunidad defensiva teng
 
 ---
 
+## 🧪 Experimenta tú (nivel 🟢): encuentra al "mesero"
+
+No hace falta programar. Vamos a **ver** las piezas de las que hablamos.
+
+1. **Localiza `ntdll.dll`.** Abre esta carpeta y busca el archivo:
+   `C:\Windows\System32\ntdll.dll` (suele pesar ~2 MB). Es la DLL que contiene las funciones
+   `Nt*`; el "mesero" del que hablaremos todo el rato.
+2. **Mira qué DLLs carga un proceso** con **Process Explorer** (Sysinternals): abre el Bloc de
+   notas y, en Process Explorer, dale a *View → Lower Pane → DLLs*. Verás `ntdll.dll` en la
+   lista: **todos** los procesos la cargan, siempre.
+3. **Mira sus peticiones** con **Process Monitor** (Sysinternals): guarda un archivo con el Bloc
+   de notas y observa los eventos `CreateFile`, `WriteFile`, `CloseFile`. Esas son las
+   "comandas" al kernel.
+
+**Qué deberías concluir:** todo programa **pide cosas** a Windows, y esas peticiones pasan por
+`ntdll.dll`. Ya tienes el 80% del mapa mental de esta guía.
+
+---
+
+## El mapa de herramientas
+
+A medida que avances, estas son las herramientas que verás una y otra vez:
+
+| Herramienta | Para qué sirve | Nivel |
+| --- | --- | --- |
+| **Process Monitor** (Procmon) | Ver operaciones en vivo (archivos, registro, red) | 🟢 |
+| **Process Explorer** | Ver procesos, handles y **DLLs cargadas** | 🟢 |
+| **Process Hacker / System Informer** | Alternativa potente a Process Explorer | 🟡 |
+| **WinDbg / cdb** | Ver el `syscall` a nivel de instrucción (lo usamos en la serie) | 🔴 |
+| **Dependencies / PE-bear / CFF Explorer** | Inspeccionar un `.exe`/`.dll` estáticamente | 🟡 |
+| **x64dbg** | Depurar en vivo con interfaz gráfica | 🟡 |
+
+Empieza con las dos primeras; con ellas ya "ves" los conceptos. El debugger dejalo para cuando
+quieras bajar al detalle.
+
+---
+
+## Cómo está organizada la API de Windows
+
+Un detalle que confunde a muchos: `kernel32.dll` **no** es "la" API del sistema. En Windows
+moderno, la capa cómoda está partida:
+
+```text
+kernel32.dll      ->  la "cara" clasica (CloseHandle, CreateFile...)
+kernelbase.dll    ->  gran parte de la implementacion real en user-mode
+ntdll.dll         ->  la capa nativa Nt* (la que habla con el kernel)
+```
+
+- **`kernel32`** reenvía muchísimas funciones a **`kernelbase`** (y algunas a `ntdll`).
+- **`ntdll`** contiene las funciones **`Nt*`** (syscalls) y **`Rtl*`** (rutinas de runtime).
+- Por eso decimos que **casi todo termina en `ntdll`**: es la última capa antes del kernel.
+
+Saber esto te permite leer mejor los *stack traces*: si ves `KERNELBASE!...` → `ntdll!Nt...`, ya
+sabes que el programa está en la antesala del kernel.
+
+---
+
+## Un poco de historia (por qué existen tantas técnicas)
+
+Entender el pasado ayuda a entender el presente:
+
+1. **Antes:** se llamaba a la API Win32 y ya. Los antivirus de firmas no miraban "cómo".
+2. **EDR con hooks:** para observar comportamiento, empezaron a **interceptar** los stubs de
+   `ntdll` (un `jmp` al principio).
+3. **Direct syscalls:** "si el stub está hookeado, lo ejecuto yo". Nace la instrucción `0F 05`
+   en el propio binario… y con ella, una **firma**.
+4. **Indirect syscalls:** "vale, no lo ejecuto yo; salto a un `syscall;ret` que ya está en
+   `ntdll`". Se evita la firma y el hook de user-mode.
+5. **Resolución del SSN:** Hell's Gate, Halo's Gate, **FreshyCalls**… cada una responde a una
+   debilidad de la anterior (sobre todo, a depender de **leer bytes del stub**).
+
+Esta serie se coloca en el paso 4–5: **indirecto puro + FreshyCalls**, con una obsesión por
+**verificar**. Cada técnica nueva nace de una **detección** nueva; entender la carrera es entender
+el problema.
+
+---
+
+## Preguntas frecuentes (principiantes)
+
+**¿Necesito saber ensamblador (ASM) para entender la serie?** Para la guía y las primeras
+entradas, no. Para las fases 4–7, ayuda: leerás `mov`, `jmp`, `ret`. Aun así, todo va explicado.
+
+**¿Puedo romper mi PC?** La serie trabaja en una **máquina virtual aislada**. No ejecutes nada de
+esto en tu equipo de trabajo.
+
+**¿Es legal?** Esto es **investigación educativa y defensiva** en tu laboratorio. El objetivo es
+**entender para detectar**, no atacar a nadie.
+
+**¿Por dónde empiezo?** Misión 0 → esta guía → Visión general. Luego, si quieres, las fases.
+*(Enlaza: [Cómo leer la serie + Misión 0](/blog/como-leer-serie-mision-0.html).)*
+
+**¿Qué pasa si un EDR me bloquea los experimentos?** Es **parte del juego**: ese bloqueo es
+información. La serie mide esa visibilidad en la Fase 8.
+
+---
+
 ## 16. Bibliografía y referencias
 
 **Documentación oficial**

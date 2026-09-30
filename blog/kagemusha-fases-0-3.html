@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">01 oct 2026 &middot; 12 min de lectura</p>
+        <p class="post__meta">01 oct 2026 &middot; 14 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fases 0 a 3: del toolchain al gadget&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -281,6 +281,41 @@ dps @rsp L4              ; pila: a donde apunta el retorno</code></pre>
 <hr>
 <h2>Errores comunes (resumen de las fases 0–3)</h2>
 <ul><li><strong>Sin PDB, sin evidencia.</strong> Los <code>bp</code> simbólicos fallan y no puedes verificar nada.</li><li><strong>Hash o filtro mal hechos</strong> desplazan el índice de SSN y <strong>todas</strong> las syscalls fallan.</li><li><strong>Ordenar mal por VA</strong> invalida el invariante de FreshyCalls.</li><li><strong>No validar el gadget</strong> (bytes + rango + no-hook) abre la puerta a crashes.</li><li><strong>Hardcodear SSN</strong> "porque ya lo sé" es la trampa clásica: rompe en la próxima build.</li><li><strong>No registrar la build</strong> hace irreproducible cualquier resultado.</li></ul>
+<hr>
+<h2>🧪 Experimenta tú — compila y mira los símbolos</h2>
+<p><em>(Nivel 🟡. Requiere VS Build Tools + <code>cdb</code>.)</em></p>
+<pre><code class="lang-text">tools\build.cmd                              :: compila (genera .exe + .pdb)
+bin\Kagemusha_tests.exe                      :: corre la suite (esperado: 0 FAIL)
+bin\Kagemusha.exe                            :: selftest M0..M5
+cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe</code></pre>
+<p><strong>Qué deberías ver (m1):</strong> la dirección de <code>ntdll!NtClose</code> resuelta por nuestro PEB walk y la misma resuelta por el símbolo de Microsoft, <strong>idénticas</strong> (diferencia <code>0</code>). Esa igualdad es la prueba de la Fase 1.</p>
+<blockquote><p><strong>Mini-reto:</strong> cambia a propósito el hash de <code>NtClose</code> por otro y observa cómo el test <strong>falla</strong> (o resuelve un export equivocado). Ver el fallo es entender por qué el oráculo importa.</p></blockquote>
+<hr>
+<h2>Fondo: cómo es una cabecera PE (por qué leemos "a mano")</h2>
+<p>Para resolver exports sin <code>GetProcAddress</code>, hay que recorrer el archivo/DLL a bajo nivel. Un PE (Portable Executable) tiene capas:</p>
+<pre><code class="lang-text">+------------------+  &lt;- inicio
+| DOS header       |   e_magic (&quot;MZ&quot;), e_lfanew -&gt; apunta a la cabecera NT
++------------------+
+| NT headers       |   FileHeader + OptionalHeader (SizeOfImage, secciones...)
++------------------+
+| Section headers  |   .text, .rdata, .data... (cada una con su RVA y tamaño)
++------------------+
+| .text            |   codigo
+| .rdata           |   import/export directories
+| .data            |   datos
++------------------+</code></pre>
+<ul><li><strong><code>e_lfanew</code></strong> dice <strong>dónde</strong> empieza la cabecera NT. Un valor absurdo (malicioso o corrupto)</li></ul>
+<p>llevaría a leer "fuera del archivo" → por eso el proyecto <strong>valida</strong> ese offset.</p>
+<ul><li>El <strong>export directory</strong> (en <code>.rdata</code>) lista los nombres y sus <strong>RVAs</strong>; para ordenar por</li></ul>
+<p><strong>dirección virtual</strong> (FreshyCalls) necesitamos <code>SizeOfImage</code> y la base del módulo.</p>
+<p>Entender esto explica <strong>por qué</strong> la Fase 6 hace fuzz del parser: un PE malformado es una <em>vulnerabilidad</em> si confías en él a ciegas.</p>
+<hr>
+<h2>Fondo: el PEB y la lista de módulos</h2>
+<p>El <strong>PEB</strong> es la estructura del proceso que mantiene el kernel. Nos interesa sobre todo la lista de módulos cargados (<code>PEB-&amp;gt;Ldr-&amp;gt;InLoadOrderModuleList</code>), que es una <strong>lista doblemente enlazada</strong> de entradas <code>LDR_DATA_TABLE_ENTRY</code>:</p>
+<pre><code class="lang-text">PEB
+ └─ Ldr
+     └─ InLoadOrderModuleList  &lt;-&gt; [ ntdll ] &lt;-&gt; [ kernel32 ] &lt;-&gt; [ kernelbase ] &lt;-&gt; ...</code></pre>
+<p>Cada nodo tiene <code>BaseDllName</code> (el nombre) y <code>DllBase</code> (la dirección base). Nuestro walker la recorre <strong>comparando hashes</strong> en lugar de cadenas. ¿Por qué <code>InLoadOrder</code> y no otra lista? Porque el orden de carga es estable y predecible, y <code>ntdll</code> suele estar entre los primeros.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (PEB, Ldr, export directory).</li><li>Microsoft Learn — <em>PEB/Ldr structures</em>, <em>PE format</em>, <em>x64 calling convention</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>thefLink — <em>RecycledGate</em> (<code>github.com/thefLink/RecycledGate</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m0..m3.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
