@@ -449,6 +449,42 @@ directa posible, que la ejecución indirecta **no depende** del stub.
 
 ---
 
+## Resumen ejecutivo de la Fase 6
+
+- **Qué logramos:** demostrar que el sistema **resiste hooks** (inline `E9` y `FF 25`) y
+  **entradas adversas**.
+- **Cómo se prueba:** 12 experimentos (hook/resiliencia, cobertura total, fuzz, concurrencia) +
+  `T0`/`T24` del endurecimiento.
+- **Hallazgo:** de **490** exports `Nt*`, **488** son stubs reales y coinciden al 100%; 2 no lo son.
+- **Qué falta:** herramientas (ledger/CLI, Fase 7) y análisis de detección (Fase 8).
+
+## Checklist de robustez
+
+- [ ] FreshyCalls **no lee** bytes del stub (inmune a hooks).
+- [ ] Gadget siempre **validado** (bytes + rango + no-hook).
+- [ ] Hook `E9` **y** `FF 25` detectados.
+- [ ] Ejecución indirecta funciona con el stub **hookeado**.
+- [ ] Parser PE **rechaza** entradas malformadas (sin crash).
+- [ ] `init` idempotente y uso sin init **seguro** (`KAGE_STATUS_NOT_INITIALIZED`).
+- [ ] Concurrencia sin fallos (4 hilos).
+
+Si todas las casillas están marcadas, tienes un sistema **robusto por diseño**, no por suerte.
+
+---
+
+## Cómo verificar la Fase 6 en 5 minutos
+
+```text
+bin\Kagemusha_tests.exe     :: T13-T17 (hook simulado, cobertura, fuzz, concurrencia)
+bin\Kagemusha.exe --trace   :: el ledger confirma que las llamadas llegan al kernel
+```
+
+Y, si quieres el momento "wow": observa en `cdb` el `KageIsStubHooked` pasar de `FALSE` a `TRUE`
+al instalar el hook, y a `FALSE` al restaurar —mientras `NtClose_I` sigue devolviendo
+`STATUS_SUCCESS` en medio del hook.
+
+---
+
 ## Bibliografía y referencias
 
 - am0nsec & smelly__vx — *Hell's Gate* (`github.com/am0nsec/HellsGate`); Sektor7 — *Halo's Gate*.

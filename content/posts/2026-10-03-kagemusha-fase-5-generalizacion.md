@@ -505,6 +505,40 @@ wrapper está mal.
 
 ---
 
+## Resumen ejecutivo de la Fase 5
+
+- **Qué logramos:** un **catálogo de 8 syscalls** de distinta aridad con **un único template ASM**
+  (macro `KAGE_STUB`).
+- **Cómo se prueba:** 15 experimentos (tablas, macro, aridades 0/1/4/5/6, round-trip, negativo) +
+  la evidencia en `cdb`.
+- **Hallazgo:** `NtQuerySystemTime` no es un stub, pero FreshyCalls lo resuelve y la ejecución
+  indirecta funciona.
+- **Qué falta:** robustez ante hooks (Fase 6).
+
+## Referencia rápida: añadir y verificar una syscall
+
+```text
+1. registro del core:     una linea (nombre + slot)
+2. regenerar:             la macro KAGE_STUB crea el PROC
+3. wrapper tipado:        Nt..._I(...)
+4. test:                  positivo + negativo + aridad
+5. verificar:             bin\Kagemusha_tests.exe  (0 FAIL)
+                          bin\Kagemusha.exe --dump (ver la tabla)
+```
+
+## Cómo verificar la Fase 5 en 5 minutos
+
+```text
+bin\Kagemusha_tests.exe         :: 15 experimentos del catalogo + negativos
+bin\Kagemusha.exe --dump        :: la tabla slot / syscall / SSN / gadget
+bin\Kagemusha.exe --trace       :: una llamada por syscall, con su NTSTATUS
+```
+
+Si los tres salen coherentes (SSN que coinciden con la tabla, `NTSTATUS` esperados), la Fase 5
+está sana. Si algo chirría, el `--dump` te dice **qué** entrada está mal.
+
+---
+
 ## Bibliografía y referencias
 
 - Microsoft Learn — *x64 calling convention* (registros + pila: base de la aridad).

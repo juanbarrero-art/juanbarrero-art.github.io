@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 16 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 17 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -278,6 +278,21 @@ DESPUES (hook E9):
 7. comprobar de nuevo:       KageIsStubHooked(stub) == FALSE</code></pre>
 <p>Lo importante del experimento <strong>no</strong> es el resultado de un <code>NtClose</code> concreto: es que, entre los pasos 4 y 5, el stub está <strong>roto</strong> y el sistema <strong>funciona igual</strong>. Eso prueba, de la forma más directa posible, que la ejecución indirecta <strong>no depende</strong> del stub.</p>
 <blockquote><p>Y el auto-hospedaje aparece si hookeas <strong>todos</strong> los stubs: <code>VirtualProtect</code> (que usa <code>NtProtectVirtualMemory</code>) se cuelga, así que el propio sistema se usa para manipular <code>ntdll</code>.</p></blockquote>
+<hr>
+<h2>Resumen ejecutivo de la Fase 6</h2>
+<ul><li><strong>Qué logramos:</strong> demostrar que el sistema <strong>resiste hooks</strong> (inline <code>E9</code> y <code>FF 25</code>) y</li></ul>
+<p><strong>entradas adversas</strong>.</p>
+<ul><li><strong>Cómo se prueba:</strong> 12 experimentos (hook/resiliencia, cobertura total, fuzz, concurrencia) +</li></ul>
+<p><code>T0</code>/<code>T24</code> del endurecimiento.</p>
+<ul><li><strong>Hallazgo:</strong> de <strong>490</strong> exports <code>Nt*</code>, <strong>488</strong> son stubs reales y coinciden al 100%; 2 no lo son.</li><li><strong>Qué falta:</strong> herramientas (ledger/CLI, Fase 7) y análisis de detección (Fase 8).</li></ul>
+<h2>Checklist de robustez</h2>
+<ul><li>[ ] FreshyCalls <strong>no lee</strong> bytes del stub (inmune a hooks).</li><li>[ ] Gadget siempre <strong>validado</strong> (bytes + rango + no-hook).</li><li>[ ] Hook <code>E9</code> <strong>y</strong> <code>FF 25</code> detectados.</li><li>[ ] Ejecución indirecta funciona con el stub <strong>hookeado</strong>.</li><li>[ ] Parser PE <strong>rechaza</strong> entradas malformadas (sin crash).</li><li>[ ] <code>init</code> idempotente y uso sin init <strong>seguro</strong> (<code>KAGE_STATUS_NOT_INITIALIZED</code>).</li><li>[ ] Concurrencia sin fallos (4 hilos).</li></ul>
+<p>Si todas las casillas están marcadas, tienes un sistema <strong>robusto por diseño</strong>, no por suerte.</p>
+<hr>
+<h2>Cómo verificar la Fase 6 en 5 minutos</h2>
+<pre><code class="lang-text">bin\Kagemusha_tests.exe     :: T13-T17 (hook simulado, cobertura, fuzz, concurrencia)
+bin\Kagemusha.exe --trace   :: el ledger confirma que las llamadas llegan al kernel</code></pre>
+<p>Y, si quieres el momento "wow": observa en <code>cdb</code> el <code>KageIsStubHooked</code> pasar de <code>FALSE</code> a <code>TRUE</code> al instalar el hook, y a <code>FALSE</code> al restaurar —mientras <code>NtClose_I</code> sigue devolviendo <code>STATUS_SUCCESS</code> en medio del hook.</p>
 <hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>

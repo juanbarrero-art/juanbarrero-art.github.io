@@ -358,6 +358,18 @@ ntdll  00007ffc`483e0000 - 00007ffc`48647000   ; rip cae dentro -&gt; indirecto
 eax=0                       ; STATUS_SUCCESS (cerro un handle valido)</code></pre>
 <p>Cada línea del transcript responde a <strong>una</strong> de las seis preguntas del workflow. Es un "protocolo", no una curiosidad.</p>
 <hr>
+<h2>Resumen ejecutivo de la Fase 4</h2>
+<ul><li><strong>Qué logramos:</strong> ejecutar una <code>Nt*</code> real de forma <strong>indirecta pura</strong>. El <code>syscall</code> corre dentro</li></ul>
+<p>de <code>ntdll</code>; nuestro módulo <strong>no</strong> contiene ninguna instrucción <code>syscall</code>.</p>
+<ul><li><strong>Cómo se prueba:</strong> seis comprobaciones (RIP en <code>ntdll</code>, <code>EAX == SSN</code>, cero <code>0F 05</code>, retorno al</li></ul>
+<p>wrapper, contraste con la nativa, <code>NTSTATUS</code> exacto) + tres experimentos de falsabilidad.</p>
+<ul><li><strong>Resultado:</strong> <code>NtClose_I(0xDEADBEEF) = 0xC0000008</code>, <code>NtClose_I(válido) = 0</code>, y <code>syscall</code></li></ul>
+<p>observado en <code>ntdll</code>.</p>
+<ul><li><strong>Qué falta:</strong> generalizar a un catálogo (Fase 5) y probar robustez ante hooks (Fase 6).</li></ul>
+<h2>Referencia rápida (<code>cdb</code>) para la Fase 4</h2>
+<table><thead><tr><th>Comando</th><th>Para qué</th></tr></thead><tbody><tr><td><code>bp Kagemusha!NtClose_I</code></td><td>Parar en nuestro wrapper</td></tr><tr><td><code>u Kagemusha!KageNtCloseStub L5</code></td><td>Desensamblar el trampolín (ver el <code>jmp</code>)</td></tr><tr><td><code>? poi(Kagemusha!g_GadgetTable)</code></td><td>Ver el gadget que se usará</td></tr><tr><td><code>lm m ntdll</code></td><td>Rango de <code>ntdll</code> (¿cae el RIP dentro?)</td></tr><tr><td><code>r @eax @r10 @rcx @rip</code></td><td>SSN, argumento (ABI) y dónde estamos</td></tr><tr><td><code>dps @rsp L2</code></td><td>A dónde vuelve el <code>ret</code> (nuestro wrapper)</td></tr><tr><td><code>s -a Kagemusha L? 0f05</code></td><td>Buscar <code>syscall</code> en <strong>nuestro</strong> módulo (debe dar 0)</td></tr></tbody></table>
+<p>Con esta tabla puedes reproducir la fase <strong>tú mismo</strong> sin memorizar nada.</p>
+<hr>
 <h2>Bibliografía y referencias</h2>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (transición a kernel, SSDT).</li><li>Microsoft Learn — <em>x64 calling convention</em> (por qué el 1.er argumento va en <code>R10</code> para <code>syscall</code>).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón del stub indirecto.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/evidencias/m4.txt</code>, <code>m4_return.txt</code>, <code>m4_falsify.txt</code>, <code>tools/cdb_scripts/</code>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>

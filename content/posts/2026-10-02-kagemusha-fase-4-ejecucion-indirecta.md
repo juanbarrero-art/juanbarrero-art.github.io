@@ -551,6 +551,32 @@ Cada línea del transcript responde a **una** de las seis preguntas del workflow
 
 ---
 
+## Resumen ejecutivo de la Fase 4
+
+- **Qué logramos:** ejecutar una `Nt*` real de forma **indirecta pura**. El `syscall` corre dentro
+  de `ntdll`; nuestro módulo **no** contiene ninguna instrucción `syscall`.
+- **Cómo se prueba:** seis comprobaciones (RIP en `ntdll`, `EAX == SSN`, cero `0F 05`, retorno al
+  wrapper, contraste con la nativa, `NTSTATUS` exacto) + tres experimentos de falsabilidad.
+- **Resultado:** `NtClose_I(0xDEADBEEF) = 0xC0000008`, `NtClose_I(válido) = 0`, y `syscall`
+  observado en `ntdll`.
+- **Qué falta:** generalizar a un catálogo (Fase 5) y probar robustez ante hooks (Fase 6).
+
+## Referencia rápida (`cdb`) para la Fase 4
+
+| Comando | Para qué |
+| --- | --- |
+| `bp Kagemusha!NtClose_I` | Parar en nuestro wrapper |
+| `u Kagemusha!KageNtCloseStub L5` | Desensamblar el trampolín (ver el `jmp`) |
+| `? poi(Kagemusha!g_GadgetTable)` | Ver el gadget que se usará |
+| `lm m ntdll` | Rango de `ntdll` (¿cae el RIP dentro?) |
+| `r @eax @r10 @rcx @rip` | SSN, argumento (ABI) y dónde estamos |
+| `dps @rsp L2` | A dónde vuelve el `ret` (nuestro wrapper) |
+| `s -a Kagemusha L? 0f05` | Buscar `syscall` en **nuestro** módulo (debe dar 0) |
+
+Con esta tabla puedes reproducir la fase **tú mismo** sin memorizar nada.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (transición a kernel, SSDT).
