@@ -583,7 +583,8 @@ Un catálogo se mantiene no por su tamaño, sino por su **disciplina**: cada fun
 las **mismas** pruebas que las ocho originales. Sin esa disciplina, "generalizar" se convierte en
 acumular deuda técnica. Aquí, el **registro** (una línea por syscall) y la **macro** (`KAGE_STUB`)
 son el contrato que evita que eso ocurra: el sistema crece, pero la superficie de confianza **no**
-se dispara.
+se dispara. Y si un día el catálogo crece a 100 funciones, el contrato seguirá siendo el mismo:
+registro, macro y tests. La complejidad que **no** crece también es una forma de robustez.
 
 ---
 

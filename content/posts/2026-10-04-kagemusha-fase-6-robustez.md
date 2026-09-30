@@ -527,7 +527,8 @@ detección— se apoya justo en esta base: ya sabes qué **no** te tumba y qué 
 La robustez no es un **estado**, es un **proceso**: cada revisión añadió pruebas (T0, T24, el
 export directory malicioso `G8`) para que un fallo **no pudiera volver**. Un sistema "robusto" que
 no se vuelve a probar cada vez no es robusto: tiene suerte. Y la suerte, en seguridad, no es una
-estrategia. Probar, medir y documentar: ese es el trabajo.
+estrategia. Probar, medir y documentar: ese es el trabajo. Y ese —**no romperse** cuando el mundo
+se pone hostil— es el único resultado que un investigador serio puede prometer sin mentir.
 
 ---
 
