@@ -319,6 +319,121 @@ que sea **determinista** y verificable con un oráculo externo.
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 
+## Módulos y contratos (vista de implementación)
+
+Estas fases construyen los módulos de abajo hacia arriba. Vale la pena tener claros sus
+**contratos** (qué recibe y qué devuelve cada pieza), porque de ellos depende la corrección.
+
+### `util` — utilidades base
+
+```c
+PPEB   UtlGetCurrentPeb(void);                              /* gs:[0x60] */
+PVOID  UtlFindModuleByHash(DWORD nameHash);                 /* PEB->Ldr, InLoadOrder */
+BOOL   UtlGetModuleRange(PVOID base, PVOID *textStart, SIZE_T *textSize);
+DWORD  UtlHashStrAnsi(PCSTR name);                          /* DJB2 */
+DWORD  UtlHashStrWide(PCWSTR name);
+PVOID  UtlGetExportByHash(PVOID dllBase, DWORD funcNameHash);/* export directory, sin forwarded */
+VOID   UtlLog(UTL_LOGLEVEL, PCSTR fmt, ...);                /* stdout + flush (cdb) */
+```
+
+`UtlGetExportByHash` es la **única vía** de obtención de direcciones: sin `GetModuleHandle` ni
+`GetProcAddress` en el camino crítico. Los hashes se calculan en compilación (macro
+`KAGE_HASH("NtClose")`) y en runtime solo se comparan enteros.
+
+### `resolver` — SSN y gadget
+
+```c
+typedef struct _KAGE_SSN_ENTRY {
+    DWORD NameHash;         /* DJB2("NtClose") */
+    WORD  Ssn;              /* indice en el sort == SSN */
+    PVOID FunctionAddress;  /* VA real del export */
+    PVOID StubAddress;      /* VA del stub (referencia) */
+} KAGE_SSN_ENTRY;
+
+NTSTATUS KageResolveSsnTable(PVOID ntdllBase, KAGE_SSN_ENTRY *entries, DWORD count);
+NTSTATUS KageFindGadgetInStub(PKAGE_SSN_ENTRY entry, PVOID *pGadget);
+NTSTATUS KageValidateGadget(PVOID base, PVOID textStart, SIZE_T textSize, PVOID cand);
+```
+
+Una sola fuente de verdad (el orden de exports). Sin lecturas de bytes ni fallbacks. Checks de
+init: lista no vacía, sin VAs duplicadas, y todos los objetivos resuelven.
+
+### `asm` — trampolín
+
+Un `PROC` por syscall. Regla de oro: el ASM **nunca** contiene el SSN literal ni `0F 05`; solo
+lee `g_SsnTable`/`g_GadgetTable`. Los índices (slots) los asigna el registro central, no el ASM.
+
+### `wrappers` — capa C tipada
+
+Cada `Nt*` soportada expone una firma tipada con sufijo `_I` (`NtClose_I`, …). El wrapper valida
+estado (init, tablas), llama al stub y devuelve el **`NTSTATUS` tal cual**. Los errores del marco
+se distinguen con prefijo `KAGE_STATUS_*` (`NOT_INITIALIZED`, `SSN_UNRESOLVED`, `NO_GADGET`).
+
+---
+
+## El plan de arquitectura (v1): alcance
+
+| Incluido en v1 | Fuera de alcance |
+| --- | --- |
+| SSN por FreshyCalls (sort-by-VA) | Direct syscalls como mecanismo de producción |
+| Gadget `syscall;ret` validado | Stack/call-stack spoofing |
+| Trampolín MASM por función | Sleep obfuscation / cifrado |
+| Wrappers C tipados | VEH + hardware breakpoints |
+| PEB walk, DJB2, logging, rangos | Unhooking / ntdll limpio desde KnownDlls |
+| Harness determinista + cdb | x86, WoW64, ARM64 |
+| Verificación de `RIP` dentro de ntdll | Inyección de procesos / payloads |
+
+Acotar el problema es lo que hace que la solución sea **verificable**. Cada cosa fuera de
+alcance se documenta para no dar falsas expectativas.
+
+---
+
+## Workflow de depuración por línea de comandos
+
+La verificación no es "ejecutar y mirar": es un **protocolo** reproducible con `cdb`.
+
+```text
+# Ejecucion con script y transcript de la sesion
+cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe
+
+# Simbolos
+.symfix
+.reload /f Kagemusha.exe
+
+# Inspeccion clave (el "corazon" de la practica)
+x ntdll!NtClose          ; VA del stub real
+uf ntdll!NtClose         ; ver "mov eax, <SSN>"
+db <gadget> L3           ; ver "0f 05 c3"
+r @eax @r10 @rcx @rip    ; EAX=SSN, R10=arg1, RIP=gadget
+lm m ntdll               ; rango de ntdll -> RIP dentro?
+? @rip - ntdll           ; offset de RIP respecto a la base
+dps @rsp L4              ; pila: a donde apunta el retorno
+```
+
+Cada script vive en `tools/cdb_scripts/` y genera un transcript en `docs/evidencias/`. Así, el
+resultado de hoy se puede **reproducir** mañana, en la misma build.
+
+### Checklist de verificación (por fase)
+
+- [ ] El binario compila con **PDB completo** y los `bp` simbólicos funcionan.
+- [ ] `UtlGetExportByHash("NtClose")` == `GetProcAddress` (oráculo).
+- [ ] El SSN de FreshyCalls == SSN del stub real (oráculo).
+- [ ] El gadget tiene bytes `0F 05 C3` **y** cae en `.text` de `ntdll`.
+- [ ] La suite sale **0 FAIL** y el transcript queda archivado.
+
+---
+
+## Errores comunes (resumen de las fases 0–3)
+
+- **Sin PDB, sin evidencia.** Los `bp` simbólicos fallan y no puedes verificar nada.
+- **Hash o filtro mal hechos** desplazan el índice de SSN y **todas** las syscalls fallan.
+- **Ordenar mal por VA** invalida el invariante de FreshyCalls.
+- **No validar el gadget** (bytes + rango + no-hook) abre la puerta a crashes.
+- **Hardcodear SSN** "porque ya lo sé" es la trampa clásica: rompe en la próxima build.
+- **No registrar la build** hace irreproducible cualquier resultado.
+
+---
+
 ## Bibliografía y referencias
 
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (PEB, Ldr, export directory).

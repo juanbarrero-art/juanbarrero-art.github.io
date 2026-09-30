@@ -91,7 +91,7 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">30 sep 2026 &middot; 11 min de lectura</p>
+        <p class="post__meta">30 sep 2026 &middot; 14 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha: visión general, tesis y metodología&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
@@ -220,7 +220,40 @@
 <hr>
 <h2>14. Cómo sigue la serie</h2>
 <ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls para principiantes</a></li><li><strong>Visión general, tesis y metodología</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li></ol>
-<h2>15. Bibliografía y referencias</h2>
+<h2>Diseño en profundidad: por qué cada decisión</h2>
+<p>Detrás de cada decisión de la v1 hay una razón concreta. Nada es "porque sí".</p>
+<p><strong>¿Por qué <code>jmp</code> y no <code>call</code> en el trampolín?</strong> En la ABI x64, un <code>call</code> empujaría una nueva dirección de retorno a la pila. Entonces, el <code>ret</code> del gadget de <code>ntdll</code> <strong>volvería al stub</strong>, no al wrapper, y el flujo se rompería (o volvería a ejecutar el stub en bucle). El <code>jmp</code> (un <em>tail call</em>) <strong>preserva</strong> el frame del wrapper: el <code>ret</code> del gadget regresa <strong>directamente</strong> al wrapper. Además, como no tocamos la pila, los argumentos 5+ (que viajan en ella) llegan intactos al kernel.</p>
+<p><strong>¿Por qué init transaccional?</strong> Si <code>KageInitialize</code> resolviera solo <em>parte</em> del catálogo, tendrías un sistema a medio construir: unas syscalls listas y otras no, con fallos aleatorios difíciles de depurar. O se resuelve <strong>todo</strong> (SSN + gadget para cada entrada) o se <strong>falla con un error detallado</strong>. Así el estado del sistema es siempre coherente.</p>
+<p><strong>¿Por qué una sola técnica?</strong> Cinco fallbacks distintos son cinco superficies de error. Una técnica, bien entendida y verificada, es más fácil de auditar y de defender. FreshyCalls se elige porque es <strong>inmune a hooks por diseño</strong> (no lee bytes de stub).</p>
+<p><strong>¿Por qué el ASM no contiene el SSN literal?</strong> Porque el SSN depende de la build. El stub <strong>lee</strong> el SSN de la tabla (<code>g_SsnTable</code>), que se llena en runtime. Y por diseño, el ASM <strong>nunca</strong> contiene <code>0F 05</code>: solo un <code>jmp</code> a la tabla de gadgets.</p>
+<p><strong>¿Por qué evitamos la IAT?</strong> Porque <code>GetModuleHandle</code>/<code>GetProcAddress</code> son visibles y dependen de <code>kernel32</code>. El PEB walk + exports por hash hacen lo mismo sin esa dependencia en el camino crítico.</p>
+<hr>
+<h2>Criterios de aceptación de la v1</h2>
+<p>La v1 se considera "terminada" cuando cumple, <strong>con evidencia</strong>, todo esto:</p>
+<ul><li><strong>M0–M6</strong> alcanzados en orden, con transcript de <code>cdb</code> archivado por fase.</li><li><strong>Init transaccional</strong>: éxito completo o error detallado (sin estados parciales).</li><li><strong>FreshyCalls</strong> como única técnica, sin fallbacks.</li><li><strong>Gadget siempre validado</strong> (bytes + rango + no-hook) antes de usarse.</li><li><strong>Suite en verde</strong> y <strong>≥ 8 syscalls</strong> con wrappers tipados.</li><li>En el debugger: <code>RIP</code> del <code>syscall</code> <strong>dentro de <code>ntdll</code></strong>, <code>EAX == SSN</code>, y <strong>cero <code>0F 05</code></strong> en</li></ul>
+<p>nuestro módulo.</p>
+<ul><li><strong>Ninguna dependencia de IAT sensible</strong> en el camino crítico.</li><li>Documentación final con diagrama de módulos y guía de práctica reproducible.</li></ul>
+<p>Estos criterios son la definición de "hecho": no se "intuye" que funciona, se <strong>demuestra</strong>.</p>
+<hr>
+<h2>Cómo se ve la evidencia</h2>
+<p>Cada hito deja <strong>dos</strong> pruebas:</p>
+<ol><li><strong>Test automatizado</strong> (PASS/FAIL) con un <strong>oráculo independiente</strong>.</li><li><strong>Transcript del debugger</strong> (<code>docs/evidencias/mX.txt</code>), regenerable con un script de</li></ol>
+<p><code>tools/cdb_scripts/</code>.</p>
+<p>Un ejemplo de evidencia "buena" versus "mala":</p>
+<pre><code class="lang-text">; MALA: &quot;creo que el SSN es 0x0F porque lo lei en algun sitio&quot;
+; BUENA: contrastar contra el stub real y contra el SSN ejecutado
+uf ntdll!NtClose         ; el stub dice: mov eax, 0Fh
+r @eax                   ; en el breakpoint del gadget: eax == 0x0F</code></pre>
+<p>La regla es simple: <strong>cada afirmación tiene una fuente externa</strong>. Si no la tiene, no cuenta.</p>
+<hr>
+<h2>Errores comunes al investigar esto</h2>
+<ul><li><strong>Confundir "indirecto" con "invisible".</strong> El indirecto evade hooks de user-mode; el kernel,</li></ul>
+<p>ETW y los callbacks siguen viendo la llamada.</p>
+<ul><li><strong>Creer que el SSN es universal.</strong> Cambia por build; hay que resolverlo en runtime.</li><li><strong>Saltarse la validación del gadget.</strong> Un gadget "a mitad de instrucción" provoca un crash</li></ul>
+<p>difícil de diagnosticar.</p>
+<ul><li><strong>No registrar el build.</strong> Sin la build de referencia, un resultado no es reproducible.</li><li><strong>Optimizar antes de verificar.</strong> Primero que sea <strong>correcto y medible</strong>; luego, más syscalls.</li></ul>
+<hr>
+<h2>Bibliografía y referencias</h2>
 <p><strong>Fundamentos</strong></p>
 <ul><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (Microsoft Press).</li><li>Microsoft Learn — <em>System Calls</em>, <em>Ntdll</em>, <em>x64 calling convention</em> (<code>learn.microsoft.com/windows/win32/</code>).</li></ul>
 <p><strong>Técnicas de resolución de SSN</strong></p>

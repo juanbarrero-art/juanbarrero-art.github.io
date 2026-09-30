@@ -313,7 +313,88 @@ Entender la técnica es requisito para **detectarla**.
 5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
 6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
 
-## 15. Bibliografía y referencias
+## Diseño en profundidad: por qué cada decisión
+
+Detrás de cada decisión de la v1 hay una razón concreta. Nada es "porque sí".
+
+**¿Por qué `jmp` y no `call` en el trampolín?** En la ABI x64, un `call` empujaría una nueva
+dirección de retorno a la pila. Entonces, el `ret` del gadget de `ntdll` **volvería al stub**,
+no al wrapper, y el flujo se rompería (o volvería a ejecutar el stub en bucle). El `jmp` (un
+*tail call*) **preserva** el frame del wrapper: el `ret` del gadget regresa **directamente** al
+wrapper. Además, como no tocamos la pila, los argumentos 5+ (que viajan en ella) llegan
+intactos al kernel.
+
+**¿Por qué init transaccional?** Si `KageInitialize` resolviera solo *parte* del catálogo, tendrías
+un sistema a medio construir: unas syscalls listas y otras no, con fallos aleatorios difíciles de
+depurar. O se resuelve **todo** (SSN + gadget para cada entrada) o se **falla con un error
+detallado**. Así el estado del sistema es siempre coherente.
+
+**¿Por qué una sola técnica?** Cinco fallbacks distintos son cinco superficies de error. Una
+técnica, bien entendida y verificada, es más fácil de auditar y de defender. FreshyCalls se elige
+porque es **inmune a hooks por diseño** (no lee bytes de stub).
+
+**¿Por qué el ASM no contiene el SSN literal?** Porque el SSN depende de la build. El stub **lee**
+el SSN de la tabla (`g_SsnTable`), que se llena en runtime. Y por diseño, el ASM **nunca** contiene
+`0F 05`: solo un `jmp` a la tabla de gadgets.
+
+**¿Por qué evitamos la IAT?** Porque `GetModuleHandle`/`GetProcAddress` son visibles y dependen de
+`kernel32`. El PEB walk + exports por hash hacen lo mismo sin esa dependencia en el camino
+crítico.
+
+---
+
+## Criterios de aceptación de la v1
+
+La v1 se considera "terminada" cuando cumple, **con evidencia**, todo esto:
+
+- **M0–M6** alcanzados en orden, con transcript de `cdb` archivado por fase.
+- **Init transaccional**: éxito completo o error detallado (sin estados parciales).
+- **FreshyCalls** como única técnica, sin fallbacks.
+- **Gadget siempre validado** (bytes + rango + no-hook) antes de usarse.
+- **Suite en verde** y **≥ 8 syscalls** con wrappers tipados.
+- En el debugger: `RIP` del `syscall` **dentro de `ntdll`**, `EAX == SSN`, y **cero `0F 05`** en
+  nuestro módulo.
+- **Ninguna dependencia de IAT sensible** en el camino crítico.
+- Documentación final con diagrama de módulos y guía de práctica reproducible.
+
+Estos criterios son la definición de "hecho": no se "intuye" que funciona, se **demuestra**.
+
+---
+
+## Cómo se ve la evidencia
+
+Cada hito deja **dos** pruebas:
+
+1. **Test automatizado** (PASS/FAIL) con un **oráculo independiente**.
+2. **Transcript del debugger** (`docs/evidencias/mX.txt`), regenerable con un script de
+   `tools/cdb_scripts/`.
+
+Un ejemplo de evidencia "buena" versus "mala":
+
+```text
+; MALA: "creo que el SSN es 0x0F porque lo lei en algun sitio"
+; BUENA: contrastar contra el stub real y contra el SSN ejecutado
+uf ntdll!NtClose         ; el stub dice: mov eax, 0Fh
+r @eax                   ; en el breakpoint del gadget: eax == 0x0F
+```
+
+La regla es simple: **cada afirmación tiene una fuente externa**. Si no la tiene, no cuenta.
+
+---
+
+## Errores comunes al investigar esto
+
+- **Confundir "indirecto" con "invisible".** El indirecto evade hooks de user-mode; el kernel,
+  ETW y los callbacks siguen viendo la llamada.
+- **Creer que el SSN es universal.** Cambia por build; hay que resolverlo en runtime.
+- **Saltarse la validación del gadget.** Un gadget "a mitad de instrucción" provoca un crash
+  difícil de diagnosticar.
+- **No registrar el build.** Sin la build de referencia, un resultado no es reproducible.
+- **Optimizar antes de verificar.** Primero que sea **correcto y medible**; luego, más syscalls.
+
+---
+
+## Bibliografía y referencias
 
 **Fundamentos**
 - Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.* (Microsoft Press).

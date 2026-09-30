@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.">
+  <meta name="description" content="Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.">
   <meta name="theme-color" content="#060810">
-  <title>&quot;Guía: syscalls en Windows para principiantes&quot; | KANON UFO</title>
+  <title>&quot;Guía completa: syscalls en Windows para investigadores&quot; | KANON UFO</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
   <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
   <meta name="author" content="Juan Barrero (KANON UFO)">
-  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes, malware">
   <link rel="canonical" href="https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html">
 
   <!-- Open Graph -->
   <meta property="og:type" content="article">
-  <meta property="og:title" content="&quot;Guía: syscalls en Windows para principiantes&quot;">
-  <meta property="og:description" content="Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.">
+  <meta property="og:title" content="&quot;Guía completa: syscalls en Windows para investigadores&quot;">
+  <meta property="og:description" content="Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-09-29">
@@ -26,20 +26,21 @@
   <meta property="article:tag" content="windows internals">
   <meta property="article:tag" content="syscalls">
   <meta property="article:tag" content="principiantes">
+  <meta property="article:tag" content="malware">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="&quot;Guía: syscalls en Windows para principiantes&quot;">
-  <meta name="twitter:description" content="Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+  <meta name="twitter:title" content="&quot;Guía completa: syscalls en Windows para investigadores&quot;">
+  <meta name="twitter:description" content="Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/banner.gif">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
-  "headline": "\"Guía: syscalls en Windows para principiantes\"",
-  "description": "Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.",
+  "headline": "\"Guía completa: syscalls en Windows para investigadores\"",
+  "description": "Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.",
   "datePublished": "2026-09-29",
   "dateModified": "2026-09-29",
   "author": {
@@ -53,8 +54,8 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg",
-  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes",
+  "image": "https://juanbarrero-art.github.io/assets/banner.gif",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes, malware",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
   "mainEntityOfPage": {
@@ -91,41 +92,49 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">29 sep 2026 &middot; 8 min de lectura</p>
+        <p class="post__meta">29 sep 2026 &middot; 11 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
-        <h1 class="post__titulo">&quot;Guía: syscalls en Windows para principiantes&quot;</h1>
-        <p class="post__tags"><span class="tag">#guia</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span> <span class="tag">#principiantes</span></p>
+        <h1 class="post__titulo">&quot;Guía completa: syscalls en Windows para investigadores&quot;</h1>
+        <p class="post__tags"><span class="tag">#guia</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span> <span class="tag">#principiantes</span> <span class="tag">#malware</span></p>
       </header>
-      <div class="post__cuerpo"><h1>Guía: syscalls en Windows para principiantes</h1>
-<p>Esta guía es el <strong>punto de partida</strong> de la serie <a href="/blog/serie/kagemusha.html">Kagemusha</a>. Si nunca has tocado "lo que pasa por debajo" de Windows, no te preocupes: aquí construimos las ideas desde cero, con analogías y ejemplos. Al terminar entenderás <strong>qué es una syscall</strong>, <strong>cómo Windows la ejecuta</strong> y <strong>qué problema intenta resolver</strong> la investigación.</p>
-<blockquote><p>Meta de esta entrada: que puedas leer las siguientes entradas de la serie <strong>entendiendo cada término</strong>, no memorizándolo.</p></blockquote>
-<h2>1. El gran muro: user-mode vs kernel-mode</h2>
-<p>Windows separa el código en dos mundos:</p>
+      <div class="post__cuerpo"><h1>Guía completa: syscalls en Windows para investigadores</h1>
+<p>Esta guía es el <strong>punto de partida</strong> de la serie <a href="/blog/serie/kagemusha.html">Kagemusha</a>. Está escrita para <strong>investigadores de malware y Windows internals</strong> que quieren entender <em>de verdad</em> qué pasa cuando un programa le pide algo al sistema, y por qué esa frontera es el campo de batalla entre atacantes y defensas. No asumimos experiencia previa: construimos las ideas desde cero, con analogías, diagramas y código.</p>
+<blockquote><p>Meta: que al terminar puedas leer las siguientes entradas de la serie <strong>entendiendo cada término</strong>, y que sepas <strong>observar</strong> una syscall por ti mismo con un debugger, no solo creer lo que te cuentan.</p></blockquote>
+<hr>
+<h2>1. Por qué esto importa (sobre todo si analizas malware)</h2>
+<p>Casi todo lo interesante que hace un programa en Windows —abrir un archivo, crear un proceso, leer memoria, conectarse a la red— termina, tarde o temprano, en una <strong>system call</strong>: una petición al <strong>kernel</strong>. Para quien analiza malware, este es <em>el</em> punto clave:</p>
+<ul><li><strong>Un EDR</strong> pone trampas aquí (los famosos <em>hooks</em>) para ver qué pide cada proceso.</li><li><strong>El malware moderno</strong> intenta evitar esas trampas usando syscalls "a pelo".</li><li><strong>Tú, como analista</strong>, necesitas entender lo uno para entender lo otro: cómo se llama a una</li></ul>
+<p>syscall, cómo se oculta una llamada y <strong>cómo se detecta</strong>.</p>
+<p>En pocas palabras: si entiendes las syscalls, entiendes la línea del frente. Todo lo demás (PE, ofuscación, inyección) son vehículos; el objetivo final suele ser <strong>ejecutar una syscall</strong> que el defensor no vea.</p>
+<hr>
+<h2>2. El gran muro: user-mode y kernel-mode</h2>
+<p>Windows separa el código en dos mundos con privilegios muy distintos:</p>
 <ul><li><strong>User-mode (modo usuario):</strong> donde corren tus programas (<code>.exe</code>, navegador, juegos).</li></ul>
-<p>Está <strong>aislado</strong>: no puede tocar hardware ni la memoria de otros procesos.</p>
-<ul><li><strong>Kernel-mode (modo kernel):</strong> donde vive el corazón del sistema (<code>ntoskrnl.exe</code>).</li></ul>
-<p>Tiene <strong>privilegios totales</strong>: maneja memoria, procesos, disco, red, etc.</p>
-<p>El muro entre ambos se llama <strong>transición</strong>. Para que tu programa abra un archivo o cree un proceso, <strong>no</strong> lo hace directamente: se lo <strong>pide</strong> al kernel. Esa petición es una <strong>system call</strong>.</p>
-<p>Piensa en un restaurante:</p>
-<ul><li>Tú (user-mode) eres el cliente. No entras a la cocina.</li><li>El <strong>mesero</strong> (una función del sistema) recibe tu pedido.</li><li>La <strong>cocina</strong> (kernel) prepara la comida y te la devuelve.</li></ul>
-<h2>2. La cadena de capas: de <code>CloseHandle</code> a la syscall</h2>
-<p><img src="../assets/diag-syscall-flow.svg" alt="Diagrama: flujo de una system call" loading="lazy"></p>
+<p>Está <strong>aislado</strong>: no puede tocar hardware ni la memoria de otros procesos. Un bug aquí, en el peor caso, solo tumba tu programa.</p>
+<ul><li><strong>Kernel-mode (modo kernel):</strong> donde vive el corazón del sistema (<code>ntoskrnl.exe</code>). Tiene</li></ul>
+<p><strong>privilegios totales</strong>: maneja memoria, procesos, disco, red. Un bug aquí <strong>tumba el sistema</strong> (la temida <em>pantalla azul</em>).</p>
+<p>Esta separación no es capricho: es lo que hace que un programa mal escrito no pueda formatear tu disco sin permiso. La CPU lo implementa con niveles de privilegio (los <em>rings</em>; Windows usa el ring 3 para user-mode y el ring 0 para kernel). El paso de uno a otro se llama <strong>transición</strong>, y es relativamente <strong>caro</strong> (guardar/restaurar contexto), por lo que el diseño del sistema minimiza las transiciones.</p>
+<h3>Memoria virtual, en una frase</h3>
+<p>Cada proceso cree que tiene toda la memoria para sí mismo: eso es la <strong>memoria virtual</strong>. El kernel mantiene las traducciones dirección-virtual → dirección-física. Cuando un programa "toca memoria", el hardware consulta esas tablas. Esta indirección es la que permite aislar procesos y también la que hace que los <em>punteros</em> sean "virtuales" (nunca físicos). Nos importará porque muchas técnicas manipulan <strong>direcciones virtuales</strong> (VAs): la de un stub, la de un gadget, etc.</p>
+<hr>
+<h2>3. La cadena de capas: de <code>CloseHandle</code> a la syscall</h2>
 <p>Cuando en C llamas a una función "normal" de Windows, ocurre una cadena de capas. Ejemplo con <code>CloseHandle</code>:</p>
-<pre><code class="lang-text">CloseHandle()            -&gt; kernel32.dll   (API Win32, &quot;cara amable&quot;)
+<pre><code class="lang-text">CloseHandle()        -&gt; kernel32.dll   (API Win32, &quot;cara amable&quot;)
       |
       v
-NtClose()           -&gt; ntdll.dll      (capa nativa)
+NtClose()            -&gt; ntdll.dll      (capa nativa)
       |
       v
-syscall                  -&gt; transicion a KERNEL
+syscall              -&gt; transicion a KERNEL
       |
       v
-Kernel: NtClose     -&gt; ntoskrnl.exe   (hace el trabajo real)</code></pre>
-<ul><li><strong><code>kernel32.dll</code> (<code>CloseHandle</code>)</strong> es la <strong>API de alto nivel</strong>: cómoda, documentada, estable.</li><li><strong><code>ntdll.dll</code> (<code>NtClose</code>)</strong> es la <strong>capa nativa</strong>: funciones que empiezan por <code>Nt*</code>.</li></ul>
-<p>No está pensada para que la llames directamente, pero es la puerta real al kernel.</p>
+Kernel: NtClose      -&gt; ntoskrnl.exe   (hace el trabajo real)</code></pre>
+<ul><li><strong><code>kernel32.dll</code> (<code>CloseHandle</code>)</strong> es la <strong>API de alto nivel</strong>: cómoda, documentada, estable.</li><li><strong><code>ntdll.dll</code> (<code>NtClose</code>)</strong> es la <strong>capa nativa</strong>: funciones que empiezan por <code>Nt*</code>. No está</li></ul>
+<p>pensada para que la llames directamente, pero es la <strong>puerta real</strong> al kernel.</p>
 <ul><li><strong>La instrucción <code>syscall</code></strong> es el "salto" físico al kernel.</li></ul>
-<blockquote><p>Clave: <strong>casi todo</strong> lo que hace Windows termina, tarde o temprano, en una función <code>Nt*</code> de <code>ntdll</code> y en una instrucción <code>syscall</code>.</p></blockquote>
-<h2>3. ¿Qué es exactamente un "stub"?</h2>
+<blockquote><p>Clave: <strong>casi todo</strong> lo que hace Windows termina, tarde o temprano, en una función <code>Nt*</code> de <code>ntdll</code> y en una instrucción <code>syscall</code>. Esa es la razón por la que los defensores miran ahí.</p></blockquote>
+<hr>
+<h2>4. El stub: anatomía de la puerta</h2>
 <p>En <code>ntdll</code>, cada función <code>Nt*</code> tiene un pequeño fragmento de código (un <strong>stub</strong>, "trozo"). En Windows x64 se ve así (simplificado):</p>
 <pre><code class="lang-asm">ntdll!NtClose:
     mov  r10, rcx          ; copia el 1er argumento a R10
@@ -133,17 +142,25 @@ Kernel: NtClose     -&gt; ntoskrnl.exe   (hace el trabajo real)</code></pre>
     syscall                ; &lt;-- entra al kernel
     ret                    ; &lt;-- vuelve al que llamo</code></pre>
 <p>Tres cosas importantes:</p>
-<ol><li><strong><code>mov r10, rcx</code></strong>: en la convención de syscall de x64, el primer argumento va en <code>R10</code></li></ol>
-<p>(no en <code>RCX</code>, porque <code>RCX</code> lo usa la propia instrucción <code>syscall</code> para guardar el retorno).</p>
-<ol><li><strong><code>mov eax, 0x0F</code></strong>: carga en <code>EAX</code> el <strong>número de servicio</strong> (SSN). Aquí <code>0x0F</code> = <code>NtClose</code>.</li><li><strong><code>syscall</code></strong>: la instrucción real que cruza al kernel. En bytes, es <strong><code>0F 05</code></strong>.</li></ol>
-<h2>4. El SSN: el "número de mesa" del kernel</h2>
+<ol><li><strong><code>mov r10, rcx</code></strong>: en la convención de syscall de x64, el primer argumento va en <code>R10</code>. ¿Por</li></ol>
+<p>qué no <code>RCX</code>? Porque la propia instrucción <code>syscall</code> <strong>usa <code>RCX</code> para guardar la dirección de retorno</strong>. Por eso el stub copia el argumento de <code>RCX</code> a <code>R10</code>.</p>
+<ol><li><strong><code>mov eax, 0x0F</code></strong>: carga en <code>EAX</code> el <strong>número de servicio</strong> (SSN). Aquí <code>0x0F</code> = <code>NtClose</code>.</li><li><strong><code>syscall</code></strong>: la instrucción real que cruza al kernel. En bytes es <strong><code>0F 05</code></strong>. Tras el</li></ol>
+<p><code>syscall</code> (y el trabajo del kernel), un <code>ret</code> devuelve el control a quien llamó.</p>
+<p>En los stubs reales, entre el <code>mov eax, SSN</code> y el <code>syscall</code> puede haber un pequeño chequeo (<code>test</code>/<code>jne</code>) relacionado con la ruta rápida de llamada del sistema (<code>KiFastSystemCall</code>). El patrón de bytes del prólogo —<code>4C 8B D1 B8 &amp;lt;SSN&amp;gt;</code>— es tan estable que se usa como <strong>huella</strong> para reconocer stubs de syscall (y para detectar cuándo un EDR los ha modificado).</p>
+<hr>
+<h2>5. El SSN y la SSDT: el "número de mesa"</h2>
 <p>El kernel no identifica las funciones por nombre, sino por un <strong>número</strong>: el <strong>SSN</strong> (System Service Number). Es como el número de mesa en un restaurante: el mesero no grita tu nombre, grita "¡mesa 15!".</p>
 <p>En el kernel, la <strong>SSDT</strong> (System Service Dispatch Table) es una tabla indexada por ese número. <code>syscall</code> con <code>EAX = 0x0F</code> va a <code>SSDT[0x0F]</code> → <code>NtClose</code>.</p>
-<p>El detalle <strong>crucial</strong> para la investigación:</p>
+<p>El detalle <strong>crucial</strong>:</p>
 <blockquote><p><strong>El SSN de una función cambia según la versión/build de Windows.</strong></p></blockquote>
-<p>Esto significa que <strong>no puedes</strong> confiar en un número escrito "a fuego" (hardcodeado): en otra build, <code>NtClose</code> podría no ser <code>0x0F</code>. Por eso hay que <strong>resolverlo en runtime</strong>. En la serie veremos cómo (técnica <em>FreshyCalls</em>).</p>
-<h2>5. Syscall directa vs. indirecta</h2>
-<p><img src="../assets/diag-direct-vs-indirect.svg" alt="Diagrama: direct vs indirect" loading="lazy"></p>
+<p>Es decir: <code>NtClose</code> puede ser <code>0x0F</code> en una build y otro número en la siguiente. Por eso <strong>no puedes</strong> confiar en un número escrito "a fuego" (hardcodeado): hay que <strong>resolverlo en runtime</strong>. Toda la serie gira, en gran parte, alrededor de <strong>cómo resolver el SSN de forma fiable</strong>.</p>
+<hr>
+<h2>6. Objetos, handles y NTSTATUS (el "qué" de las syscalls)</h2>
+<p>Las funciones <code>Nt*</code> no operan sobre "cosas" abstractas, sino sobre <strong>objetos</strong> del kernel (procesos, hilos, archivos, claves de registro, secciones de memoria…). En user-mode accedes a ellos mediante <strong>handles</strong>: números pequeños que actúan como entradas en una tabla privada de tu proceso. Un handle <strong>no</strong> es el objeto; es una referencia a él.</p>
+<p>Y las funciones <code>Nt*</code> no devuelven "éxito/fracaso" a lo <code>bool</code>, sino un <strong><code>NTSTATUS</code></strong>: un código de 32 bits (<code>0</code> = éxito; <code>0xC0000008</code> = <code>STATUS_INVALID_HANDLE</code>; etc.). Es más preciso que el <code>GetLastError</code> de la API Win32, y es lo que verás cuando llames a <code>Nt*</code> directamente.</p>
+<blockquote><p>Por eso, cuando en la serie invocamos <code>NtClose_I(0xDEADBEEF)</code> y obtenemos <code>0xC0000008</code>, estamos viendo el <strong><code>NTSTATUS</code> real del kernel</strong>: la prueba de que el viaje funcionó.</p></blockquote>
+<hr>
+<h2>7. Syscall directa vs. indirecta</h2>
 <p>Ahora el corazón del asunto. Hay dos formas de "saltar" al kernel desde tu propio código.</p>
 <h3>Syscall directa (direct syscall)</h3>
 <p>Tu <strong>propio</strong> módulo contiene la instrucción <code>syscall</code>:</p>
@@ -159,45 +176,69 @@ ret</code></pre>
 mov  r10, rcx
 mov  eax, [ssn]        ; SSN resuelto en runtime
 jmp  [gadget]          ; gadget = syscall;ret que esta en ntdll</code></pre>
-<p>Así, la instrucción <code>syscall</code> <strong>se ejecuta dentro de <code>ntdll</code></strong> (memoria legítima), no en tu módulo. Es la idea del "doble" que da nombre a <strong>Kagemusha</strong> (影武者, <em>guerrero sombra</em>): el doble actúa en lugar del original.</p>
-<blockquote><ul><li><strong>Direct:</strong> <code>syscall</code> en tu módulo (fácil de detectar).</li><li><strong>Indirect:</strong> <code>syscall</code> en <code>ntdll</code> (tu módulo no tiene <code>0F 05</code>).</li></ul></blockquote>
-<h2>6. ¿Por qué importa? Hooks y EDR</h2>
-<p>Un <strong>EDR</strong> (Endpoint Detection and Response) es un antivirus "de nueva generación" que observa el comportamiento. Una de sus técnicas clásicas es el <strong>hooking</strong>:</p>
-<ul><li>Coloca un <em>hook</em> (un desvío) al <strong>principio de los stubs <code>Nt*</code></strong> en <code>ntdll</code>.</li><li>Cuando tu programa llama a <code>NtClose</code>, en lugar de ejecutarse el stub original, primero</li></ul>
-<p>corre el código del EDR, que <strong>inspecciona qué vas a pedir</strong> y decide si permitirlo.</p>
+<p>Así, la instrucción <code>syscall</code> <strong>se ejecuta dentro de <code>ntdll</code></strong> (memoria legítima). Es la idea del "doble" que da nombre a <strong>Kagemusha</strong> (影武者, <em>guerrero sombra</em>): el doble actúa en lugar del original.</p>
+<hr>
+<h2>8. ¿Por qué importa? Hooks y EDR</h2>
+<p>Un <strong>EDR</strong> (Endpoint Detection and Response) es un antivirus "de nueva generación" que observa el comportamiento. Sus fuentes de telemetría incluyen:</p>
+<ul><li><strong>Hooks en user-mode:</strong> modifica el <strong>principio de los stubs <code>Nt*</code></strong> en <code>ntdll</code> (un <code>jmp</code>, en</li></ul>
+<p>bytes <code>E9</code> o <code>FF 25</code>). Cuando tu programa llama a <code>NtClose</code>, primero corre el código del EDR.</p>
+<ul><li><strong>Callbacks del kernel:</strong> el kernel notifica a los drivers registrados ciertos eventos</li></ul>
+<p>(creación de proceso/hilo, carga de imagen, operaciones de archivo/registro).</p>
+<ul><li><strong>ETW (Event Tracing for Windows):</strong> un sistema de trazas donde el kernel y otros componentes</li></ul>
+<p>emiten eventos que el EDR puede consumir.</p>
 <p>Si llamas a <code>NtClose</code> normal, pasas por el hook. Las syscalls (directas o indirectas) <strong>evitan los hooks de user-mode</strong> porque no ejecutan el código del stub que fue modificado.</p>
-<blockquote><p><strong>Importante (honestidad):</strong> esquivar hooks de user-mode <strong>no</strong> te vuelve invisible. El kernel sigue viendo la llamada, y existen otras fuentes de telemetría (callbacks del kernel, <strong>ETW</strong>, análisis del <em>stack</em>). La serie <strong>mide</strong> esa visibilidad en vez de ignorarla.</p></blockquote>
-<h2>7. Resolver el SSN sin "tocar" el stub: FreshyCalls</h2>
-<p>Existen varias técnicas para obtener el SSN. La serie usa <strong>una sola</strong>, por claridad:</p>
-<p><strong>FreshyCalls</strong> aprovecha un <strong>invariante</strong> de Windows 10/11:</p>
-<blockquote><p>Los stubs <code>Nt*</code> en <code>ntdll</code> están colocados en <code>.text</code> <strong>en el mismo orden que sus SSN</strong>.</p></blockquote>
-<p>Entonces el algoritmo es:</p>
-<ol><li>Enumerar los <em>exports</em> de <code>ntdll</code> que empiezan por <code>Nt</code> (seguidos de mayúscula).</li><li>Ordenarlos por <strong>dirección virtual</strong> (de menor a mayor).</li><li>La <strong>posición</strong> de cada uno es su <strong>SSN</strong> (índice 0, 1, 2, ...).</li></ol>
-<p>Ventaja: <strong>no lees los bytes del stub</strong> (a diferencia de técnicas que parsean <code>mov eax, SSN</code>), así que eres <strong>inmune a que esos bytes estén "hookeados"</strong>.</p>
-<pre><code class="lang-c">/* idea (pseudocodigo C) */
-qsort(NtExports, n, sizeof(*NtExports), comparar_por_direccion_virtual);
-for (int i = 0; i &lt; n; i++) {
-    NtExports[i].ssn = i;   /* el indice es el SSN */
-}</code></pre>
-<h2>8. El gadget <code>syscall;ret</code></h2>
-<p>Para la ejecución indirecta necesitas un fragmento que ya contenga <code>syscall</code> seguido de <code>ret</code> (bytes <strong><code>0F 05 C3</code></strong>) y que esté en una zona ejecutable legítima, como <code>.text</code> de <code>ntdll</code>. Ese fragmento se llama <strong>gadget</strong>. Localizar uno válido y comprobar que está dentro de <code>ntdll</code> es parte del trabajo (y se verifica con bytes reales).</p>
-<h2>9. Glosario rápido</h2>
-<table><thead><tr><th>Término</th><th>Significado</th></tr></thead><tbody><tr><td><strong>user-mode</strong></td><td>Modo aislado donde corren tus programas</td></tr><tr><td><strong>kernel-mode</strong></td><td>Modo privilegiado del núcleo de Windows</td></tr><tr><td><strong>syscall</strong></td><td>Instrucción (<code>0F 05</code>) que cruza de user a kernel</td></tr><tr><td><strong>ntdll</strong></td><td>DLL nativa con las funciones <code>Nt*</code></td></tr><tr><td><strong>stub</strong></td><td>Trozo de código dentro de <code>ntdll</code> que prepara la syscall</td></tr><tr><td><strong>SSN</strong></td><td>Número de servicio; indexa la SSDT del kernel</td></tr><tr><td><strong>SSDT</strong></td><td>Tabla del kernel que mapea SSN → función</td></tr><tr><td><strong>hook</strong></td><td>Desvío de código (p. ej. por un EDR) en un stub</td></tr><tr><td><strong>EDR</strong></td><td>Seguridad de endpoint que observa comportamiento</td></tr><tr><td><strong>direct syscall</strong></td><td><code>syscall</code> ejecutado en tu propio módulo</td></tr><tr><td><strong>indirect syscall</strong></td><td><code>syscall</code> ejecutado dentro de <code>ntdll</code></td></tr><tr><td><strong>FreshyCalls</strong></td><td>Resolver SSN ordenando exports <code>Nt*</code> por dirección</td></tr><tr><td><strong>gadget</strong></td><td>Fragmento <code>syscall;ret</code> reutilizable</td></tr></tbody></table>
-<h2>10. Riesgos, ética y defensa</h2>
-<p>Entender esto sirve <strong>para defender</strong>: quien no comprende la técnica no puede detectarla. La serie documenta <strong>cómo se ve</strong> desde fuera (stack, telemetría) para que la comunidad defensiva tenga criterios. Reglas sanas:</p>
-<ul><li>Practica <strong>solo</strong> en tus máquinas virtuales aisladas y con snapshots.</li><li>No publiques muestras ni binarios utilizables; publica <strong>conocimiento</strong> y <strong>detección</strong>.</li><li>Documenta y verifica: una afirmación sin prueba es solo una opinión.</li></ul>
-<h2>11. Cómo sigue la serie</h2>
-<ol><li><strong>Guía de syscalls</strong> (esta entrada) — contexto para principiantes.</li><li><a href="/blog/kagemusha-indirect-syscalls.html">Kagemusha: indirect syscalls en Windows x64</a> — tesis y fases M0–M3.</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Kagemusha — Fase 4: ejecución indirecta real</a> — el <code>syscall</code> dentro de <code>ntdll</code>, verificado.</li></ol>
-<p>Las próximas fases (generalización a más syscalls, robustez multi-build y análisis de detección) se irán publicando <strong>a medida que avance la investigación</strong>.</p>
-<h2>12. Recursos para seguir aprendiendo</h2>
-<ul><li>Documentación de la <strong>API de Windows</strong> y de <strong><code>ntdll</code></strong> (Microsoft Learn).</li><li><strong>WinDbg / cdb</strong> para observar los stubs y el registro <code>RIP</code> en vivo.</li><li><strong><code>dumpbin</code></strong> y visores PE para inspeccionar exports y bytes.</li></ul>
-<h2>Bibliografía y referencias</h2>
+<blockquote><p><strong>Honestidad:</strong> esquivar hooks de user-mode <strong>no</strong> te vuelve invisible. El kernel sigue viendo la llamada y hay más telemetría. La serie <strong>mide</strong> esa visibilidad en vez de ignorarla.</p></blockquote>
+<hr>
+<h2>9. Resolver el SSN: el panorama de técnicas</h2>
+<p>Para la syscall indirecta necesitas el SSN. Hay varias técnicas conocidas:</p>
+<table><thead><tr><th>Técnica</th><th>Idea</th><th>¿Lee bytes del stub?</th><th>¿Inmune a hooks user-mode?</th></tr></thead><tbody><tr><td>Hardcodear SSN</td><td>Poner el número "a fuego"</td><td>No</td><td>Rompe entre builds</td></tr><tr><td><strong>Hell's Gate</strong></td><td>Leer <code>mov eax, SSN</code> del stub</td><td><strong>Sí</strong></td><td><strong>No</strong></td></tr><tr><td><strong>Halo's Gate</strong></td><td>Como Hell's, pero "cuenta vecinos" si está hookeado</td><td><strong>Sí</strong> (heurística)</td><td>Parcial</td></tr><tr><td><strong>FreshyCalls</strong></td><td>Ordenar exports <code>Nt*</code> por VA; el índice es el SSN</td><td><strong>No</strong></td><td><strong>Sí</strong></td></tr><tr><td>LayeredSyscall / VEH</td><td>Resolver vía <em>Exception Directory</em></td><td>No</td><td>Sí (más frágil)</td></tr></tbody></table>
+<p>Kagemusha elige <strong>FreshyCalls</strong>: no lee el stub, así que modificarlo (hook) <strong>no la afecta</strong>. El invariante que explota es que, en Windows 10/11, los stubs <code>Nt*</code> están en <code>.text</code> <strong>en el mismo orden que sus SSN</strong>; por tanto, el índice del export ordenado por dirección <strong>es</strong> el SSN.</p>
+<hr>
+<h2>10. El gadget <code>syscall;ret</code></h2>
+<p>Para la ejecución indirecta necesitas un fragmento que ya contenga <code>syscall</code> seguido de <code>ret</code> (bytes <strong><code>0F 05 C3</code></strong>) y que esté en una zona ejecutable legítima, como <code>.text</code> de <code>ntdll</code>. Ese fragmento se llama <strong>gadget</strong>. Es <strong>agnóstico del SSN</strong>: sirve para cualquier syscall, porque el número viaja en <code>EAX</code>. Localizar uno válido y comprobar que está dentro de <code>ntdll</code> es parte del trabajo (y se verifica con bytes reales).</p>
+<hr>
+<h2>11. Cómo observarlo tú mismo (con <code>cdb</code>)</h2>
+<p>Una de las mejores formas de aprender es <strong>verlo</strong>. Con <code>cdb</code> (Debugging Tools for Windows):</p>
+<pre><code class="lang-text"># Ver el stub real de NtClose (y su SSN)
+uf ntdll!NtClose
+ntdll!NtClose:
+  mov r10, rcx
+  mov eax, 0Fh         ; &lt;-- SSN real
+  ...
+
+# Buscar la instruccion syscall (0F 05) dentro de ntdll
+s -a ntdll L? 0f05
+
+# En un breakpoint en el gadget: comprobar que el RIP cae dentro de ntdll
+lm m ntdll
+? @rip - ntdll</code></pre>
+<p>Estos comandos son exactamente los que usa la serie para <strong>verificar</strong> cada afirmación. Si algo de esto te parece "magia", deja de parecerlo en cuanto lo ves con tus ojos.</p>
+<hr>
+<h2>12. Errores comunes y conceptos erróneos</h2>
+<ul><li><strong>"El SSN es fijo".</strong> No: cambia por build. Hardcodearlo es garantía de romperse.</li><li><strong>"Indirect = indetectable".</strong> No: evita <em>hooks de user-mode</em>, pero hay demás telemetría.</li><li><strong>"<code>Nt*</code> y <code>Zw*</code> son lo mismo".</strong> En user-mode apuntan a la misma rutina; en kernel-mode se</li></ul>
+<p>diferencian (anterior/último modo de acceso).</p>
+<ul><li><strong>"Todos los exports <code>Nt*</code> son stubs de syscall".</strong> Falso: algunos hacen <code>jmp Rtl*</code> (p. ej.</li></ul>
+<p><code>NtQuerySystemTime</code>), y lo veremos en la serie.</p>
+<ul><li><strong>"Ejecutar <code>syscall</code> sin más es suficiente".</strong> Necesitas el SSN correcto <strong>y</strong>, en indirecto,</li></ul>
+<p>un gadget válido.</p>
+<hr>
+<h2>13. Glosario</h2>
+<table><thead><tr><th>Término</th><th>Significado</th></tr></thead><tbody><tr><td><strong>user-mode</strong></td><td>Modo aislado donde corren tus programas</td></tr><tr><td><strong>kernel-mode</strong></td><td>Modo privilegiado del núcleo de Windows</td></tr><tr><td><strong>transición</strong></td><td>Paso controlado de user a kernel</td></tr><tr><td><strong>syscall</strong></td><td>Instrucción (<code>0F 05</code>) que cruza de user a kernel</td></tr><tr><td><strong>ntdll</strong></td><td>DLL nativa con las funciones <code>Nt*</code></td></tr><tr><td><strong>stub</strong></td><td>Trozo de código en <code>ntdll</code> que prepara la syscall</td></tr><tr><td><strong>SSN</strong></td><td>Número de servicio; indexa la SSDT del kernel</td></tr><tr><td><strong>SSDT</strong></td><td>Tabla del kernel que mapea SSN → función</td></tr><tr><td><strong>NTSTATUS</strong></td><td>Código de retorno preciso del kernel</td></tr><tr><td><strong>handle</strong></td><td>Referencia a un objeto del kernel</td></tr><tr><td><strong>hook</strong></td><td>Desvío de código (p. ej. por un EDR)</td></tr><tr><td><strong>EDR / ETW</strong></td><td>Seguridad de endpoint / sistema de trazas</td></tr><tr><td><strong>direct syscall</strong></td><td><code>syscall</code> ejecutado en tu propio módulo</td></tr><tr><td><strong>indirect syscall</strong></td><td><code>syscall</code> ejecutado dentro de <code>ntdll</code></td></tr><tr><td><strong>FreshyCalls</strong></td><td>Resolver SSN ordenando exports por VA</td></tr><tr><td><strong>gadget</strong></td><td>Fragmento <code>syscall;ret</code> reutilizable</td></tr></tbody></table>
+<hr>
+<h2>14. Riesgos, ética y defensa</h2>
+<p>Entender esto sirve <strong>para defender</strong>: quien no comprende la técnica no puede detectarla. La serie documenta <strong>cómo se ve</strong> desde fuera para que la comunidad defensiva tenga criterios:</p>
+<ul><li>Practica <strong>solo</strong> en máquinas virtuales aisladas y con snapshots.</li><li>No publiques muestras ni binarios utilizables; publica <strong>conocimiento</strong> y <strong>detección</strong>.</li><li>Documenta y verifica: una afirmación sin prueba es solo una opinión.</li></ul>
+<hr>
+<h2>15. Cómo sigue la serie</h2>
+<ol><li><strong>Guía de syscalls</strong> (esta entrada) — contexto para principiantes e investigadores.</li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a> — el proyecto completo.</li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a>.</li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a>.</li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a>.</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a>.</li></ol>
+<hr>
+<h2>16. Bibliografía y referencias</h2>
 <p><strong>Documentación oficial</strong></p>
-<ul><li>Microsoft Learn — <em>Ntdll</em> y <em>Register usage / x64 calling convention</em> (<code>https://learn.microsoft.com/windows/win32/</code>).</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (Microsoft Press): kernel, SSDT y transición user/kernel.</li></ul>
-<p><strong>Investigación y herramientas (técnicas de SSN y syscalls)</strong></p>
-<ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>).</li><li>Sektor7 — <em>Halo's Gate</em> (variante que cuenta vecinos).</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>): sort-by-VA, base de esta serie.</li><li>thefLink — <em>RecycledGate</em> (<code>github.com/thefLink/RecycledGate</code>).</li><li>MDSec — <em>LayeredSyscall</em> (resolución vía Exception Directory).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): patrón de stubs MASM.</li></ul>
+<ul><li>Microsoft Learn — <em>Ntdll</em>, <em>System Calls</em>, <em>Register usage / x64 calling convention</em> (<code>learn.microsoft.com/windows/win32/</code>).</li><li>Russinovich, Solomon, Ionescu — <em>Windows Internals, 7.ª ed.</em> (Microsoft Press): kernel, SSDT, transición.</li></ul>
+<p><strong>Investigación y herramientas</strong></p>
+<ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>).</li><li>Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>): sort-by-VA.</li><li>thefLink — <em>RecycledGate</em> (<code>github.com/thefLink/RecycledGate</code>).</li><li>MDSec — <em>LayeredSyscall</em>.</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>).</li></ul>
 <p><strong>Detección y defensa</strong></p>
-<ul><li>Microsoft Learn — <em>Windows Defender Application Control</em> y <em>ETW</em> (telemetría del kernel).</li><li>Documentación de EDR: comportamiento observable (call-stack, callbacks del kernel).</li></ul>
+<ul><li>Microsoft Learn — <em>ETW</em> y <em>Windows Defender Application Control</em>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

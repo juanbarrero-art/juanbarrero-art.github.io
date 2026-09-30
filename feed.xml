@@ -5,7 +5,7 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Wed, 30 Sep 2026 14:30:51 +0000</lastBuildDate>
+  <lastBuildDate>Wed, 30 Sep 2026 14:34:45 +0000</lastBuildDate>
   <item>
     <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html</link>
@@ -56,11 +56,11 @@
     <description>Documento maestro de la serie. El problema de los hooks y los EDR, el panorama de técnicas de syscalls (direct, indirect, Hell&#x27;s Gate, Halo&#x27;s Gate, FreshyCalls), la tesis, los cinco principios de diseño, el alcance de la v1, la arquitectura por módulos, la metodología con oráculos independientes y el estado actual (M0–M6).</description>
   </item>
   <item>
-    <title>&quot;Guía: syscalls en Windows para principiantes&quot;</title>
+    <title>&quot;Guía completa: syscalls en Windows para investigadores&quot;</title>
     <link>https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html</guid>
     <pubDate>Tue, 29 Sep 2026 00:00:00 +0000</pubDate>
-    <description>Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.</description>
+    <description>Guía extensa de system calls de Windows para investigadores de malware: modelo de memoria y privilegios, la cadena kernel32/ntdll/kernel, anatomía del stub, SSN y SSDT, objetos y NTSTATUS, syscalls directas e indirectas, hooks y EDR, técnicas de resolución de SSN, cómo observarlo tú mismo con cdb, errores comunes y glosario.</description>
   </item>
 </channel>
 </rss>
