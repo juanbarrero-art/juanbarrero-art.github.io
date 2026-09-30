@@ -30,4 +30,23 @@
   if (anio) {
     anio.textContent = String(new Date().getFullYear());
   }
+
+  // Animación de aparición al hacer scroll (progressive enhancement)
+  var reducir = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reducir && "IntersectionObserver" in window) {
+    var objetivos = document.querySelectorAll(".entrada, .lab__card, .hero__texto, .terminal, .sobre__texto");
+    var observador = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (entrada) {
+        if (entrada.isIntersecting) {
+          entrada.target.classList.add("revelar--visible");
+          observador.unobserve(entrada.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    objetivos.forEach(function (el) {
+      el.classList.add("revelar");
+      observador.observe(el);
+    });
+  }
 })();

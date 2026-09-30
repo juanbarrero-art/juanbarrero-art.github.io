@@ -60,7 +60,7 @@
             sobre <strong>análisis de malware</strong> y <strong>Windows internals</strong>.
           </p>
           <div class="hero__acciones">
-            <a class="boton boton--primario" href="#blog">Leer el blog</a>
+            <a class="boton boton--primario" href="blog/index.html">Leer el blog</a>
             <a class="boton boton--fantasma" href="#sobre-mi">Sobre mí</a>
           </div>
         </div>
@@ -89,26 +89,68 @@
     <section class="blog" id="blog" aria-labelledby="blog-titulo">
       <div class="contenedor">
         <h2 class="seccion__titulo" id="blog-titulo"><span class="seccion__marca">&gt;_</span> &Uacute;ltimas entradas</h2>
-        <p class="seccion__subtitulo">Notas y writeups. Contenido en camino.</p>
+        <p class="seccion__subtitulo">Notas, writeups y laboratorio.</p>
 
         <ul class="entradas" role="list">
-          <li class="entrada">
-            <p class="entrada__fecha">// pr&oacute;ximamente</p>
-            <h3 class="entrada__titulo">An&aacute;lisis de malware: primeros pasos</h3>
-            <p class="entrada__resumen">Un recorrido por el an&aacute;lisis est&aacute;tico y din&aacute;mico de una muestra.</p>
-            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          <!-- POSTS:START -->
+<li>
+  <a class="entrada" href="blog/analisis-malware-101.html">
+    <p class="entrada__fecha">// 02 oct 2026</p>
+    <h3 class="entrada__titulo">&quot;Análisis de malware 101: por dónde empezar&quot;</h3>
+    <p class="entrada__resumen">Una ruta de entrada al análisis de malware y qué necesitas en tu laboratorio.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="blog/bienvenido-al-blog.html">
+    <p class="entrada__fecha">// 30 sep 2026</p>
+    <h3 class="entrada__titulo">Bienvenido al blog</h3>
+    <p class="entrada__resumen">Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<!-- POSTS:END -->
+        </ul>
+        <p class="blog__mas">
+          <a class="boton boton--fantasma" href="blog/index.html">Ver todas las entradas</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- ===================== LABORATORIO / WRITEUPS ===================== -->
+    <section class="laboratorio" id="laboratorio" aria-labelledby="lab-titulo">
+      <div class="contenedor">
+        <h2 class="seccion__titulo" id="lab-titulo"><span class="seccion__marca">&gt;_</span> Laboratorio / Writeups</h2>
+        <p class="seccion__subtitulo">&Aacute;reas en las que experimento y publico.</p>
+
+        <ul class="lab" role="list">
+          <li class="lab__item">
+            <a class="lab__card" href="blog/index.html">
+              <span class="lab__icono" aria-hidden="true">[ ]</span>
+              <h3 class="lab__titulo">Malware Analysis</h3>
+              <p class="lab__texto">An&aacute;lisis est&aacute;tico y din&aacute;mico, IOCs y reportes.</p>
+            </a>
           </li>
-          <li class="entrada">
-            <p class="entrada__fecha">// pr&oacute;ximamente</p>
-            <h3 class="entrada__titulo">Windows internals: procesos y memoria</h3>
-            <p class="entrada__resumen">C&oacute;mo funcionan los procesos, hilos y la memoria virtual por dentro.</p>
-            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          <li class="lab__item">
+            <a class="lab__card" href="blog/index.html">
+              <span class="lab__icono" aria-hidden="true">[ ]</span>
+              <h3 class="lab__titulo">Windows Internals</h3>
+              <p class="lab__texto">Procesos, memoria, kernel y bajo nivel.</p>
+            </a>
           </li>
-          <li class="entrada">
-            <p class="entrada__fecha">// pr&oacute;ximamente</p>
-            <h3 class="entrada__titulo">Blue Team: detecci&oacute;n y respuesta</h3>
-            <p class="entrada__resumen">Fundamentos de monitorizaci&oacute;n, hunting y respuesta a incidentes.</p>
-            <span class="entrada__enlace" aria-disabled="true">Leer m&aacute;s &rarr;</span>
+          <li class="lab__item">
+            <a class="lab__card" href="blog/index.html">
+              <span class="lab__icono" aria-hidden="true">[ ]</span>
+              <h3 class="lab__titulo">Blue Team</h3>
+              <p class="lab__texto">Detecci&oacute;n, hunting y respuesta a incidentes.</p>
+            </a>
+          </li>
+          <li class="lab__item">
+            <a class="lab__card" href="blog/index.html">
+              <span class="lab__icono" aria-hidden="true">[ ]</span>
+              <h3 class="lab__titulo">Red Team</h3>
+              <p class="lab__texto">Reconocimiento, ofensiva y explotaci&oacute;n &eacute;tica.</p>
+            </a>
           </li>
         </ul>
       </div>

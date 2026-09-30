@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.">
+  <meta name="theme-color" content="#060810">
+  <title>Bienvenido al blog | KANON UFO</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">30 sep 2026 &middot; 1 min de lectura</p>
+        <h1 class="post__titulo">Bienvenido al blog</h1>
+        <p class="post__tags"><span class="tag">#meta</span> <span class="tag">#ciberseguridad</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Bienvenido</h1>
+<p>Este es el <strong>primer post</strong> de mi blog de ciberseguridad. Un espacio para documentar lo que aprendo sobre <strong>análisis de malware</strong>, <strong>Windows internals</strong> y defensa.</p>
+<h2>Qué encontrarás</h2>
+<ul><li>Writeups de análisis (estático y dinámico).</li><li>Notas de laboratorio y experimentos.</li><li>Conceptos de <strong>Blue Team</strong> y <strong>Red Team</strong>.</li><li>Scripts y herramientas propias.</li></ul>
+<h2>Enfoque</h2>
+<p>Me enfoco en <strong>Blue Team</strong> con base en <strong>Red Team</strong>: entender cómo atacan para defender mejor. Si quieres empezar, este fragmento resume la idea:</p>
+<pre><code class="lang-python">def defender(conocer_el_ataque: bool) -&gt; str:
+    return &quot;mejor defensa&quot; if conocer_el_ataque else &quot;a ciegas&quot;</code></pre>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote>
+<p>Nos vemos en la siguiente entrada.</p></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{summary}}">
+  <meta name="theme-color" content="#060810">
+  <title>{{title}} | {{site}}</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="{{site}}, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">{{date}} &middot; {{reading}} min de lectura</p>
+        <h1 class="post__titulo">{{title}}</h1>
+        <p class="post__tags">{{tags}}</p>
+      </header>
+      <div class="post__cuerpo">{{content}}</div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> {{site}} &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

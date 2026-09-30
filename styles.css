@@ -223,8 +223,11 @@ body::before {
 /* ---------- Blog ---------- */
 .blog { padding: var(--esp-xl) 0; }
 .entradas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--esp-md); }
+.entradas > li { display: flex; }
 .entrada {
+  display: flex; flex-direction: column; flex: 1;
   padding: 1.5rem;
+  color: inherit; text-decoration: none;
   background: linear-gradient(180deg, var(--panel), var(--panel-2));
   border: 1px solid var(--borde);
   border-radius: var(--radio);
@@ -238,7 +241,7 @@ body::before {
 .entrada__fecha { margin: 0 0 0.5rem; font-family: var(--f-mono); font-size: 0.78rem; color: var(--magenta); }
 .entrada__titulo { margin: 0 0 0.5rem; font-size: 1.15rem; color: var(--texto); }
 .entrada__resumen { margin: 0 0 0.9rem; color: var(--texto-suave); font-size: 0.95rem; }
-.entrada__enlace { font-family: var(--f-mono); font-size: 0.85rem; color: var(--cian); opacity: 0.7; }
+.entrada__enlace { margin-top: auto; font-family: var(--f-mono); font-size: 0.85rem; color: var(--cian); }
 
 /* ---------- Sobre mi ---------- */
 .sobre { padding: var(--esp-xl) 0; border-top: 1px solid var(--borde); }
@@ -251,6 +254,73 @@ body::before {
 .pie__marca { font-family: var(--f-mono); font-weight: 700; font-size: 1.2rem; margin: 0 0 0.35rem; color: var(--texto); }
 .pie__acento { color: var(--cian); }
 .pie__texto, .pie__copy { margin: 0.2rem 0; color: var(--texto-suave); font-size: 0.9rem; }
+
+/* ---------- Blog: extras ---------- */
+.entradas__vacio { color: var(--texto-suave); font-family: var(--f-mono); }
+.blog__mas { margin-top: var(--esp-lg); text-align: center; }
+
+/* ---------- Etiquetas ---------- */
+.tag {
+  display: inline-block; margin: 0 0.35rem 0.35rem 0; padding: 0.2rem 0.6rem;
+  font-family: var(--f-mono); font-size: 0.72rem; color: var(--cian);
+  background: rgba(0, 229, 255, 0.08); border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 999px;
+}
+
+/* ---------- Laboratorio / Writeups ---------- */
+.laboratorio { padding: var(--esp-xl) 0; border-top: 1px solid var(--borde); }
+.lab { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--esp-md); }
+.lab__card {
+  display: block; height: 100%; padding: 1.5rem;
+  color: inherit; text-decoration: none;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.lab__card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 45, 149, 0.5);
+  box-shadow: 0 0 30px rgba(255, 45, 149, 0.15);
+}
+.lab__icono { font-family: var(--f-mono); color: var(--magenta); font-size: 0.9rem; }
+.lab__titulo { margin: 0.4rem 0; font-size: 1.1rem; color: var(--texto); }
+.lab__texto { margin: 0; color: var(--texto-suave); font-size: 0.95rem; }
+
+/* ---------- Pagina de entrada ---------- */
+.post { max-width: 780px; padding-top: var(--esp-lg); padding-bottom: var(--esp-xl); }
+.post__volver { font-family: var(--f-mono); font-size: 0.85rem; margin: 0 0 var(--esp-md); }
+.post__meta { font-family: var(--f-mono); font-size: 0.85rem; color: var(--texto-suave); margin: 0 0 0.5rem; }
+.post__titulo { margin: 0 0 0.6rem; font-family: var(--f-mono); font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.15; }
+.post__tags { margin: 0 0 var(--esp-lg); }
+.post__cuerpo { color: var(--texto); font-size: 1.05rem; }
+.post__cuerpo h2 { margin: 2rem 0 0.8rem; font-family: var(--f-mono); font-size: 1.5rem; }
+.post__cuerpo h3 { margin: 1.6rem 0 0.6rem; font-family: var(--f-mono); font-size: 1.2rem; }
+.post__cuerpo a { color: var(--cian); }
+.post__cuerpo img { border-radius: var(--radio); margin: 1rem 0; border: 1px solid var(--borde); }
+.post__cuerpo hr { border: 0; border-top: 1px solid var(--borde); margin: 2rem 0; }
+.post__cuerpo blockquote {
+  margin: 1.5rem 0; padding: 0.5rem 0 0.5rem 1.1rem;
+  border-left: 3px solid var(--magenta); color: var(--texto-suave); font-style: italic;
+}
+.post__cuerpo code {
+  font-family: var(--f-mono); font-size: 0.9em;
+  background: rgba(0, 229, 255, 0.08); color: var(--cian);
+  padding: 0.1rem 0.4rem; border-radius: 6px;
+}
+.post__cuerpo pre {
+  margin: 1.4rem 0; padding: 1rem 1.1rem; overflow-x: auto;
+  background: #05070d; border: 1px solid var(--borde); border-radius: var(--radio);
+}
+.post__cuerpo pre code { background: none; color: var(--texto); padding: 0; }
+.post__cuerpo ul, .post__cuerpo ol { padding-left: 1.3rem; }
+.post__cuerpo li { margin: 0.3rem 0; }
+.post__cuerpo table { width: 100%; border-collapse: collapse; margin: 1.4rem 0; }
+.post__cuerpo th, .post__cuerpo td { padding: 0.6rem 0.8rem; border: 1px solid var(--borde); text-align: left; }
+.post__cuerpo th { background: var(--panel); }
+
+/* ---------- Animacion al hacer scroll ---------- */
+.revelar { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.revelar--visible { opacity: 1; transform: none; }
 
 /* =====================================================================
    Escritorio
@@ -270,6 +340,7 @@ body::before {
 
   .hero__interior { grid-template-columns: 1.05fr 0.95fr; gap: var(--esp-xl); }
   .entradas { grid-template-columns: repeat(3, 1fr); }
+  .lab { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* Respeta la preferencia de movimiento reducido */

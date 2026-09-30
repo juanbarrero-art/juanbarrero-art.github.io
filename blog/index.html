@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Todas las entradas del blog de ciberseguridad de KANON UFO.">
+  <meta name="theme-color" content="#060810">
+  <title>Blog | KANON UFO</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <section class="blog contenedor" aria-labelledby="blog-titulo">
+      <h1 class="seccion__titulo" id="blog-titulo"><span class="seccion__marca">&gt;_</span> Blog</h1>
+      <p class="seccion__subtitulo">Notas, writeups y laboratorio.</p>
+      <ul class="entradas" role="list">
+<li>
+  <a class="entrada" href="analisis-malware-101.html">
+    <p class="entrada__fecha">// 02 oct 2026</p>
+    <h3 class="entrada__titulo">&quot;Análisis de malware 101: por dónde empezar&quot;</h3>
+    <p class="entrada__resumen">Una ruta de entrada al análisis de malware y qué necesitas en tu laboratorio.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="bienvenido-al-blog.html">
+    <p class="entrada__fecha">// 30 sep 2026</p>
+    <h3 class="entrada__titulo">Bienvenido al blog</h3>
+    <p class="entrada__resumen">Arranca este blog personal: qué vas a encontrar y cuál es el enfoque.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
