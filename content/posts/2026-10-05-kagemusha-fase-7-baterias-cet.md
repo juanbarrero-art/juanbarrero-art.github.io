@@ -3,310 +3,190 @@ title: "Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, C
 date: 2026-10-05
 tags: windows internals, red team, syscalls, investigacion, cet
 serie: Kagemusha
-summary: El proyecto pasa a modo industrial. Baterías extendida, pesada y global (pruebas diferenciales contra ntdll, soak de 500k llamadas, multi-proceso), ledger de syscalls y CLI, y la prueba clave de compatibilidad con CET / Shadow Stack.
+summary: Documentación de la Fase 7 y las baterías de verificación del repositorio: T19 (diferencial vs ntdll), T20 (pesada + auto-hospedaje), T21 (global/multi-proceso/rendimiento), T22 (CET/Shadow Stack), ledger de syscalls, CLI y endurecimiento A1/A2.
 ---
 
-# Kagemusha — Fase 7 y baterías de verificación (T19–T22)
+# Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET
 
-El proyecto dejó de ser "una implementación que funciona" para volverse un **sistema medido a
-escala**. Esta entrada documenta el salto: **cuatro baterías nuevas de verificación** (T19–T22),
-el **ledger de syscalls** y los **modos CLI** de la Fase 7, y —probablemente lo más interesante—
-la demostración de que el trampolín indirecto es **compatible con CET / Shadow Stack**.
-
-> Resultado de la build de referencia: **166 PASS / 0 FAIL** y **0 instrucciones `syscall`** en
-> el módulo. Y todo, como siempre, verificado con oráculos independientes.
+Esta entrada documenta la **Fase 7** y las baterías de verificación **T19–T22** tal como están
+registradas en el `README.md` y en los documentos de `docs/research/`.
 
 ![Diagrama: baterias de verificacion T19-T23](../assets/diag-batteries.svg)
 
 ---
 
-## T19 — Batería extendida: la prueba diferencial
+## T19 — Batería extendida: diferencial contra `ntdll`
 
-La forma **más fuerte** de verificar una indirect syscall no es "no crashea", sino **comparar**
-su resultado con el de la función **nativa de `ntdll`**. Eso es una **prueba diferencial**:
+De `docs/research/experimentos-extendidos.md` (15 experimentos). Incluye **pruebas diferenciales**:
+se llama a la función **real de `ntdll`** (vía `GetProcAddress`) y a nuestro wrapper `_I` con los
+**mismos argumentos**, comparando resultados.
 
-```text
-NtQueryInformationProcess_I(args)   ==   ntdll!NtQueryInformationProcess(args)
-NtQuerySystemInformation_I(args)    ==   ntdll!NtQuerySystemInformation(args)
-NtClose_I(handle)                   ==   ntdll!NtClose(handle)
-```
+| # | Experimento | Resultado |
+| --- | --- | --- |
+| 1 | FreshyCalls determinista (100 iteraciones) | ✅ mismos 8 SSN |
+| 2 | `NtQueryInformationProcess_I` vs `ntdll!NtQueryInformationProcess` | ✅ mismo status |
+| 3 | `PebBaseAddress` == valor de ntdll | ✅ |
+| 4 | `PebBaseAddress` == `gs:[0x60]` (PEB real) | ✅ |
+| 5 | `NtQuerySystemInformation_I` vs ntdll (clase 0) | ✅ mismo status |
+| 6 | `ReturnLength` devuelto (>0) | ✅ |
+| 7 | Clase inválida vs ntdll | ✅ `0xC0000003` |
+| 8 | `NtQuerySystemTime_I` vs ntdll (≤1s) | ✅ |
+| 9 | `NtAllocateVirtualMemory` alineada a 64KB y tamaño ≥ 0x1000 | ✅ |
+| 10 | `NtProtectVirtualMemory` → `OldProt == PAGE_READWRITE` | ✅ |
+| 11 | `NtClose_I` vs `ntdll!NtClose` (handle válido) | ✅ ambos 0 |
+| 12 | Sin fuga de handles (1000 ciclos open/close) | ✅ |
+| 13 | Estrés: 20000 `NtYieldExecution_I` | ✅ consistentes |
+| 14 | Hook `FF 25` (jmp [rip]) detectado + FreshyCalls inmune | ✅ |
+| 15 | Fuzz: 300 PE pseudoaleatorios | ✅ sin crash |
 
-Mismos argumentos, mismo `NTSTATUS`, mismos efectos en los argumentos de salida. Si el indirecto
-fuera "casi correcto", aquí se vería. La batería T19 incluye también:
-
-- **Preservación de argumentos:** `PebBaseAddress` coincide con el valor de `ntdll` **y** con
-  `gs:[0x60]` (el PEB real) → prueba de que el 3.er argumento llega bien.
-- **Argumento de salida:** `NtProtectVirtualMemory` devuelve `OldProt == PAGE_READWRITE` → el
-  5.º argumento (puntero, en la pila) se escribe correctamente.
-- **Sin fugas de handles** (1000 ciclos open/close), **estrés** (20 000 `NtYieldExecution_I`),
-  **hook `FF 25`** detectado con FreshyCalls inmune, y **fuzz de 300 PE**.
-
-> La prueba diferencial es la que convierte "creo que es correcto" en "es **idéntico** a la API
-> real". Es el patrón metodológico de todo el proyecto.
+Del mismo documento: los experimentos 2–8 y 11 comparan **nuestro resultado** con la **función
+nativa de ntdll** para los mismos argumentos; y se confirma la preservación de argumentos
+(`PebBaseAddress` = 3.º; `OldProt` = 5.º, puntero de salida; `NtAllocateVirtualMemory` = 6 args).
 
 ---
 
-## T20 — Batería pesada: volumen, estrés y auto-hospedaje
+## T20 — Batería pesada: carga y auto-hospedaje
 
-Aquí llevamos el sistema al límite:
+De `docs/research/experimentos-pesados.md` (15 experimentos): soak de 500 000 llamadas, catálogo en
+4 hilos, integridad de memoria, PE sintético, **hook a los 8 stubs** y rendimiento.
 
-| Prueba | Magnitud |
-| --- | --- |
-| Soak de syscalls | **500 000** `NtYieldExecution_I` |
-| Catálogo completo en | **4 hilos** |
-| Close sobre objetos | evento, mutex, archivo, semáforo |
-| Handles sin fuga | 200 open/close |
-| Rendimiento | ~0.08 µs/llamada |
-| PE **sintético** | se construye un PE mínimo y el parser lo resuelve |
+Hallazgo del documento:
 
-### El hallazgo que vale oro: auto-hospedaje
+> *"Al hookear **todos** los stubs (experimento 8) se descubre que `NtProtectVirtualMemory` es una
+> de las funciones hookeadas, y entonces `VirtualProtect()` de la API de Windows se cuelga al pasar
+> por el stub hookeado.
+> **Solución elegante:** instalar/restaurar los hooks usando **nuestro propio
+> `NtProtectVirtualMemory_I`** (que ejecuta por el gadget `syscall;ret`, independiente del stub
+> hookeado). Es decir, el sistema se usa a sí mismo para operar sobre ntdll — demostración práctica
+> de auto-hospedaje."*
 
-El experimento más revelador **hookea los 8 stubs del catálogo** para probar la resiliencia.
-Al hacerlo, aparece un problema **elegante**:
-
-> `VirtualProtect()` de la API de Windows **se cuelga**, porque internamente usa
-> `NtProtectVirtualMemory`, que es **uno de los stubs que acabamos de hookear**.
-
-La solución es de esas que dan sentido a todo el proyecto: para **instalar y restaurar** los
-hooks, el sistema usa **su propio `NtProtectVirtualMemory_I`**, que ejecuta por el gadget
-`syscall;ret` y por tanto **no depende** del stub hookeado. Es decir, el sistema **se usa a sí
-mismo** para operar sobre `ntdll` — un caso práctico de **auto-hospedaje** (*self-hosting*).
+Del mismo documento: el experimento 7 construye un PE mínimo en memoria (DOS + NT + export
+directory) y verifica que el parser resuelve y enumera el export; el experimento 4 demuestra que la
+memoria asignada por nuestro `NtAllocateVirtualMemory_I` es real y escribible.
 
 ---
 
 ## T21 — Batería global: multi-proceso, otros módulos y rendimiento
 
-Salimos del proceso y de `ntdll`:
+De `docs/research/experimentos-globales.md` (15 experimentos): 4 procesos hijo, parser en
+kernel32/kernelbase, gadget y anti-hook sobre **toda** la tabla `Nt*`, protección RO/RW, negativos
+diferenciales y **rendimiento vs ntdll**.
 
-- **Multi-proceso:** 4 procesos `Kagemusha.exe` independientes ejecutan el sistema completo →
-  confirma que no hay estado global compartido oculto.
-- **Parser cross-module:** el mismo parser resuelve exports en **kernel32** y **kernelbase**,
-  comparando con `GetProcAddress`. Hallazgo: **kernel32 exporta un `Nt*`** que **no** es un stub
-  de syscall (los stubs viven en `ntdll`); el parser genérico los distingue.
-- **Anti-hook sobre toda la tabla:** se valida que **484/484** stubs reales (baseline) no están
-  hookeados.
-- **Rendimiento:** 200 000 llamadas → indirecto **0.014 s** vs nativo **0.013 s**. Prácticamente
-  idénticos, como es de esperar: al final, el kernel ejecuta el mismo `syscall;ret`.
+Hallazgos del documento:
+
+- **kernel32 exporta `Nt*`:** *"1 export no-forwarded con prefijo `Nt` (no es stub de syscall). Los
+  stubs de syscall viven en ntdll; el parser es genérico y los distingue."*
+- **Rendimiento:** *"la ruta indirecta es prácticamente idéntica a llamar la función nativa de
+  ntdll"* (200k llamadas: 0.014 s indirecto vs 0.013 s nativo).
+- **Multi-proceso:** *"4 procesos independientes ejecutan el sistema completo con éxito,
+  confirmando que no hay dependencia de estado entre procesos."*
 
 ---
 
-## T22 — CET / Shadow Stack: ¿rompe el trampolín las mitigaciones?
+## T22 — CET / Shadow Stack
 
-Esta es, para mí, la prueba más interesante del lote. **CET** (Control-flow Enforcement
-Technology) incluye el **Shadow Stack**: una pila paralela, protegida por hardware, que guarda
-las direcciones de retorno. Su objetivo es **impedir que un `ret` vuelva a donde no debe**
-(una técnica clásica de explotación: *ROP*).
+De `docs/research/experimento-cet.md`:
 
-La pregunta era directa: **¿nuestro trampolín (`jmp` a un gadget con `ret`) rompe el shadow
-stack?** La respuesta, medida:
+| # | Prueba | Resultado |
+| --- | --- | --- |
+| CET1 | 1000 syscalls bajo la mitigación actual | ✅ |
+| CET2 | Hijo con shadow stack `ALWAYS_ON` → exit 0 | ✅ |
+| CET3 | `STRICT_MODE` | ⚠️ el SO rechaza la creación (`ERROR_INVALID_PARAMETER`, 87) → no soportado en este entorno |
 
-```text
-wrapper C  --call-->  stub ASM  --jmp-->  gadget ntdll (syscall; ret)  --ret-->  wrapper
-                      (no push)            (consume la entrada)
-```
+Del documento: *"Estado del proceso: **`EnableUserShadowStack = 1`**, `Strict = 0`. Es decir, el
+proceso ya corre con shadow stack habilitado, y aun así los 1000 syscalls indirectos funcionan."*
 
-- El `call` del wrapper empuja **una** entrada al shadow stack.
-- El stub hace `jmp` (*tail call*): **no empuja nada**.
-- El `ret` del gadget **consume exactamente esa entrada** → coinciden.
+Explicación (del mismo documento):
 
-Resultado: el shadow stack **no se desalinea**, así que la técnica es **CET-safe por diseño**.
-Y se probó en vivo: el proceso corría con `EnableUserShadowStack = 1` y **1000 syscalls
-indirectos funcionaron**; además el binario se marcó `/CETCOMPAT`.
+> *"El `call` del wrapper empuja la dirección de retorno al shadow stack. El stub hace `jmp`
+> (tail-call): no empuja nada. El `ret` del gadget consume exactamente esa entrada del shadow
+> stack → coincide. Resultado: el `jmp` no desalinea el shadow stack, por lo que la técnica es
+> CET-safe por diseño. El binario además se marca con `/CETCOMPAT`."*
 
-> Nota honesta: el modo `STRICT_MODE` no se pudo activar en este entorno (el SO rechaza la
-> creación con `ERROR_INVALID_PARAMETER`); se documenta como **límite del entorno**, no del
-> sistema. Igual que siempre: se mide y se declara.
+Nota del documento: *"`STRICT_MODE` … no es aplicable vía
+`PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY` en esta build (Home). Se documenta como límite del
+entorno, no del sistema."*
 
 ![Diagrama: CET-safe por diseno](../assets/diag-cet.svg)
 
 ---
 
-## Fase 7 — Ledger de syscalls y CLI (¡en curso, ya utilizable!)
+## Fase 7 — Ledger de syscalls y modos CLI (del README)
 
-La Fase 7 añade **herramientas de investigación**:
+**Hecho:**
 
-### Ledger de syscalls (E1)
+- **Macro MASM propio `KAGE_STUB name, slot`** (Fase 5).
+- **Ledger de syscalls (E1)** — `src/core/ledger.c`: ring buffer (256) con slot, SSN, gadget,
+  `NTSTATUS` y timestamp. Deshabilitado por defecto (coste mínimo); thread-safe (interlocked).
+- **Modos CLI (I2)** — `Kagemusha.exe`:
+  - `--dump` → tabla slot / syscall / SSN / gadget.
+  - `--trace` → ejecuta llamadas y vuelca el ledger.
+  - `--json` → tabla en JSON.
+  - (sin args) → selftest M0–M5.
 
-`src/core/ledger.c` implementa un **ring buffer (256)** donde cada entrada registra: `slot`, `SSN`,
-`gadget`, `NTSTATUS` y timestamp. Está **deshabilitado por defecto** (coste mínimo) y es
-**thread-safe** (operaciones atómicas con interlocked). Es la "caja negra" del sistema.
-
-### Modos CLI (I2)
-
-`Kagemusha.exe` ahora tiene modos de línea de comandos:
-
-```text
---dump   → tabla slot / syscall / SSN / gadget
---trace  → ejecuta llamadas y vuelca el ledger
---json   → la tabla en JSON
-(sin args) → selftest M0-M5
-```
-
-Ejemplo de `--trace`:
+Ejemplo `--trace` (del README):
 
 ```text
-[INF] [0] NtClose                  SSN=0x00F gadget=00007FFC48540FA2 status=0xC0000008
-[INF] [1] NtQuerySystemInformation SSN=0x036 gadget=00007FFC48541482 status=0x00000000
-[INF] [2] NtQueryInformationProcess SSN=0x019 gadget=00007FFC485410E2 status=0x00000000
+[INF]   [0] NtClose                      SSN=0x00F gadget=00007FFC48540FA2 status=0xC0000008
+[INF]   [1] NtQuerySystemInformation     SSN=0x036 gadget=00007FFC48541482 status=0x00000000
+[INF]   [2] NtQueryInformationProcess    SSN=0x019 gadget=00007FFC485410E2 status=0x00000000
 ```
 
-**Pendiente:** la extensión de debugger **`!kage`** (I1) para volcar tabla y ledger desde `cdb`.
+**Pendiente:** extensión de cdb `!kage` (I1) para volcar tabla y ledger desde el debugger.
+
+Del README: *"T23 (ledger) → 5 checks, parte de los **166 PASS / 0 FAIL**."*
 
 ---
 
-## Endurecimiento tras una revisión de código
+## Endurecimiento (A1/A2) y tests nuevos (T0/T24)
 
-Una revisión interna añadió pruebas y blindó dos puntos débiles:
+Del README:
 
-- **A1 — parser PE:** ahora se validan las **RVAs del *export directory* contra `SizeOfImage`**
-  (evita lecturas fuera de rango con un PE malformado) y se añadió **fuzz con un export directory
-  malicioso** (G8).
-- **A2 — wrappers:** **guardia de inicialización**: si no se llamó a `KageInitialize`, el wrapper
-  devuelve `KAGE_STATUS_NOT_INITIALIZED` y **nunca** hace `jmp` a `NULL`.
-- **Tests nuevos:** **T0** (uso sin init) y **T24** (wrap-around del ledger, errores del resolver,
-  parser malicioso, `KageSlotName` fuera de rango).
-
-Este endurecimiento subió la suite a **166 PASS / 0 FAIL**. Es el patrón de la serie: cada
-revisión no solo arregla, **añade pruebas que impiden que el fallo vuelva**.
+- **A1 — parser PE:** *"se validan las RVAs del export directory contra `SizeOfImage` (evita
+  lecturas OOB con PE malformado) + fuzz con export directory malicioso (G8)."*
+- **A2 — wrappers:** *"guardia de inicialización → `KAGE_STATUS_NOT_INITIALIZED` (nunca `jmp` a
+  `NULL`) + test T0."*
+- **Tests nuevos:** **T0** (sin init) y **T24** (ledger wrap-around, errores del resolver, parser
+  malicioso, `KageSlotName` fuera de rango).
 
 ---
 
-## Resultados consolidados
+## Resultados (del README)
 
-| Métrica | Valor |
-| --- | --- |
-| Suite completa | **166 PASS / 0 FAIL** |
-| Instrucciones `syscall` en el módulo | **0** |
-| SSN coincidentes con el stub real | **488/488** |
-| Stubs baseline hookeados | **484/484** limpios (o 0 hookeados) |
-| Rendimiento (200k) | indirecto ≈ nativo |
-| CET / Shadow Stack | **compatible** |
+- **166 PASS / 0 FAIL** · `Kagemusha_tests.exe` (exit 0).
+- Módulo sin `syscall`: `verify.ps1` → 0 instrucciones.
+- M4: `NtClose_I(0xDEADBEEF)=0xC0000008`, `NtClose_I(handle válido)=0x00000000`.
 
-## Qué aprendimos
+## Reproducir (del README)
 
-- **La prueba diferencial es el estándar de oro.** Comparar con la función nativa, mismos args.
-- **El auto-hospedaje emerge solo.** Hookear todo reveló que el sistema puede operar sobre
-  `ntdll` usando su propio indirecto.
-- **Multi-proceso y rendimiento importan.** Un sistema sin estado oculto y sin penalización de
-  velocidad es un sistema usable.
-- **CET no es un enemigo.** El `jmp` (*tail call*) es, además de correcto, **seguro**.
-- **Documentar límites es parte del resultado.** `STRICT_MODE` no aplica aquí; se dice.
+```text
+tools\build.cmd
+bin\Kagemusha_tests.exe
+bin\Kagemusha.exe --dump
+bin\Kagemusha.exe --trace
+```
+
+---
 
 ## Cómo sigue la serie
 
-1. [Guía de syscalls](/blog/guia-syscalls-windows.html)
-2. [Visión general, tesis y metodología](/blog/kagemusha-indirect-syscalls.html)
-3. [Fases 0 a 3: del toolchain al gadget](/blog/kagemusha-fases-0-3.html)
-4. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
-5. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
-6. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
-7. **Fase 7 y baterías (T19–T22): ledger, CLI y CET** (esta entrada)
-
----
-
-## 🧪 Experimenta tú — usa las herramientas nuevas
-
-*(Nivel 🟡. Con el proyecto compilado.)*
-
-```text
-bin\Kagemusha.exe --dump     :: ver la tabla slot / syscall / SSN / gadget
-bin\Kagemusha.exe --trace    :: ejecutar y volcar el ledger
-bin\Kagemusha.exe --json     :: la tabla en JSON (para tus propios scripts)
-```
-
-**Qué deberías ver** (`--trace`): una línea por llamada, con su `SSN`, su gadget y el `NTSTATUS`.
-Eso es literalmente la **caja negra** del sistema: qué se llamó, con qué número y qué devolvió.
-
-> **Mini-reto:** exporta con `--json` y ordena las entradas por SSN en PowerShell. Compararás tu
-> tabla con la del README; si difieren, tienes una build distinta… y un hallazgo.
-
----
-
-## El ledger: por qué una "caja negra" cambia el juego
-
-El **ledger** (`src/core/ledger.c`) es un **ring buffer de 256 entradas** que registra
-`slot`, `SSN`, `gadget`, `NTSTATUS` y timestamp. Tres decisiones de diseño importan:
-
-1. **Deshabilitado por defecto.** Registrar cada syscall tiene coste. Activarlo solo cuando
-   investigas mantiene el rendimiento intacto (medido en T20: ~0.08 µs/llamada).
-2. **Ring buffer.** No crece sin límite: cuando se llena, sobrescribe lo más antiguo. Ideal para
-   "las últimas N llamadas", que es lo que quieres al depurar.
-3. **Thread-safe con interlocked.** Se puede consultar/llenar desde varios hilos sin corromperse
-   (probado con 4 hilos).
-
-Es la diferencia entre "creo que llamó a `NtClose`" y "**aquí está la lista exacta** de lo que
-llamó, con números".
-
----
-
-## La prueba diferencial, a fondo (el estándar de oro)
-
-La batería T19 hace algo que debería ser obligatorio en cualquier implementación de syscalls:
-**comparar con la función nativa de `ntdll`**, con los **mismos argumentos**.
-
-```text
-nuestro wrapper _I(args)   --(indirecto)-->  kernel
-ntdll!Nt...(args)          --(nativo)----->  kernel
-                    ¿mismo NTSTATUS? ¿mismos out-args?
-```
-
-Si el indirecto tuviera un error sutil (un argumento mal copiado, un registro equivocado), aquí
-se vería. La batería confirma identidad en: `NtQueryInformationProcess`, `NtQuerySystemInformation`,
-`NtQuerySystemTime`, `NtClose`, `NtProtectVirtualMemory`. También comprueba **argumentos de
-salida** (`OldProt`, `ReturnLength`, `PebBaseAddress`), que son donde más falla el paso de
-punteros en la pila.
-
----
-
-## Auto-hospedaje: el día que el sistema se salvó a sí mismo
-
-Este es mi momento favorito del proyecto. En la batería pesada (T20) **hookeo los 8 stubs** para
-probar la resiliencia… y el programa **se cuelga**. Tras un rato de confusión, el motivo era
-precioso:
-
-> `VirtualProtect()` (la API de Windows) usa internamente `NtProtectVirtualMemory`. Y ese stub
-> **acababa de ser hookeado**. Así que la propia función que quería *restaurar* los hooks pasaba
-> por un stub roto.
-
-La solución: **usar nuestro `NtProtectVirtualMemory_I`** (que ejecuta por el gadget, ajeno al
-stub hookeado) para manejar los hooks sobre `ntdll`. El sistema **se usó a sí mismo** para operar
-sobre el sistema. Eso es **auto-hospedaje**, y no aparece hasta que llevas el diseño al límite.
-
----
-
-## CET: cuando creí que rompía el shadow stack
-
-**CET** (Control-flow Enforcement Technology) añade un **shadow stack**: una copia protegida por
-hardware de las direcciones de retorno, para impedir que un `ret` vuelva a donde no debe (la base
-de los ataques *ROP*). Mi primera reacción fue: *"un gadget con `ret`… esto lo va a romper"*.
-
-La medición dijo lo contrario. El `call` del wrapper empuja **una** entrada; el stub hace `jmp`
-(**no** empuja); el `ret` del gadget **consume exactamente esa entrada**. Coinciden → el shadow
-stack **no se desalinea**. El proceso corría con `EnableUserShadowStack = 1` y 1000 syscalls
-funcionaron; el binario se marcó `/CETCOMPAT`.
-
-> Moraleja: **mide antes de temer.** Una intuición (a veces un prejuicio) no vale lo que un test.
-
----
-
-## Qué sigue
-
-- **Fase 7 pendiente:** la extensión de debugger **`!kage`** para volcar la tabla y el ledger
-  desde `cdb` (sin salir del debugger).
-- **Fase 8 (visibilidad):** el informe publicable y el **análisis de detección**: qué ve *de
-  verdad* un EDR con el indirecto puro (stack walk, ETIM, callbacks). Sin esconder nada: midiendo.
-- **Endurecimiento continuo:** cada revisión añade pruebas (T0, T24) que impiden que un fallo
-  vuelva. Ese es el ritmo de un laboratorio vivo.
+1. [Cómo leer la serie + Misión 0](/blog/como-leer-serie-mision-0.html)
+2. [Guía de syscalls](/blog/guia-syscalls-windows.html)
+3. [Visión general, tesis y metodología](/blog/kagemusha-indirect-syscalls.html)
+4. [Fases 0 a 3: del toolchain al gadget](/blog/kagemusha-fases-0-3.html)
+5. [Fase 4: ejecución indirecta real](/blog/kagemusha-fase-4-ejecucion-indirecta.html)
+6. [Fase 5: generalización y aridad](/blog/kagemusha-fase-5-generalizacion.html)
+7. [Fase 6: robustez, hooks y límites](/blog/kagemusha-fase-6-robustez.html)
+8. **Fase 7 y baterías (T19–T22): ledger, CLI y CET** (esta entrada)
 
 ---
 
 ## Bibliografía y referencias
 
+- Fuentes primarias: `README.md`, `docs/research/experimentos-extendidos.md`,
+  `experimentos-pesados.md`, `experimentos-globales.md`, `experimento-cet.md`,
+  `src/core/ledger.c`, `include/kage/ledger.h`.
 - Microsoft Learn — *Control-flow Enforcement Technology (CET)* y *Shadow Stack*.
-- Microsoft Learn — *Process mitigation policies* (`PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY`).
-- Russinovich, Solomon, Ionescu — *Windows Internals, 7.ª ed.*.
-- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`); jthuraisamy — *SysWhispers*.
-- Fuentes primarias: `docs/research/experimentos-extendidos.md`, `experimentos-pesados.md`,
-  `experimentos-globales.md`, `experimento-cet.md`; `src/core/ledger.c`.
+- crummie5 — *FreshyCalls* (`github.com/crummie5/FreshyCalls`).
 
 > Aprender a romper para poder defender.

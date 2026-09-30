@@ -435,26 +435,6 @@ resultado de hoy se puede **reproducir** mañana, en la misma build.
 
 ---
 
-## 🧪 Experimenta tú — compila y mira los símbolos
-
-*(Nivel 🟡. Requiere VS Build Tools + `cdb`.)*
-
-```text
-tools\build.cmd                              :: compila (genera .exe + .pdb)
-bin\Kagemusha_tests.exe                      :: corre la suite (esperado: 0 FAIL)
-bin\Kagemusha.exe                            :: selftest M0..M5
-cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe
-```
-
-**Qué deberías ver (m1):** la dirección de `ntdll!NtClose` resuelta por nuestro PEB walk y la
-misma resuelta por el símbolo de Microsoft, **idénticas** (diferencia `0`). Esa igualdad es la
-prueba de la Fase 1.
-
-> **Mini-reto:** cambia a propósito el hash de `NtClose` por otro y observa cómo el test **falla**
-> (o resuelve un export equivocado). Ver el fallo es entender por qué el oráculo importa.
-
----
-
 ## Fondo: cómo es una cabecera PE (por qué leemos "a mano")
 
 Para resolver exports sin `GetProcAddress`, hay que recorrer el archivo/DLL a bajo nivel. Un PE

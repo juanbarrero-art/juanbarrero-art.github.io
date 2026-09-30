@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.">
+  <meta name="description" content="Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.">
   <meta name="theme-color" content="#060810">
   <title>&quot;Kagemusha — Fase 5: generalización y aridad&quot; | KANON UFO</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
@@ -15,7 +15,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:title" content="&quot;Kagemusha — Fase 5: generalización y aridad&quot;">
-  <meta property="og:description" content="Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.">
+  <meta property="og:description" content="Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-fase-5-generalizacion.html">
   <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-aridad.svg">
   <meta property="og:site_name" content="KANON UFO">
@@ -30,7 +30,7 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="&quot;Kagemusha — Fase 5: generalización y aridad&quot;">
-  <meta name="twitter:description" content="Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.">
+  <meta name="twitter:description" content="Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.">
   <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-aridad.svg">
 
   <!-- Datos estructurados -->
@@ -39,7 +39,7 @@
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "\"Kagemusha — Fase 5: generalización y aridad\"",
-  "description": "Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.",
+  "description": "Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.",
   "datePublished": "2026-10-03",
   "dateModified": "2026-10-03",
   "author": {
@@ -91,250 +91,92 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">03 oct 2026 &middot; 19 min de lectura</p>
+        <p class="post__meta">03 oct 2026 &middot; 4 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
       </header>
       <div class="post__cuerpo"><h1>Kagemusha — Fase 5: generalización y aridad</h1>
-<p>En la <a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4</a> hicimos <strong>una</strong> syscall indirecta (<code>NtClose</code>). Pero un sistema con una sola syscall no sirve para nada. La Fase 5 responde a la pregunta incómoda: <strong>¿la técnica escala?</strong> Y añade un segundo reto: la <strong>aridad</strong> (el número de argumentos), porque no es lo mismo una función sin argumentos que una con seis.</p>
-<h2>El objetivo</h2>
-<p>Ejecutar un <strong>catálogo de 8 syscalls</strong> con <strong>un único template ASM</strong>. Es decir: en vez de escribir a mano cada stub, definir <strong>una macro</strong> y que cada syscall del catálogo se convierta en un <code>PROC</code> a partir de la misma plantilla. Añadir una función nueva debería ser <strong>una línea</strong>.</p>
-<h2>La implementación</h2>
-<h3>La macro <code>KAGE_STUB</code></h3>
-<pre><code class="lang-asm">; Un unico template fuente, instanciado por cada slot del catalogo
-KAGE_STUB MACRO name, slot
-name PROC
-    mov  r10, rcx
-    mov  eax, DWORD PTR [g_SsnTable + slot*4]     ; SSN de este slot
-    jmp  QWORD PTR [g_GadgetTable + slot*8]        ; gadget de este slot
-name ENDP
-ENDM</code></pre>
-<p>Cada syscall del catálogo genera un <code>PROC</code> que <strong>solo cambia el <code>slot</code></strong> (el desplazamiento a las tablas). El patrón es idéntico; lo que varía es de dónde lee el SSN y el gadget.</p>
-<h3>El catálogo (8 syscalls)</h3>
-<p>Elegidas para cubrir <strong>distintas aridades</strong> y casos interesantes:</p>
-<table><thead><tr><th>Slot</th><th>Syscall</th><th>Aridad</th><th>Nota</th></tr></thead><tbody><tr><td>0</td><td><code>NtClose</code></td><td>1</td><td>la de la Fase 4</td></tr><tr><td>1</td><td><code>NtQuerySystemInformation</code></td><td>4</td><td>consulta de sistema</td></tr><tr><td>2</td><td><code>NtQueryInformationProcess</code></td><td>5</td><td><strong>arg 5 en la pila</strong></td></tr><tr><td>3</td><td><code>NtAllocateVirtualMemory</code></td><td>6</td><td><strong>args en la pila</strong></td></tr><tr><td>4</td><td><code>NtFreeVirtualMemory</code></td><td>4</td><td>round-trip con 3</td></tr><tr><td>5</td><td><code>NtProtectVirtualMemory</code></td><td>5</td><td>round-trip con 3/4</td></tr><tr><td>6</td><td><code>NtQuerySystemTime</code></td><td>1</td><td>export especial (ver hallazgo)</td></tr><tr><td>7</td><td><code>NtYieldExecution</code></td><td>0</td><td><strong>sin argumentos</strong></td></tr></tbody></table>
-<h3>Los wrappers y las tablas</h3>
-<p><code>src/core/core.c</code> define el catálogo (<strong>el orden define los slots</strong>) e <code>KageInitialize</code> transaccional rellena <code>g_SsnTable</code> y <code>g_GadgetTable</code>. <code>src/wrappers/wrappers.c</code> expone 8 wrappers tipados: <code>NtClose_I</code>, <code>NtQuerySystemInformation_I</code>, … con el sufijo <code>_I</code> (<em>indirect</em>) para no colisionar con los prototipos de <code>ntdll</code>.</p>
-<h2>El corazón de la Fase 5: la aridad</h2>
+<p>Esta entrada documenta la <strong>Fase 5 (M5)</strong> tal como está registrada en el <code>README.md</code>, en <code>docs/research/experimentos-fase5.md</code> y en <code>docs/evidencias/m5.txt</code>.</p>
+<blockquote><p>Del README: <em>"Objetivo. Ejecutar un catálogo de syscalls con un único template ASM (macro propio)."</em></p></blockquote>
 <p><img src="../assets/diag-aridad.svg" alt="Diagrama: aridad y el jmp tail-call" loading="lazy"></p>
-<p>Aquí está la razón por la que un <strong>solo</strong> template sirve para cualquier número de argumentos.</p>
-<p>En x64 Windows, los primeros <strong>4 argumentos</strong> van en registros (<code>RCX</code>, <code>RDX</code>, <code>R8</code>, <code>R9</code>), pero del <strong>5.º en adelante viajan en la pila del llamador</strong>. Un trampolín "genérico" que recopilara y reubicara esos argumentos sería frágil. En cambio, nuestro stub termina en <strong><code>jmp</code></strong> (un <em>tail call</em>): <strong>no toca la pila</strong> y <strong>preserva la dirección de retorno</strong>.</p>
-<p>Consecuencia: cuando el gadget de <code>ntdll</code> hace <code>ret</code>, la pila sigue <strong>exactamente</strong> como la dejó el wrapper. Por tanto, los argumentos 5+ que viajen en la pila <strong>llegan intactos al kernel</strong>, sin que el stub tenga que saber cuántos son.</p>
-<blockquote><p>Esto es exactamente el patrón que usan las librerías de referencia (SysWhispers) y es la solución <strong>mínima correcta</strong>: no hay que adaptar el stub a la aridad.</p></blockquote>
-<h2>Pruebas y experimentos</h2>
-<p>El test <strong>T12</strong> ejecuta las 8 syscalls y valida los <code>NTSTATUS</code> (incluyendo casos negativos). Pero para no quedarnos cortos, añadimos <strong>15 experimentos dedicados</strong> (T18). Algunos:</p>
-<ul><li>Resolución del catálogo e igualdad de las 8 entradas de <code>g_SsnTable</code> con el resolver.</li><li>El bloque ASM contiene <strong>≥ 8 stubs</strong>.</li><li><strong>Aridad 0</strong> (<code>NtYieldExecution</code>), <strong>1</strong> (<code>NtClose</code>), <strong>4</strong>, <strong>5</strong> y <strong>6</strong> — cada una ejecutada.</li><li><strong>Round-trip</strong> <code>NtProtectVirtualMemory</code> + <code>NtFreeVirtualMemory</code> sobre memoria real.</li><li>Caso negativo: clase de información inválida → <code>STATUS_INVALID_INFO_CLASS</code>.</li></ul>
-<p>Los 15 en verde. La <strong>aridad 5</strong> (<code>NtQueryInformationProcess</code>) y la <strong>6</strong> (<code>NtAllocateVirtualMemory</code>) confirman que los argumentos en la pila llegan bien.</p>
+<hr>
+<h2>Implementación (según el README)</h2>
+<ul><li><code>src/asm/syscalls.asm</code>: macro <code>KAGE_STUB name, slot</code> → un <code>PROC</code> por slot con</li></ul>
+<p><code>mov r10,rcx; mov eax,[g_SsnTable+slot*4]; jmp [g_GadgetTable+slot*8]</code>.</p>
+<ul><li><code>src/core/core.c</code>: catálogo de 8 syscalls (el orden define los slots) + <code>KageInitialize</code></li></ul>
+<p>transaccional.</p>
+<ul><li><code>src/wrappers/wrappers.c</code> + <code>include/kage/wrappers.h</code>: 8 wrappers tipados <code>_I</code>.</li></ul>
+<h3>La macro (del plan de arquitectura)</h3>
+<pre><code class="lang-asm">KAGE_STUB MACRO name, slot
+name PROC
+    mov  r10, rcx
+    mov  eax, DWORD PTR [g_SsnTable + slot*4]
+    jmp  QWORD PTR [g_GadgetTable + slot*8]
+name ENDP
+ENDM</code></pre>
+<p>Del plan: <em>"El ASM <strong>nunca</strong> contiene el SSN literal ni el <code>0F 05</code>: solo lee las tablas del core."</em></p>
+<h3>El catálogo (8 syscalls, del README)</h3>
+<p><code>NtClose</code>, <code>NtQuerySystemInformation</code>, <code>NtQueryInformationProcess</code>, <code>NtAllocateVirtualMemory</code>, <code>NtFreeVirtualMemory</code>, <code>NtProtectVirtualMemory</code>, <code>NtQuerySystemTime</code>, <code>NtYieldExecution</code>.</p>
+<h3>Por qué un solo macro sirve para cualquier aridad (del README)</h3>
+<blockquote><p><em>"El <code>jmp</code> final es un tail-call: preserva pila y dirección de retorno, así que los argumentos 5+ (que viajan en la pila) llegan intactos al kernel. Verificado con <code>NtAllocateVirtualMemory</code> (6 argumentos)."</em></p></blockquote>
+<hr>
+<h2>Pruebas y experimentos (del README y <code>experimentos-fase5.md</code>)</h2>
+<p>Del README: <em>"T12 ejecuta los 8 y valida NTSTATUS (+ negativos). Además, 15 experimentos dedicados (T18)."</em></p>
+<p>Los 15 experimentos (de <code>docs/research/experimentos-fase5.md</code>):</p>
+<table><thead><tr><th>#</th><th>Experimento</th><th>Resultado</th></tr></thead><tbody><tr><td>1</td><td><code>KageInitialize()</code> resuelve el catálogo</td><td>✅ <code>KAGE_OK</code></td></tr><tr><td>2</td><td>Las 8 entradas de <code>g_SsnTable</code> quedan pobladas</td><td>✅</td></tr><tr><td>3</td><td>Los 8 gadgets son <code>0F 05 C3</code></td><td>✅</td></tr><tr><td>4</td><td><code>g_SsnTable[slot 0]</code> coincide con el resolver</td><td>✅</td></tr><tr><td>5</td><td>Las 8 entradas de tabla coinciden con el resolver</td><td>✅</td></tr><tr><td>6</td><td>SSN == SSN del stub real (por slot con stub real)</td><td>✅ 7/8 (ver Hallazgo)</td></tr><tr><td>7</td><td>El bloque ASM contiene ≥ 8 stubs</td><td>✅</td></tr><tr><td>8</td><td>Aridad 0 — <code>NtYieldExecution</code></td><td>✅</td></tr><tr><td>9</td><td>Aridad 1 — <code>NtClose</code></td><td>✅</td></tr><tr><td>10</td><td>Aridad 4 — <code>NtQuerySystemInformation</code></td><td>✅</td></tr><tr><td>11</td><td>Aridad 5 — <code>NtQueryInformationProcess</code></td><td>✅</td></tr><tr><td>12</td><td>Aridad 6 — <code>NtAllocateVirtualMemory</code></td><td>✅</td></tr><tr><td>13</td><td>Round-trip <code>protect</code> + <code>free</code></td><td>✅</td></tr><tr><td>14</td><td>Caso negativo: clase inválida → <code>STATUS_INVALID_INFO_CLASS</code></td><td>✅</td></tr><tr><td>15</td><td><code>NtQuerySystemTime</code> monótono creciente (2 lecturas)</td><td>✅</td></tr></tbody></table>
+<hr>
 <h2>Hallazgo: un slot del catálogo no es un stub de syscall</h2>
-<p>Aquí salió algo interesante. <code>NtQuerySystemTime</code> <strong>no</strong> se exporta como un stub de syscall. En su lugar es un <code>jmp</code> a otra función de <code>ntdll</code>:</p>
-<pre><code class="lang-text">NtQuerySystemTime:  jmp ntdll!RtlQuerySystemTime   ; implementado en user-mode
-NtGetTickCount:     jmp ...                        ; tampoco es syscall</code></pre>
-<p>Es decir: no tiene el prólogo <code>4C 8B D1 B8</code> de los stubs reales. Entonces, ¿FreshyCalls falla? <strong>No.</strong> FreshyCalls lo <strong>cuenta</strong> igual (por su posición en el orden de exports) y le asigna un SSN; y <strong>la ejecución indirecta funciona</strong>: el experimento 15 lee el tiempo dos veces y comprueba que es <strong>válido y monótono creciente</strong>.</p>
-<table><thead><tr><th>Métrica</th><th>Resultado</th></tr></thead><tbody><tr><td>SSN del catálogo vs stub real</td><td><strong>7/8</strong> (los que <em>son</em> stubs)</td></tr><tr><td>Los 7 stubs coinciden al 100%</td><td>✅</td></tr><tr><td><code>NtQuerySystemTime</code> (no-stub) ejecuta correctamente</td><td>✅</td></tr></tbody></table>
-<blockquote><p>Lección: no todos los exports <code>Nt*</code> son stubs de syscall. FreshyCalls los tolera, pero hay que <strong>documentarlo</strong> (en la Fase 6 se cuantifica a nivel de todo <code>ntdll</code>).</p></blockquote>
-<h2>Evidencia (cdb)</h2>
-<pre><code class="lang-text">u Kagemusha!KageStubStart L6          ; mismo patron, distinto offset de tabla por slot
-  mov r10,rcx ; mov eax,[g_SsnTable+0x0] ; jmp [g_GadgetTable+0x0]
-  mov r10,rcx ; mov eax,[g_SsnTable+0x4] ; jmp [g_GadgetTable+0x8]
-
-bp Kagemusha!NtAllocateVirtualMemory_I ; g     (syscall de 6 argumentos)
-? poi(Kagemusha!g_GadgetTable+18) = 00007ffc`485410c2
-eax=18  rip=00007ffc485410c2                   ; SSN correcto; RIP dentro de ntdll</code></pre>
-<h3>Nota de seguridad (para scripts de cdb)</h3>
-<p><code>NtClose(handle inválido)</code> genera una <strong>excepción first-chance</strong> <code>c0000008</code> que <code>ntdll</code> maneja internamente. Los scripts de <code>cdb</code> deben <strong>ignorarla</strong> con <code>sxi c0000008</code>, o el script se detiene. Lo dejamos documentado para el futuro.</p>
-<h2>Qué aprendimos</h2>
-<ul><li><strong>Un template, muchas funciones.</strong> La macro elimina la repetición y garantiza consistencia.</li><li><strong>El <code>jmp</code> es la clave de la aridad.</strong> No hay que adaptar el stub a 0, 4 o 6 argumentos.</li><li><strong>No todos los <code>Nt*</code> son syscalls.</strong> Los <code>jmp Rtl*</code> existen y hay que tratarlos con cuidado.</li><li><strong>Probar la aridad importa.</strong> Una técnica que "funciona" con 1 argumento puede fallar con 6</li></ul>
-<p>si se equivoca el manejo de la pila.</p>
-<p>Con 8 syscalls, distintas aridades y 15 experimentos en verde, el sistema ya no es una prueba de concepto: es un <strong>catálogo</strong>. El siguiente reto es la <strong>robustez frente a hooks</strong>: qué pasa si un EDR modifica un stub. Eso es la Fase 6.</p>
+<p>De <code>docs/research/experimentos-fase5.md</code>:</p>
+<blockquote><p><em>"<code>NtQuerySystemTime</code> se exporta como <code>jmp ntdll!RtlQuerySystemTime</code> (implementación en user-mode), no como stub <code>4C 8B D1 B8</code>. Por eso el experimento 6 compara 7/8 stubs. Sin embargo, FreshyCalls le asigna igualmente un SSN por su posición en el orden de exports, y la ejecución indirecta funciona (experimento 15: devuelve tiempo válido y monótono)."</em></p></blockquote>
+<p>Nota del mismo documento: <em>"El <code>jmp</code> final del trampolín garantiza que las aridades 5 y 6 (argumentos en la pila) lleguen intactas al kernel; verificado con <code>NtQueryInformationProcess</code> (5) y <code>NtAllocateVirtualMemory</code> (6)."</em></p>
+<hr>
+<h2>Evidencia (<code>docs/evidencias/m5.txt</code>, extracto real)</h2>
+<pre><code class="lang-text">0:000&gt; sxi c0000008
+0:000&gt; u Kagemusha!KageStubStart L6
+Kagemusha!KageStubStart:
+00007ff7`3d5931b0 4c8bd1          mov     r10,rcx
+00007ff7`3d5931b3 8b05e7b70800    mov     eax,dword ptr [Kagemusha!g_SsnTable (00007ff7`3d61e9a0)]
+00007ff7`3d5931b9 ff25e1b60800    jmp     qword ptr [Kagemusha!g_GadgetTable (00007ff7`3d61e8a0)]
+Kagemusha!KageNtQuerySystemInformationStub:
+00007ff7`3d5931bf 4c8bd1          mov     r10,rcx
+00007ff7`3d5931c2 8b05dcb70800    mov     eax,dword ptr [Kagemusha!g_SsnTable+0x4 (00007ff7`3d61e9a4)]
+00007ff7`3d5931c8 ff25dab60800    jmp     qword ptr [Kagemusha!g_GadgetTable+0x8 (00007ff7`3d61e8a8)]
+0:000&gt; bp Kagemusha!NtAllocateVirtualMemory_I
+0:000&gt; g
+Breakpoint 0 hit
+Kagemusha!NtAllocateVirtualMemory_I:
+00007ff7`3d5930a0 4c894c2420      mov     qword ptr [rsp+20h],r9 ss:0000006c`80aff8a8=0000000000000000
+0:000&gt; ? poi(Kagemusha!g_GadgetTable+18)
+Evaluate expression: 140721521955010 = 00007ffc`485410c2
+0:000&gt; bp poi(Kagemusha!g_GadgetTable+18)
+0:000&gt; g
+Breakpoint 1 hit
+ntdll!NtAllocateVirtualMemory+0x12:
+00007ffc`485410c2 0f05            syscall
+0:000&gt; r eax
+eax=18
+0:000&gt; r rip
+rip=00007ffc485410c2</code></pre>
+<p>Se observa el <strong>mismo patrón con distinto offset de tabla por slot</strong> (<code>+0x0</code>, <code>+0x4</code>, <code>+0x8</code>) y, para <code>NtAllocateVirtualMemory</code> (6 argumentos), el SSN <code>0x18</code> con el <code>RIP</code> dentro de <code>ntdll</code>.</p>
+<hr>
+<h2>Hallazgo (debugger), del README</h2>
+<blockquote><p><em>"<code>NtClose(handle inválido)</code> genera una excepción first-chance <code>c0000008</code> que ntdll maneja; para scripts de cdb hay que ignorarla (<code>sxi c0000008</code>)."</em></p></blockquote>
+<p>Por eso el transcript <code>m5.txt</code> empieza con <code>sxi c0000008</code>.</p>
+<hr>
+<h2>Reproducir (del README)</h2>
+<pre><code class="lang-text">tools\build.cmd
+bin\Kagemusha_tests.exe
+bin\Kagemusha.exe --dump
+cdbX64 -cf tools\cdb_scripts\m5_catalog.txt -logo docs\evidencias\m5.txt bin\Kagemusha.exe</code></pre>
+<hr>
 <h2>Cómo sigue la serie</h2>
-<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><strong>Fase 5: generalización y aridad</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol>
-<h2>El catálogo: por qué esas 8</h2>
-<p>Elegimos las 8 syscalls para que el catálogo <strong>ejercite todos los casos</strong> que pueden romper un sistema de trampolines:</p>
-<ul><li><strong>Aridad 0</strong> (<code>NtYieldExecution</code>): sin argumentos. Si algo fallara con la pila, aquí quizá no</li></ul>
-<p>se note; sirve de control.</p>
-<ul><li><strong>Aridad 1</strong> (<code>NtClose</code>): el caso "fácil", ya probado en la Fase 4.</li><li><strong>Aridad 4</strong> (<code>NtQuerySystemInformation</code>, <code>NtFreeVirtualMemory</code>): el límite de los registros.</li><li><strong>Aridad 5</strong> (<code>NtQueryInformationProcess</code>, <code>NtProtectVirtualMemory</code>): **el 5.º argumento ya va</li></ul>
-<p>en la pila**; aquí se prueba que el <code>jmp</code> lo deja intacto.</p>
-<ul><li><strong>Aridad 6</strong> (<code>NtAllocateVirtualMemory</code>): <strong>el 6.º también en la pila</strong>.</li><li><strong>Caso especial</strong> (<code>NtQuerySystemTime</code>): un export <code>Nt*</code> que <strong>no es</strong> un stub de syscall.</li></ul>
-<p>Además, <code>NtProtectVirtualMemory</code> + <code>NtFreeVirtualMemory</code> forman un <strong>round-trip</strong> natural: reservar/proteger y luego liberar memoria real, comprobando que el efecto llega al kernel.</p>
-<hr>
-<h2>El contrato de la macro</h2>
-<pre><code class="lang-asm">KAGE_STUB MACRO name, slot
-name PROC
-    mov  r10, rcx
-    mov  eax, DWORD PTR [g_SsnTable + slot*4]
-    jmp  QWORD PTR [g_GadgetTable + slot*8]
-name ENDP
-ENDM</code></pre>
-<p>El contrato es estricto y simple:</p>
-<ul><li><strong><code>name</code></strong> genera el símbolo del <code>PROC</code> (p. ej. <code>NtAllocateVirtualMemory</code>).</li><li><strong><code>slot</code></strong> fija el desplazamiento en las <strong>dos</strong> tablas (SSN y gadget). El mismo slot debe</li></ul>
-<p>alinear ambas: <code>g_SsnTable + slot*4</code> (WORD) y <code>g_GadgetTable + slot*8</code> (QLWORD).</p>
-<ul><li>El ASM <strong>no</strong> conoce el SSN ni el gadget: los <strong>lee</strong> de las tablas. Por eso añadir una syscall</li></ul>
-<p>es "una línea en el registro" y <strong>no</strong> tocar el ASM a mano.</p>
-<blockquote><p>Esta es la diferencia entre 8 stubs copiados y un <strong>sistema</strong>: el registro es la fuente única, la macro es el molde, y las tablas son el estado en runtime.</p></blockquote>
-<hr>
-<h2>Los 15 experimentos, en detalle</h2>
-<p>Los 15 experimentos de la Fase 5 no son "pruebas de humo"; cada uno ataca una suposición:</p>
-<ol><li><code>KageInitialize()</code> resuelve el catálogo entero (init transaccional).</li><li>Las <strong>8 entradas</strong> de <code>g_SsnTable</code> quedan pobladas (no vacías).</li><li>Los <strong>8 gadgets</strong> son <code>0F 05 C3</code> (validados).</li><li><code>g_SsnTable[slot 0]</code> coincide con el resolver (consistencia interna).</li><li>Las 8 entradas coinciden con el resolver (consistencia global).</li><li>SSN == SSN del stub real <strong>por slot con stub real</strong> (oráculo externo; 7/8 por el hallazgo).</li><li>El bloque ASM contiene <strong>≥ 8 stubs</strong> (la macro generó lo esperado).</li><li><strong>Aridad 0</strong> — <code>NtYieldExecution</code>.</li><li><strong>Aridad 1</strong> — <code>NtClose</code>.</li><li><strong>Aridad 4</strong> — <code>NtQuerySystemInformation</code>.</li><li><strong>Aridad 5</strong> — <code>NtQueryInformationProcess</code> (arg en pila).</li><li><strong>Aridad 6</strong> — <code>NtAllocateVirtualMemory</code> (args en pila).</li><li><strong>Round-trip</strong> <code>protect</code> + <code>free</code> sobre memoria real.</li><li>Caso <strong>negativo</strong>: clase inválida → <code>STATUS_INVALID_INFO_CLASS</code>.</li><li><code>NtQuerySystemTime</code> <strong>monótono creciente</strong> (dos lecturas coherentes).</li></ol>
-<p>La combinación de <strong>positivos</strong>, <strong>negativos</strong>, <strong>aridades extremas</strong> y <strong>oráculos</strong> es lo que convierte "funciona" en "está verificado".</p>
-<hr>
-<h2>Errores comunes (Fase 5)</h2>
-<ul><li><strong>Desalinear slot y tabla</strong>: un <code>slot*4</code> vs <code>slot*8</code> mal puesto lee basura como SSN/gadget.</li><li><strong>Asumir que todos los <code>Nt*</code> son stubs</strong>: <code>NtQuerySystemTime</code> te lo desmiente.</li><li><strong>Probar solo aridad 1</strong>: el bug de la pila aparece con 5+ argumentos.</li><li><strong>No incluir casos negativos</strong>: sin un "debe fallar", no sabes si valida o solo "no crashea".</li></ul>
-<hr>
-<h2>🧪 Experimenta tú — mira el catálogo</h2>
-<p><em>(Nivel 🟡. Con el proyecto compilado.)</em></p>
-<p>Ejecuta la suite y observa cómo pasan los 15 experimentos del catálogo:</p>
-<pre><code class="lang-text">bin\Kagemusha_tests.exe</code></pre>
-<p>Y, con la Fase 7 ya implementada, puedes <strong>ver la tabla</strong> sin debugger:</p>
-<pre><code class="lang-text">bin\Kagemusha.exe --dump</code></pre>
-<p><strong>Qué deberías ver</strong> (resumido):</p>
-<pre><code class="lang-text">[0] NtClose                    SSN=0x00F gadget=00007FFC48540FA2
-[1] NtQuerySystemInformation   SSN=0x036 gadget=00007FFC48541482
-[3] NtAllocateVirtualMemory    SSN=0x018 gadget=00007FFC485410C2
-...</code></pre>
-<p>Esa tabla es el <strong>estado en runtime</strong> de todo el sistema: el SSN que resolvió FreshyCalls y el gadget que se usará para cada función. Añadir una syscall nueva = una línea en el registro y re-ejecutar.</p>
-<blockquote><p><strong>Mini-reto:</strong> compara dos builds distintas (o dos máquinas) y observa que los <strong>SSN cambian</strong> pero el mecanismo no. Esa es la razón de resolverlo en runtime.</p></blockquote>
-<hr>
-<h2>El día que un <code>Nt*</code> me tomó el pelo</h2>
-<p>Cuando amplié el catálogo, uno de los 8 fallaba el experimento 6 ("SSN == SSN del stub real"). Resultó que <strong><code>NtQuerySystemTime</code> no es un stub de syscall</strong>: se exporta como un <code>jmp</code> a <code>RtlQuerySystemTime</code>, una implementación en user-mode. O sea, <strong>no tiene</strong> el prólogo <code>4C 8B D1 B8</code> de los stubs reales.</p>
-<p>Lo interesante: <strong>FreshyCalls le asigna un SSN correcto igualmente</strong> (por su posición en el orden de exports), y la ejecución indirecta <strong>funciona</strong> (devuelve tiempo válido y monótono). Es decir, la técnica tolera este caso… pero conviene <strong>saberlo y documentarlo</strong>. En la Fase 6 se cuantificó: de 490 exports <code>Nt*</code>, <strong>488 son stubs reales y 2 no</strong>.</p>
-<hr>
-<h2>Qué cubre (y qué no) este catálogo</h2>
-<p><strong>Cubre:</strong> varias aridades (0, 1, 4, 5, 6), un caso especial (<code>NtQuerySystemTime</code>), un <em>round-trip</em> de memoria (<code>protect</code> + <code>free</code>) y negativos (clase inválida). Con eso, cualquier error de paso de argumentos o de tabla saldría a la luz.</p>
-<p><strong>No cubre:</strong> todas las formas de la API ni todas las builds de Windows. La Fase 6 ataca hooks; la Fase 7 añade herramientas; la Fase 8 mide detección. Cada fase <strong>no</strong> pretende ser el final, sino un <strong>escalón con su prueba</strong>.</p>
-<hr>
-<h2>Fondo: leer los <code>NTSTATUS</code> como un investigador</h2>
-<p>Cuando ejecutas el catálogo, verás códigos. Reconocerlos rápido ahorra tiempo:</p>
-<table><thead><tr><th>Código</th><th>Significado</th><th>Cuándo aparece</th></tr></thead><tbody><tr><td><code>0x00000000</code></td><td><code>STATUS_SUCCESS</code></td><td>la llamada funcionó</td></tr><tr><td><code>0xC0000008</code></td><td><code>STATUS_INVALID_HANDLE</code></td><td>cerramos algo que no existía</td></tr><tr><td><code>0xC0000003</code></td><td><code>STATUS_INVALID_INFO_CLASS</code></td><td>pedimos una clase inválida</td></tr><tr><td><code>0xC000000D</code></td><td><code>STATUS_INVALID_PARAMETER</code></td><td>un argumento no cuadra</td></tr><tr><td><code>0xC0000017</code></td><td><code>STATUS_NO_MEMORY</code></td><td>asignación imposible</td></tr></tbody></table>
-<p>Que un <em>negativo</em> devuelva el <strong>mismo</strong> <code>NTSTATUS</code> que la función nativa de <code>ntdll</code> no es un detalle: es una <strong>prueba diferencial</strong> (la usaremos a fondo en la Fase 7).</p>
-<hr>
-<h2>El catálogo, función por función</h2>
-<pre><code class="lang-text">slot  syscall                     aridad   por que esta
-----  --------------------------  -------  ------------------------------------------
-  0   NtClose                        1      el caso de la Fase 4
-  1   NtQuerySystemInformation       4      consulta de sistema (registros)
-  2   NtQueryInformationProcess      5      5.o argumento EN LA PILA
-  3   NtAllocateVirtualMemory       6      args en la pila (reserva real de memoria)
-  4   NtFreeVirtualMemory           4      round-trip con 3
-  5   NtProtectVirtualMemory        5      round-trip con 3/4 (cambia permisos)
-  6   NtQuerySystemTime             1      export ESPECIAL (no es stub, ver abajo)
-  7   NtYieldExecution              0      sin argumentos (control)</code></pre>
-<p>La elección <strong>no</strong> es aleatoria: cada aridad (0, 1, 4, 5, 6) ejercita un camino distinto del paso de argumentos. La aridad 5 y 6 son las importantes: <strong>el 5.º argumento ya no cabe en registros</strong> y viaja por la pila.</p>
-<hr>
-<h2>El contrato de la macro (<code>KAGE_STUB</code>)</h2>
-<pre><code class="lang-asm">KAGE_STUB MACRO name, slot
-name PROC
-    mov  r10, rcx
-    mov  eax, DWORD PTR [g_SsnTable + slot*4]
-    jmp  QWORD PTR [g_GadgetTable + slot*8]
-name ENDP
-ENDM</code></pre>
-<p>Reglas del contrato:</p>
-<ul><li><strong>Un slot alinea dos tablas:</strong> <code>g_SsnTable + slot*4</code> (WORD) y <code>g_GadgetTable + slot*8</code> (QLWORD).</li></ul>
-<p>Un fallo de escala (<code>*4</code> vs <code>*8</code>) lee basura y ejecutaría <strong>otra</strong> syscall.</p>
-<ul><li>El ASM <strong>no conoce</strong> el SSN ni el gadget: los <strong>lee</strong> de las tablas (que rellena el core en</li></ul>
-<p>runtime). Por eso añadir una función es "una línea en el registro".</p>
-<ul><li>El bloque queda delimitado por <code>KageStubStart</code>/<code>KageStubEnd</code>, para poder **inspeccionarlo por</li></ul>
-<p>símbolo** en <code>cdb</code>.</p>
-<hr>
-<h2>Los 15 experimentos, por qué cada uno</h2>
-<p>No son pruebas de humo; cada uno ataca una suposición distinta:</p>
-<ul><li><strong>Resolución y tablas (1–5, 7):</strong> que el catálogo entero se resuelva, que las 8 entradas de</li></ul>
-<p><code>g_SsnTable</code> queden pobladas, que los 8 gadgets sean <code>0F 05 C3</code>, y que el bloque ASM contenga <strong>≥ 8 stubs</strong>. Si el resolver o la macro fallaran, aquí se ve.</p>
-<ul><li><strong>Consistencia con el oráculo (6):</strong> <code>SSN == SSN del stub real</code> por slot. Da 7/8 por el caso</li></ul>
-<p>especial (ver abajo).</p>
-<ul><li><strong>Aridades (8–12):</strong> ejecutar 0, 1, 4, 5 y 6 argumentos. La 5 y la 6 verifican que los</li></ul>
-<p>argumentos en la pila llegan al kernel.</p>
-<ul><li><strong>Round-trip (13):</strong> <code>NtProtectVirtualMemory</code> + <code>NtFreeVirtualMemory</code> sobre memoria <strong>real</strong>.</li><li><strong>Negativo (14):</strong> clase inválida → <code>STATUS_INVALID_INFO_CLASS</code>. Saber que <strong>falla bien</strong> es tan</li></ul>
-<p>importante como saber que acierta.</p>
-<ul><li><strong>Caso especial (15):</strong> <code>NtQuerySystemTime</code> devuelve tiempo <strong>válido y monótono</strong>.</li></ul>
-<blockquote><p>La combinación de <strong>positivos + negativos + aridades extremas</strong> es lo que convierte "funciona" en "está verificado".</p></blockquote>
-<hr>
-<h2>El caso <code>NtQuerySystemTime</code>: no todos los <code>Nt*</code> son syscalls</h2>
-<p>Uno de los 8 no tiene el prólogo de stub (<code>4C 8B D1 B8</code>). <code>NtQuerySystemTime</code> se exporta como un <code>jmp</code> a <code>ntdll!RtlQuerySystemTime</code> (implementación en user-mode). Por eso el experimento 6 compara <strong>7/8</strong> stubs.</p>
-<p>Lo bonito: <strong>FreshyCalls le asigna un SSN igualmente</strong> (por su posición en el orden de exports) y la ejecución indirecta <strong>funciona</strong>. Es decir, la técnica <strong>tolera</strong> este caso. Documentarlo es clave: en la Fase 6 se cuantificó a nivel de todo <code>ntdll</code> (<strong>488/490</strong> son stubs reales).</p>
-<hr>
-<h2>Nota de seguridad para scripts de <code>cdb</code></h2>
-<p><code>NtClose(handle inválido)</code> genera una <strong>excepción first-chance</strong> <code>c0000008</code> que <code>ntdll</code> maneja internamente. En scripts de <code>cdb</code> hay que <strong>ignorarla</strong> (<code>sxi c0000008</code>) o el script se detiene en una excepción que, en realidad, el sistema ya resolvió. Pequeño detalle, gran ahorro de tiempo.</p>
-<hr>
-<h2>Añadir una syscall nueva, paso a paso</h2>
-<p>Uno de los objetivos de la Fase 5 era que escalar fuera <strong>trivial</strong>. El procedimiento:</p>
-<ol><li>Añadir <strong>una línea</strong> al registro del core (nombre + slot).</li><li>Regenerar (la macro <code>KAGE_STUB</code> crea el <code>PROC</code> por ti).</li><li>Añadir el <strong>wrapper tipado</strong> <code>_I</code> correspondiente.</li><li>Añadir un test.</li></ol>
-<p>Nada de copiar/pegar stubs ni de tocar el ASM a mano. El registro es la <strong>fuente única</strong>; el molde, la macro. Esa es la diferencia entre "8 funciones" y un <strong>sistema</strong>.</p>
-<hr>
-<h2>La aridad, con la pila a la vista</h2>
-<pre><code class="lang-text">Aridad 0:  (sin argumentos)                 -&gt; nada en pila
-Aridad 1:  RCX (-&gt;R10)                       -&gt; nada en pila
-Aridad 4:  RCX, RDX, R8, R9                  -&gt; nada en pila
-Aridad 5:  RCX, RDX, R8, R9 + [rsp+0x20]     -&gt; 5.o EN PILA
-Aridad 6:  RCX, RDX, R8, R9 + [rsp+0x20..28]-&gt; 5.o y 6.o EN PILA</code></pre>
-<p>Como el <code>jmp</code> no toca la pila, las aridades 5 y 6 funcionan <strong>sin cambiar el stub</strong>. Ese es el motivo de probar justamente esas aridades: si algo estuviera mal en el manejo de la pila, aquí aparecería.</p>
-<hr>
-<h2>Preguntas frecuentes (Fase 5)</h2>
-<p><strong>¿Qué pasa si me equivoco de <code>slot</code>?</strong> Leerías el SSN o el gadget de otra entrada → ejecutarías <strong>otra</strong> función. Por eso el test 4/5 comprueba consistencia por slot.</p>
-<p><strong>¿Por qué <code>NtQuerySystemTime</code> no falla aunque no sea stub?</strong> FreshyCalls lo resuelve por orden de exports; la ejecución indirecta no depende de que el export sea un stub.</p>
-<p><strong>¿El catálogo cubre todo?</strong> No; cubre aridades y casos representativos. Crecer es "una línea por función".</p>
-<hr>
-<h2>El precio de generalizar (y por qué el <code>jmp</code> lo minimiza)</h2>
-<p>Generalizar tiene un coste: cuanto más amplio el catálogo, más combinaciones de argumentos. La decisión de diseño que lo abarata es el <strong><code>jmp</code></strong>: como no toca la pila, <strong>un mismo stub</strong> sirve para cualquier aridad. Sin eso, tendrías que generar (o mantener a mano) un stub por aridad, con más superficie de error.</p>
-<p>Con la macro, el coste de añadir una función es <strong>constante y pequeño</strong>: una línea de registro + un wrapper + un test. Eso es lo que hace <strong>sostenible</strong> crecer.</p>
-<hr>
-<h2>Matriz: qué fallo detecta cada aridad</h2>
-<table><thead><tr><th>Aridad probada</th><th>Qué fallo expone si estuviera mal</th></tr></thead><tbody><tr><td>0</td><td>Confusión de registros/pila (control)</td></tr><tr><td>1</td><td><code>mov r10, rcx</code> y SSN básicos</td></tr><tr><td>4</td><td>Uso de <code>R8</code>/<code>R9</code> (los últimos en registros)</td></tr><tr><td>5</td><td>Paso del <strong>5.º</strong> argumento por la pila</td></tr><tr><td>6</td><td>Paso del <strong>6.º</strong> argumento por la pila</td></tr><tr><td>Round-trip</td><td>Coherencia de efectos reales (memoria)</td></tr><tr><td>Negativo</td><td>Que <strong>falla bien</strong> (no solo que acierta)</td></tr></tbody></table>
-<p>Cada aridad no es "más de lo mismo": es una <strong>prueba focalizada</strong> de una suposición concreta.</p>
-<hr>
-<h2>Migrar el catálogo a otra build</h2>
-<p>Como los SSN se resuelven <strong>en runtime</strong>, migrar a otra build de Windows <strong>no</strong> requiere tocar el ASM ni el registro: solo volver a ejecutar. Lo que puede cambiar es <strong>cuántos</strong> exports <code>Nt*</code> hay y cuáles no son stubs (<code>NtQuerySystemTime</code>-like). Por eso la serie recomienda <strong>registrar la build</strong> en cada resultado y re-ejecutar la suite en cada entorno.</p>
-<hr>
-<h2>Cómo leer la salida de <code>--dump</code></h2>
-<pre><code class="lang-text">[0] NtClose                 SSN=0x00F gadget=00007FFC48540FA2
- ^   ^                        ^        ^
- |   |                        |        +-- direccion del gadget (validado en ntdll)
- |   |                        +----------- SSN resuelto por FreshyCalls
- |   +------------------------------------ nombre de la funcion
- +---------------------------------------- slot (indice en las tablas)</code></pre>
-<p>Cada campo importa: el <strong>slot</strong> define el orden y las tablas; el <strong>SSN</strong> viene del resolver; el <strong>gadget</strong> es lo que se ejecutará. Si vieras un <code>SSN=0x000</code> o un gadget sospechoso, sabrías que el init falló (y la suite lo habría detectado antes).</p>
-<hr>
-<h2>El catálogo y el ledger, juntos</h2>
-<p>Con el <strong>ledger</strong> (Fase 7) y el catálogo, tienes las dos vistas del sistema:</p>
-<ul><li><strong>Catálogo (<code>--dump</code>):</strong> qué <strong>puede</strong> hacer (la tabla estática de SSN y gadgets).</li><li><strong>Ledger (<code>--trace</code>):</strong> qué <strong>hizo</strong> (la lista de llamadas con resultado).</li></ul>
-<p>Comparar ambas es depurar: "esperaba <code>NtClose</code> y veo <code>NtYieldExecution</code>" te dice que el slot o el wrapper está mal.</p>
-<hr>
-<h2>Resumen ejecutivo de la Fase 5</h2>
-<ul><li><strong>Qué logramos:</strong> un <strong>catálogo de 8 syscalls</strong> de distinta aridad con <strong>un único template ASM</strong></li></ul>
-<p>(macro <code>KAGE_STUB</code>).</p>
-<ul><li><strong>Cómo se prueba:</strong> 15 experimentos (tablas, macro, aridades 0/1/4/5/6, round-trip, negativo) +</li></ul>
-<p>la evidencia en <code>cdb</code>.</p>
-<ul><li><strong>Hallazgo:</strong> <code>NtQuerySystemTime</code> no es un stub, pero FreshyCalls lo resuelve y la ejecución</li></ul>
-<p>indirecta funciona.</p>
-<ul><li><strong>Qué falta:</strong> robustez ante hooks (Fase 6).</li></ul>
-<h2>Referencia rápida: añadir y verificar una syscall</h2>
-<pre><code class="lang-text">1. registro del core:     una linea (nombre + slot)
-2. regenerar:             la macro KAGE_STUB crea el PROC
-3. wrapper tipado:        Nt..._I(...)
-4. test:                  positivo + negativo + aridad
-5. verificar:             bin\Kagemusha_tests.exe  (0 FAIL)
-                          bin\Kagemusha.exe --dump (ver la tabla)</code></pre>
-<h2>Cómo verificar la Fase 5 en 5 minutos</h2>
-<pre><code class="lang-text">bin\Kagemusha_tests.exe         :: 15 experimentos del catalogo + negativos
-bin\Kagemusha.exe --dump        :: la tabla slot / syscall / SSN / gadget
-bin\Kagemusha.exe --trace       :: una llamada por syscall, con su NTSTATUS</code></pre>
-<p>Si los tres salen coherentes (SSN que coinciden con la tabla, <code>NTSTATUS</code> esperados), la Fase 5 está sana. Si algo chirría, el <code>--dump</code> te dice <strong>qué</strong> entrada está mal.</p>
-<hr>
-<h2>Glosario de la Fase 5</h2>
-<table><thead><tr><th>Término</th><th>Significado en esta fase</th></tr></thead><tbody><tr><td><strong>Slot</strong></td><td>Índice de una syscall en las tablas (<code>g_SsnTable</code>/<code>g_GadgetTable</code>)</td></tr><tr><td><strong>Aridad</strong></td><td>Número de argumentos de una función (0, 1, 4, 5, 6…)</td></tr><tr><td><strong>Registro central</strong></td><td>La tabla del core que define qué syscalls existen y en qué orden</td></tr><tr><td><strong>Macro <code>KAGE_STUB</code></strong></td><td>Template ASM que genera un <code>PROC</code> por slot</td></tr><tr><td><strong>Wrapper <code>_I</code></strong></td><td>Función C tipada que llama al stub y devuelve el <code>NTSTATUS</code></td></tr><tr><td><strong>Round-trip</strong></td><td>Probar reservar+liberar (o proteger+liberar) sobre memoria real</td></tr><tr><td><strong>Caso negativo</strong></td><td>Comprobar que <strong>falla</strong> cuando debe (clase inválida)</td></tr><tr><td><strong>FreshyCalls</strong></td><td>Resolver SSN por orden de exports (sin leer el stub)</td></tr></tbody></table>
-<p>La lección de la Fase 5 es de <strong>ingeniería</strong>: generalizar no es "añadir funciones", es <strong>diseñar para que añadir funciones sea trivial y seguro</strong>. La macro y el registro lo consiguen.</p>
-<hr>
-<h2>Para profundizar en el repositorio</h2>
-<ul><li><code>tests/run_tests.c</code> (T12/T18): los 15 experimentos del catálogo.</li><li><code>src/asm/syscalls.asm</code>: la macro <code>KAGE_STUB</code> instanciada por slot.</li><li><code>src/core/core.c</code>: el registro y las tablas (<code>g_SsnTable</code>, <code>g_GadgetTable</code>).</li><li><code>src/wrappers/wrappers.c</code>: los 8 wrappers tipados.</li><li><code>docs/research/experimentos-fase5.md</code>: el detalle de los 15 experimentos.</li><li><code>docs/evidencias/m5.txt</code>: el transcript de <code>cdb</code>.</li><li><code>bin\Kagemusha.exe --dump</code>: la tabla viva, generada en runtime.</li></ul>
-<h2>Cierre de la fase</h2>
-<p>La Fase 5 convierte una prueba de concepto en un <strong>sistema</strong>: un template, un registro y ocho funciones verificadas. El valor no está en "ocho", sino en que <strong>la novena cuesta casi lo mismo que la octava</strong>. Esa propiedad —escalar sin dolor— es la que hace posibles las fases siguientes sin rehacer nada. Y el hallazgo del <code>Nt*</code> que no era stub recuerda que, en este terreno, <strong>siempre</strong> hay un caso raro esperando: mejor documentarlo que sorprenderse.</p>
-<hr>
-<h2>Nota final</h2>
-<p>Un catálogo se mantiene no por su tamaño, sino por su <strong>disciplina</strong>: cada función nueva pasa por las <strong>mismas</strong> pruebas que las ocho originales. Sin esa disciplina, "generalizar" se convierte en acumular deuda técnica. Aquí, el <strong>registro</strong> (una línea por syscall) y la <strong>macro</strong> (<code>KAGE_STUB</code>) son el contrato que evita que eso ocurra: el sistema crece, pero la superficie de confianza <strong>no</strong> se dispara. Y si un día el catálogo crece a 100 funciones, el contrato seguirá siendo el mismo: registro, macro y tests. La complejidad que <strong>no</strong> crece también es una forma de robustez.</p>
+<ol><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a></li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><strong>Fase 5: generalización y aridad</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-6-robustez.html">Fase 6: robustez, hooks y límites</a></li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol>
 <hr>
 <h2>Bibliografía y referencias</h2>
-<ul><li>Microsoft Learn — <em>x64 calling convention</em> (registros + pila: base de la aridad).</li><li>jthuraisamy — <em>SysWhispers</em> (<code>github.com/jthuraisamy/SysWhispers</code>): un stub por función.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Fuentes primarias: <code>docs/research/experimentos-fase5.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
+<ul><li>Fuentes primarias: <code>README.md</code>, <code>docs/research/experimentos-fase5.md</code>,</li></ul>
+<p><code>docs/evidencias/m5.txt</code>, <code>docs/plan-arquitectura-v1.md</code>, <code>src/asm/syscalls.asm</code>, <code>src/core/core.c</code>, <code>src/wrappers/wrappers.c</code>.</p>
+<ul><li>Microsoft Learn — <em>x64 calling convention</em>.</li></ul>
 <blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>

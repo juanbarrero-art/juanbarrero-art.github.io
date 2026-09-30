@@ -282,15 +282,6 @@ dps @rsp L4              ; pila: a donde apunta el retorno</code></pre>
 <h2>Errores comunes (resumen de las fases 0–3)</h2>
 <ul><li><strong>Sin PDB, sin evidencia.</strong> Los <code>bp</code> simbólicos fallan y no puedes verificar nada.</li><li><strong>Hash o filtro mal hechos</strong> desplazan el índice de SSN y <strong>todas</strong> las syscalls fallan.</li><li><strong>Ordenar mal por VA</strong> invalida el invariante de FreshyCalls.</li><li><strong>No validar el gadget</strong> (bytes + rango + no-hook) abre la puerta a crashes.</li><li><strong>Hardcodear SSN</strong> "porque ya lo sé" es la trampa clásica: rompe en la próxima build.</li><li><strong>No registrar la build</strong> hace irreproducible cualquier resultado.</li></ul>
 <hr>
-<h2>🧪 Experimenta tú — compila y mira los símbolos</h2>
-<p><em>(Nivel 🟡. Requiere VS Build Tools + <code>cdb</code>.)</em></p>
-<pre><code class="lang-text">tools\build.cmd                              :: compila (genera .exe + .pdb)
-bin\Kagemusha_tests.exe                      :: corre la suite (esperado: 0 FAIL)
-bin\Kagemusha.exe                            :: selftest M0..M5
-cdbX64 -cf tools\cdb_scripts\m1_exports.txt -logo docs\evidencias\m1.txt bin\Kagemusha.exe</code></pre>
-<p><strong>Qué deberías ver (m1):</strong> la dirección de <code>ntdll!NtClose</code> resuelta por nuestro PEB walk y la misma resuelta por el símbolo de Microsoft, <strong>idénticas</strong> (diferencia <code>0</code>). Esa igualdad es la prueba de la Fase 1.</p>
-<blockquote><p><strong>Mini-reto:</strong> cambia a propósito el hash de <code>NtClose</code> por otro y observa cómo el test <strong>falla</strong> (o resuelve un export equivocado). Ver el fallo es entender por qué el oráculo importa.</p></blockquote>
-<hr>
 <h2>Fondo: cómo es una cabecera PE (por qué leemos "a mano")</h2>
 <p>Para resolver exports sin <code>GetProcAddress</code>, hay que recorrer el archivo/DLL a bajo nivel. Un PE (Portable Executable) tiene capas:</p>
 <pre><code class="lang-text">+------------------+  &lt;- inicio

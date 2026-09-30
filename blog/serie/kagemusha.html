@@ -139,7 +139,7 @@
   <a class="entrada" href="../kagemusha-fase-4-ejecucion-indirecta.html">
     <p class="entrada__fecha">// 02 oct 2026</p>
     <h3 class="entrada__titulo">&quot;Kagemusha — Fase 4: ejecución indirecta real&quot;</h3>
-    <p class="entrada__resumen">El hito central. NtClose_I ejecuta el syscall dentro de ntdll, el módulo no contiene ninguna instrucción syscall, y tres experimentos de falsabilidad lo demuestran en el debugger.</p>
+    <p class="entrada__resumen">Documentación de la Fase 4 (M4) del repositorio Kagemusha: trampolín ASM, wrapper NtClose_I, pruebas T9/T10, evidencia m4.txt/m4_return.txt/m4_falsify.txt y el workflow de verificación de 6 puntos del plan de arquitectura.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
@@ -147,7 +147,7 @@
   <a class="entrada" href="../kagemusha-fase-5-generalizacion.html">
     <p class="entrada__fecha">// 03 oct 2026</p>
     <h3 class="entrada__titulo">&quot;Kagemusha — Fase 5: generalización y aridad&quot;</h3>
-    <p class="entrada__resumen">Un único template ASM (macro KAGE_STUB) que sirve para un catálogo de 8 syscalls de distinta aridad. Por qué el jmp final hace que la misma plantilla valga para 0 o 6 argumentos, y 15 experimentos que lo demuestran.</p>
+    <p class="entrada__resumen">Documentación de la Fase 5 (M5) del repositorio: catálogo de 8 syscalls, macro MASM KAGE_STUB, 15 experimentos (docs/research/experimentos-fase5.md), hallazgo de NtQuerySystemTime y evidencia real de docs/evidencias/m5.txt.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
@@ -155,7 +155,7 @@
   <a class="entrada" href="../kagemusha-fase-6-robustez.html">
     <p class="entrada__fecha">// 04 oct 2026</p>
     <h3 class="entrada__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h3>
-    <p class="entrada__resumen">Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.</p>
+    <p class="entrada__resumen">Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
@@ -163,7 +163,7 @@
   <a class="entrada" href="../kagemusha-fase-7-baterias-cet.html">
     <p class="entrada__fecha">// 05 oct 2026</p>
     <h3 class="entrada__titulo">&quot;Kagemusha — Fase 7 y baterías de verificación (T19–T22): ledger, CLI y CET&quot;</h3>
-    <p class="entrada__resumen">El proyecto pasa a modo industrial. Baterías extendida, pesada y global (pruebas diferenciales contra ntdll, soak de 500k llamadas, multi-proceso), ledger de syscalls y CLI, y la prueba clave de compatibilidad con CET / Shadow Stack.</p>
+    <p class="entrada__resumen">Documentación de la Fase 7 y las baterías de verificación del repositorio: T19 (diferencial vs ntdll), T20 (pesada + auto-hospedaje), T21 (global/multi-proceso/rendimiento), T22 (CET/Shadow Stack), ledger de syscalls, CLI y endurecimiento A1/A2.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>

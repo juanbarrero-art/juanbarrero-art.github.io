@@ -255,18 +255,6 @@ ntdll.dll         -&gt;  la capa nativa Nt* (la que habla con el kernel)</code><
 <ul><li><strong><code>kernel32</code></strong> reenvía muchísimas funciones a <strong><code>kernelbase</code></strong> (y algunas a <code>ntdll</code>).</li><li><strong><code>ntdll</code></strong> contiene las funciones <strong><code>Nt*</code></strong> (syscalls) y <strong><code>Rtl*</code></strong> (rutinas de runtime).</li><li>Por eso decimos que <strong>casi todo termina en <code>ntdll</code></strong>: es la última capa antes del kernel.</li></ul>
 <p>Saber esto te permite leer mejor los <em>stack traces</em>: si ves <code>KERNELBASE!...</code> → <code>ntdll!Nt...</code>, ya sabes que el programa está en la antesala del kernel.</p>
 <hr>
-<h2>Un poco de historia (por qué existen tantas técnicas)</h2>
-<p>Entender el pasado ayuda a entender el presente:</p>
-<ol><li><strong>Antes:</strong> se llamaba a la API Win32 y ya. Los antivirus de firmas no miraban "cómo".</li><li><strong>EDR con hooks:</strong> para observar comportamiento, empezaron a <strong>interceptar</strong> los stubs de</li></ol>
-<p><code>ntdll</code> (un <code>jmp</code> al principio).</p>
-<ol><li><strong>Direct syscalls:</strong> "si el stub está hookeado, lo ejecuto yo". Nace la instrucción <code>0F 05</code></li></ol>
-<p>en el propio binario… y con ella, una <strong>firma</strong>.</p>
-<ol><li><strong>Indirect syscalls:</strong> "vale, no lo ejecuto yo; salto a un <code>syscall;ret</code> que ya está en</li></ol>
-<p><code>ntdll</code>". Se evita la firma y el hook de user-mode.</p>
-<ol><li><strong>Resolución del SSN:</strong> Hell's Gate, Halo's Gate, <strong>FreshyCalls</strong>… cada una responde a una</li></ol>
-<p>debilidad de la anterior (sobre todo, a depender de <strong>leer bytes del stub</strong>).</p>
-<p>Esta serie se coloca en el paso 4–5: <strong>indirecto puro + FreshyCalls</strong>, con una obsesión por <strong>verificar</strong>. Cada técnica nueva nace de una <strong>detección</strong> nueva; entender la carrera es entender el problema.</p>
-<hr>
 <h2>Preguntas frecuentes (principiantes)</h2>
 <p><strong>¿Necesito saber ensamblador (ASM) para entender la serie?</strong> Para la guía y las primeras entradas, no. Para las fases 4–7, ayuda: leerás <code>mov</code>, <code>jmp</code>, <code>ret</code>. Aun así, todo va explicado.</p>
 <p><strong>¿Puedo romper mi PC?</strong> La serie trabaja en una <strong>máquina virtual aislada</strong>. No ejecutes nada de esto en tu equipo de trabajo.</p>

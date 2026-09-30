@@ -383,26 +383,6 @@ sabes que el programa está en la antesala del kernel.
 
 ---
 
-## Un poco de historia (por qué existen tantas técnicas)
-
-Entender el pasado ayuda a entender el presente:
-
-1. **Antes:** se llamaba a la API Win32 y ya. Los antivirus de firmas no miraban "cómo".
-2. **EDR con hooks:** para observar comportamiento, empezaron a **interceptar** los stubs de
-   `ntdll` (un `jmp` al principio).
-3. **Direct syscalls:** "si el stub está hookeado, lo ejecuto yo". Nace la instrucción `0F 05`
-   en el propio binario… y con ella, una **firma**.
-4. **Indirect syscalls:** "vale, no lo ejecuto yo; salto a un `syscall;ret` que ya está en
-   `ntdll`". Se evita la firma y el hook de user-mode.
-5. **Resolución del SSN:** Hell's Gate, Halo's Gate, **FreshyCalls**… cada una responde a una
-   debilidad de la anterior (sobre todo, a depender de **leer bytes del stub**).
-
-Esta serie se coloca en el paso 4–5: **indirecto puro + FreshyCalls**, con una obsesión por
-**verificar**. Cada técnica nueva nace de una **detección** nueva; entender la carrera es entender
-el problema.
-
----
-
 ## Preguntas frecuentes (principiantes)
 
 **¿Necesito saber ensamblador (ASM) para entender la serie?** Para la guía y las primeras

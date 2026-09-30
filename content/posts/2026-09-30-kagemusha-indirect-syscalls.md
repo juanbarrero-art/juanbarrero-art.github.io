@@ -395,25 +395,6 @@ La regla es simple: **cada afirmación tiene una fuente externa**. Si no la tien
 
 ---
 
-## 🧪 Experimenta tú — lee la evidencia como un investigador
-
-La evidencia de cada fase vive en `docs/evidencias/mX.txt` (transcripts de `cdb`). Aprender a
-**leerlos** es una habilidad en sí. Toma un transcript y busca:
-
-1. **La línea del `syscall`** y su dirección (`00007ffc...48540fa2 0f05  syscall`).
-2. **El rango de `ntdll`** (`lm m ntdll`) y comprueba que esa dirección **cae dentro**.
-3. **El registro `RAX`/`EAX`** y compáralo con el SSN esperado.
-4. **La pila** (`dps @rsp`) y mira a dónde apunta la dirección de retorno.
-
-Si puedes responder "¿está el `syscall` dentro de `ntdll`?" solo con mirar el transcript, ya
-piensas como el proyecto. Y si **no** puedes, ese es exactamente el tipo de duda que la serie
-intenta eliminar con **evidencia**, no con promesas.
-
-> **Mini-reto:** coge dos transcripts (`m3` y `m4`) y encuentra, en cada uno, la prueba de que el
-> gadget está dentro de `ntdll`. Es el mismo tipo de comprobación, en fases distintas.
-
----
-
 ## Qué NO es este proyecto
 
 Delimitar también es enseñar:
@@ -440,15 +421,6 @@ reglas:
 
 Con esas tres reglas, cualquiera con el mismo Windows de referencia puede **reproducir** y
 **contradecir**. Y poder ser contradicho es lo que hace fuerte a un experimento.
-
----
-
-## La parte "aburrida" que hace posible lo divertido
-
-Un laboratorio se sostiene en cosas poco glamorosas: nombres consistentes, tests que fallan
-ruidosamente, init transaccional, límites documentados. No hay atajos: **el rigor es la
-herramienta**. Lo bonito (el `syscall` dentro de `ntdll`, el auto-hospedaje, CET-safe) **emerge**
-cuando la base está bien hecha.
 
 ---
 

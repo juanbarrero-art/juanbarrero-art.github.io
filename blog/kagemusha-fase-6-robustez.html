@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.">
+  <meta name="description" content="Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).">
   <meta name="theme-color" content="#060810">
   <title>&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot; | KANON UFO</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
@@ -15,7 +15,7 @@
   <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:title" content="&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;">
-  <meta property="og:description" content="Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.">
+  <meta property="og:description" content="Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html">
   <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-hook.svg">
   <meta property="og:site_name" content="KANON UFO">
@@ -30,7 +30,7 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;">
-  <meta name="twitter:description" content="Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.">
+  <meta name="twitter:description" content="Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).">
   <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-hook.svg">
 
   <!-- Datos estructurados -->
@@ -39,7 +39,7 @@
   "@context": "https://schema.org",
   "@type": "BlogPosting",
   "headline": "\"Kagemusha — Fase 6: robustez, hooks y límites reales\"",
-  "description": "Simulamos un hook de EDR en un stub de ntdll y comprobamos que FreshyCalls no se inmuta y la ejecución indirecta sigue funcionando. Además: 488/488 stubs coinciden, fuzz del parser PE, concurrencia y el límite real de la técnica.",
+  "description": "Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).",
   "datePublished": "2026-10-04",
   "dateModified": "2026-10-04",
   "author": {
@@ -91,226 +91,61 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">04 oct 2026 &middot; 18 min de lectura</p>
+        <p class="post__meta">04 oct 2026 &middot; 4 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">&quot;Kagemusha — Fase 6: robustez, hooks y límites reales&quot;</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#red team</span> <span class="tag">#syscalls</span> <span class="tag">#investigacion</span></p>
       </header>
       <div class="post__cuerpo"><h1>Kagemusha — Fase 6: robustez, hooks y límites reales</h1>
-<p>Un sistema que funciona en el caso ideal no vale mucho. La Fase 6 es la del <strong>mundo hostil</strong>: ¿qué pasa si un EDR <strong>modifica</strong> un stub de <code>ntdll</code>? ¿Y si le damos basura al parser PE? ¿Y si varios hilos ejecutan syscalls a la vez? Aquí dejamos de "demostrar que funciona" y empezamos a <strong>intentar romperlo</strong>.</p>
-<blockquote><p>12 experimentos, todos en verde. Y un hallazgo que define un <strong>límite real</strong> de FreshyCalls.</p></blockquote>
-<h2>La implementación</h2>
-<ul><li><strong><code>KageIsStubHooked</code> (<code>src/resolver/gadget.c</code>)</strong> — detecta el prólogo de un hook: un <code>jmp</code></li></ul>
-<p>relativo (<code>E9 xx xx xx xx</code>) o indirecto (<code>FF 25 ...</code>) al inicio del stub.</p>
-<ul><li><strong>Endurecimiento del parser PE</strong> (<code>exhash.c</code>, <code>freshycalls.c</code>) — antes de leer cabeceras NT,</li></ul>
-<p>se valida que <code>e_lfanew</code> (el offset que apunta a la cabecera PE) esté en un rango razonable (<code>[0x40, 0x1000]</code>). Así un PE malformado no provoca lecturas fuera de rango.</p>
-<h2>Los 12 experimentos</h2>
+<p>Esta entrada documenta la <strong>Fase 6 (M6)</strong> tal como está registrada en el <code>README.md</code>, en <code>docs/research/experimentos-fase6.md</code> y en los documentos de baterías extendidas/pesadas/globales.</p>
+<blockquote><p>Del README: <em>"Objetivo. Probar robustez ante <strong>hooks</strong> y <strong>entradas adversas</strong> (12 experimentos)."</em></p></blockquote>
 <p><img src="../assets/diag-hook.svg" alt="Diagrama: hook de EDR vs ejecucion indirecta" loading="lazy"></p>
-<table><thead><tr><th>#</th><th>Experimento</th><th>Cómo se probó</th><th>Resultado</th></tr></thead><tbody><tr><td>1</td><td>Instalar un hook <code>E9</code> en el stub de <code>NtClose</code></td><td><code>VirtualProtect</code> + escribir <code>E9 00 00 00 00</code></td><td>hook instalado</td></tr><tr><td>2</td><td><strong>Detectar</strong> el hook</td><td><code>KageIsStubHooked(stub) == TRUE</code></td><td>✅</td></tr><tr><td>3</td><td><strong>Inmunidad de FreshyCalls</strong></td><td>resolver SSN con el stub hookeado</td><td>✅ mismo SSN (no lee el stub)</td></tr><tr><td>4</td><td>El gadget sigue válido</td><td>resolver gadgets con el stub hookeado</td><td>✅ encuentra <code>0F 05 C3</code></td></tr><tr><td>5</td><td><strong>Ejecución indirecta con stub hookeado</strong></td><td><code>NtClose_I(handle válido)</code></td><td>✅ <code>STATUS_SUCCESS</code></td></tr><tr><td>6</td><td>Restauración</td><td>restaurar bytes → <code>KageIsStubHooked == FALSE</code></td><td>✅</td></tr><tr><td>7</td><td>Re-init con hook presente</td><td><code>KageInitialize()</code> durante el hook</td><td>✅ <code>KAGE_OK</code></td></tr><tr><td>8</td><td>SSN de <strong>todo</strong> el catálogo <code>Nt*</code></td><td>FreshyCalls vs oráculo del stub</td><td>✅ <strong>488/488</strong></td></tr><tr><td>9</td><td>Exports <code>Nt*</code> sin SSN</td><td>prólogo ≠ <code>4C 8B D1 B8</code></td><td>✅ 2 detectados</td></tr><tr><td>10</td><td><strong>Fuzz del parser PE</strong></td><td>9 PE malformados (<code>e_lfanew</code> extremo)</td><td>✅ sin crash</td></tr><tr><td>11</td><td><strong>Concurrencia</strong></td><td>4 hilos × 1000 syscalls</td><td>✅ 0 fallos</td></tr><tr><td>12</td><td>Init idempotente</td><td>100 × <code>KageInitialize()</code></td><td>✅ tablas estables</td></tr></tbody></table>
-<p>Los experimentos 2–5 son el corazón: <strong>instalamos un hook</strong> (en nuestra propia copia privada <em>Copy-On-Write</em> del stub, sin EDR real), y comprobamos que:</p>
-<ul><li>FreshyCalls <strong>no se inmuta</strong> (SSN idéntico) porque <strong>nunca lee los bytes del stub</strong>.</li><li>El gadget sigue encontrándose (no buscamos dentro del stub hookeado).</li><li>La <strong>ejecución indirecta funciona igual</strong>: se usa el gadget de <code>ntdll</code>, no el stub.</li></ul>
-<blockquote><p>Esta es la recompensa por haber elegido una técnica <strong>inmune a hooks por diseño</strong> (sort-by-VA) en lugar de una que dependa de leer el stub (como Hell's Gate / Halo's Gate).</p></blockquote>
-<h2>El hallazgo: un límite real de FreshyCalls</h2>
-<p>Al resolver <strong>todo</strong> el catálogo de <code>ntdll</code> (no solo el nuestro), nos topamos con:</p>
-<table><thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody><tr><td>Exports <code>Nt*</code> en esta build</td><td><strong>490</strong></td></tr><tr><td>Stubs de syscall reales (prólogo <code>4C 8B D1 B8</code>)</td><td><strong>488</strong></td></tr><tr><td>Exports que <strong>no</strong> son stubs de syscall</td><td><strong>2</strong></td></tr><tr><td>Coincidencia FreshyCalls ↔ SSN real (en los 488)</td><td><strong>100%</strong></td></tr></tbody></table>
-<p>Los 2 "raros" son:</p>
-<table><thead><tr><th>Export</th><th>Prólogo</th><th>Realidad</th></tr></thead><tbody><tr><td><code>NtGetTickCount</code></td><td><code>E9 ...</code></td><td><code>jmp</code> (implementado en ntdll)</td></tr><tr><td><code>NtQuerySystemTime</code></td><td><code>E9 ...</code></td><td><code>jmp ntdll!RtlQuerySystemTime</code></td></tr></tbody></table>
-<p>FreshyCalls <strong>los cuenta</strong> al ordenar por VA. En <strong>esta build</strong>, el índice ordenado sigue coincidiendo con el SSN real para <strong>los 488 stubs</strong> (0 discrepancias). Pero es un <strong>límite a vigilar</strong>: si en otra build el número de exports "no-stub" cambia, el índice podría desplazarse.</p>
-<blockquote><p>Un investigador honesto <strong>cuantifica</strong> este límite en vez de esconderlo. Es exactamente el tipo de detalle que hace que un reporte sea creíble.</p></blockquote>
-<h2>Nota de seguridad (debugger)</h2>
-<p><code>NtClose(handle inválido)</code> provoca una <strong>excepción first-chance</strong> <code>c0000008</code> que <code>ntdll</code> maneja. En los scripts de <code>cdb</code> hay que ignorarla (<code>sxi c0000008</code>) para que la sesión continúe. Queda documentado para futuros transcripts.</p>
-<h2>Qué significa todo esto</h2>
-<ul><li><strong>La robustez se prueba, no se afirma.</strong> Simular el hook y ver que el sistema sigue en pie vale</li></ul>
-<p>más que cualquier frase grandilocuente.</p>
-<ul><li><strong>Cada técnica tiene límites.</strong> FreshyCalls tolera exports sin SSN, pero hay que saberlo y</li></ul>
-<p>medirlo.</p>
-<ul><li><strong>La entrada adversa importa.</strong> Un parser que revienta con un PE malformado es una</li></ul>
-<p>vulnerabilidad; fuzzearlo es parte del trabajo.</p>
-<ul><li><strong>La concurrencia cuenta.</strong> 4 hilos × 1000 syscalls sin fallos dan confianza en que las tablas</li></ul>
-<p>y el init transaccional están bien hechos.</p>
-<h2>Próximos pasos</h2>
-<ul><li><strong>Fase 7 (I+D propia):</strong> ya hechos el <em><strong>ledger</strong></em> de syscalls y los <strong>modos CLI</strong></li></ul>
-<p>(<code>--dump</code>/<code>--trace</code>/<code>--json</code>); queda la extensión de debugger <code>!kage</code>. Ver la <a href="/blog/kagemusha-fase-7-baterias-cet.html">entrada de la Fase 7 y baterías</a>.</p>
-<ul><li><strong>Fase 8 (visibilidad):</strong> el informe publicable y —lo más interesante— el **análisis de</li></ul>
-<p>detección**: qué <em>ve</em> realmente un EDR con el indirect puro (stack walk, telemetría, ETW). Sin esconder nada: midiendo.</p>
-<h2>Cierre (por ahora)</h2>
-<p>Con M0–M6 (y ya las baterías T0–T24) verificados, <strong>166 PASS / 0 FAIL</strong> y <strong>0 instrucciones <code>syscall</code></strong> en el módulo, la tesis está confirmada <strong>y es falsable</strong>: cada afirmación tiene su oráculo y su transcript. Lo que queda (el <code>!kage</code>, el análisis de detección) es donde el proyecto deja de ser "una implementación más" y empieza a aportar <strong>conocimiento medido</strong>.</p>
-<h2>Cómo simular un hook sin un EDR real</h2>
-<p>No hace falta un EDR para probar la resiliencia. En el propio laboratorio:</p>
-<ol><li>Localizamos el stub de <code>NtClose</code> en <code>ntdll</code>.</li><li>Con <code>VirtualProtect</code> lo hacemos escribible.</li><li>Escribimos un <strong>prólogo de hook</strong> (<code>E9 00 00 00 00</code>): un <code>jmp</code> relativo a "ninguna parte".</li><li>Restauramos la protección.</li></ol>
-<p>Como <code>ntdll</code> es una sección de memoria compartida con <strong>Copy-On-Write</strong>, escribir en el stub de nuestro proceso crea una <strong>copia privada</strong>: no afectamos al resto del sistema, así que el experimento es seguro. Después, <code>KageIsStubHooked</code> debe responder <code>TRUE</code>.</p>
-<blockquote><p>Este es el mismo efecto que produce un EDR de user-mode, pero <strong>bajo nuestro control</strong> y reproducible. Nada de "magia": un <code>jmp</code> al inicio del stub.</p></blockquote>
 <hr>
-<h2>Por qué FreshyCalls es inmune (explicado)</h2>
-<p>La clave está en <strong>qué lee</strong> cada técnica:</p>
-<ul><li><strong>Hell's Gate / Halo's Gate</strong> leen los <strong>bytes del stub</strong> (<code>mov eax, SSN</code>). Si esos bytes están</li></ul>
-<p>modificados por un hook, leen <strong>basura</strong> → SSN incorrecto → comportamiento errático.</p>
-<ul><li><strong>FreshyCalls</strong> lee el <strong>orden de los exports por dirección virtual</strong>. Esa información **no</li></ul>
-<p>depende de los bytes del stub**: modificar el prólogo no cambia la dirección del export ni el orden.</p>
-<p>Por eso, con el stub hookeado, FreshyCalls devuelve <strong>el mismo SSN</strong>. Y como el gadget se busca <strong>fuera</strong> del stub hookeado (en el pool), la ejecución indirecta sigue funcionando: se salta al <code>syscall;ret</code> limpio de <code>ntdll</code> y <strong>nunca se ejecuta el <code>jmp</code> del hook</strong>.</p>
+<h2>Implementación (según el README)</h2>
+<ul><li><code>KageIsStubHooked</code> (<code>src/resolver/gadget.c</code>): detecta prólogo de hook (<code>E9</code>, <code>FF 25</code>).</li><li>Endurecimiento del parser PE (<code>exhash.c</code>, <code>freshycalls.c</code>).</li></ul>
 <hr>
-<h2>Endurecer el parser PE</h2>
-<p>Un sistema que lee cabeceras PE (para encontrar exports) puede <strong>reventar</strong> con un PE malformado: si <code>e_lfanew</code> (el offset que apunta a la cabecera NT) es enorme, leer "allí" provoca una <strong>lectura fuera de rango</strong>. Por eso el parser:</p>
-<ul><li>Rechaza <code>e_lfanew</code> fuera de <code>[0x40, 0x1000]</code> <strong>antes</strong> de tocar las cabeceras NT.</li><li>Valida tamaños y límites antes de recorrer arrays.</li></ul>
-<p>El experimento de <strong>fuzz</strong> le da <strong>9 PEs malformados</strong> (con <code>e_lfanew</code> extremo) y comprueba que el parser devuelve <code>NULL</code>/error <strong>sin crashear</strong>. Endurecer la entrada es tan importante como la lógica principal.</p>
+<h2>Los 12 experimentos (de <code>docs/research/experimentos-fase6.md</code>)</h2>
+<table><thead><tr><th>#</th><th>Experimento</th><th>Cómo se probó</th><th>Resultado</th></tr></thead><tbody><tr><td>1</td><td>Instalar hook <code>E9</code> en el stub de <code>NtClose</code></td><td><code>VirtualProtect</code> + escribir <code>E9 00 00 00 00</code> (copia privada COW)</td><td>hook instalado</td></tr><tr><td>2</td><td>Detectar el hook</td><td><code>KageIsStubHooked(stub) == TRUE</code></td><td>✅</td></tr><tr><td>3</td><td>Inmunidad de FreshyCalls</td><td>resolver SSN con el stub hookeado</td><td>✅ mismo SSN (no lee el stub)</td></tr><tr><td>4</td><td>Gadget sigue válido</td><td><code>KageResolveGadgets</code> con el stub hookeado</td><td>✅ encuentra <code>0F 05 C3</code></td></tr><tr><td>5</td><td>Ejecución indirecta con stub hookeado</td><td><code>NtClose_I(handle válido)</code></td><td>✅ <code>STATUS_SUCCESS</code> (usa gadget, no el stub)</td></tr><tr><td>6</td><td>Restauración</td><td>restaurar bytes + <code>KageIsStubHooked == FALSE</code></td><td>✅</td></tr><tr><td>7</td><td>Re-init con hook presente</td><td><code>KageInitialize()</code> durante el hook</td><td>✅ <code>KAGE_OK</code></td></tr><tr><td>8</td><td>SSN de TODO el catálogo <code>Nt*</code></td><td>FreshyCalls vs oráculo del stub</td><td>✅ 488/488 stubs reales coinciden</td></tr><tr><td>9</td><td>Exports <code>Nt*</code> sin SSN</td><td>detección por prólogo != <code>4C 8B D1 B8</code></td><td>✅ 2 detectados (ver Hallazgo)</td></tr><tr><td>10</td><td>Fuzz del parser PE</td><td>9 PE malformados (<code>e_lfanew</code> extremo)</td><td>✅ NULL/error, sin crash</td></tr><tr><td>11</td><td>Concurrencia</td><td>4 hilos × 1000 syscalls</td><td>✅ 0 fallos</td></tr><tr><td>12</td><td>Init idempotente</td><td>100 × <code>KageInitialize()</code></td><td>✅ tablas estables</td></tr></tbody></table>
 <hr>
-<h2>Concurrencia e idempotencia</h2>
-<p>Dos pruebas que suelen olvidarse:</p>
-<ul><li><strong>Concurrencia:</strong> 4 hilos × 1000 syscalls cada uno, sin fallos. Sirve para detectar condiciones</li></ul>
-<p>de carrera en el uso de las tablas.</p>
-<ul><li><strong>Init idempotente:</strong> llamar a <code>KageInitialize()</code> 100 veces deja las tablas <strong>estables</strong> (mismos</li></ul>
-<p>valores). Un init que "se pisa" a sí mismo sería un bug latente.</p>
+<h2>Hallazgo (limitación de FreshyCalls)</h2>
+<p>De <code>docs/research/experimentos-fase6.md</code>:</p>
+<blockquote><p><em>"De los <strong>490</strong> exports <code>Nt*</code> de esta build, <strong>488 son stubs de syscall reales</strong> y <strong>2 no lo son</strong>."</em></p></blockquote>
+<table><thead><tr><th>Export</th><th>Prólogo</th><th>Realidad</th></tr></thead><tbody><tr><td><code>NtGetTickCount</code></td><td><code>E9 AB 0A FE</code></td><td><code>jmp</code> (implementado en ntdll, no es syscall)</td></tr><tr><td><code>NtQuerySystemTime</code></td><td><code>E9 6B B7 F8</code></td><td><code>jmp ntdll!RtlQuerySystemTime</code> (no es syscall)</td></tr></tbody></table>
+<blockquote><p><em>"FreshyCalls <strong>cuenta</strong> estos exports al ordenar por VA. Pese a ello, en esta build el índice ordenado coincide con el SSN real para <strong>los 488 stubs de syscall</strong> (0 discrepancias), incluido todo nuestro catálogo. Queda documentado como límite a vigilar en otras builds."</em></p></blockquote>
 <hr>
-<h2>El límite real: 488 de 490</h2>
-<p>El hallazgo más importante no es un éxito, sino un <strong>límite documentado</strong>. En la build de referencia:</p>
-<ul><li><strong>490</strong> exports <code>Nt*</code>.</li><li><strong>488</strong> tienen el prólogo de stub de syscall (<code>4C 8B D1 B8</code>).</li><li><strong>2</strong> no lo tienen (<code>NtGetTickCount</code>, <code>NtQuerySystemTime</code> → <code>jmp Rtl*</code>).</li></ul>
-<p>FreshyCalls los <strong>cuenta</strong> al ordenar por VA. En esta build, el índice coincide con el SSN real para <strong>los 488 stubs</strong> (0 discrepancias), incluido todo nuestro catálogo. Pero <strong>es un límite a vigilar</strong>: si otra build cambia cuántos exports "no-stub" hay, el índice podría desplazarse. Documentarlo es la diferencia entre "creo que es fiable" y "sé exactamente cuándo podría fallar".</p>
+<h2>Nota de seguridad (del doc y del README)</h2>
+<blockquote><p><em>"<code>NtClose(handle inválido)</code> genera una excepción first-chance <code>c0000008</code> que ntdll maneja; los scripts de cdb deben ignorarla con <code>sxi c0000008</code>."</em></p></blockquote>
 <hr>
-<h2>Qué NO concluir (rigor)</h2>
-<ul><li><strong>"Es indetectable".</strong> No: se evitan hooks de user-mode, pero el kernel, ETW y los callbacks</li></ul>
-<p>siguen ahí. La Fase 8 mide esa visibilidad.</p>
-<ul><li><strong>"Funciona en cualquier Windows".</strong> Los SSN se resuelven en runtime, pero hay que **probar en</li></ul>
-<p>varias builds** (multi-build) para afirmarlo.</p>
-<ul><li><strong>"Con 8 syscalls ya está todo probado".</strong> El catálogo cubre aridades, pero cada build y cada</li></ul>
-<p>configuración pueden exponer casos nuevos.</p>
+<h2>Endurecimiento posterior: A1/A2 y tests nuevos</h2>
+<p>El commit <em>"fix: endurecimiento tras revision (A1 parser PE, A2 guardia init, M2 ledger, M3/M4) + tests T0/T24"</em> añade (del README):</p>
+<ul><li><strong>A1 — parser PE:</strong> *"se validan las RVAs del export directory contra <code>SizeOfImage</code> (evita</li></ul>
+<p>lecturas OOB con PE malformado) + fuzz con export directory malicioso (G8)."*</p>
+<ul><li><strong>A2 — wrappers:</strong> *"guardia de inicialización → <code>KAGE_STATUS_NOT_INITIALIZED</code> (nunca <code>jmp</code> a</li></ul>
+<p><code>NULL</code>) + test T0."*</p>
+<ul><li><strong>Tests nuevos:</strong> <strong>T0</strong> (sin init) y <strong>T24</strong> (ledger wrap-around, errores del resolver, parser</li></ul>
+<p>malicioso, <code>KageSlotName</code> fuera de rango).</p>
 <hr>
-<h2>Errores comunes (Fase 6)</h2>
-<ul><li><strong>Modificar el stub sin <code>VirtualProtect</code></strong>: la escritura falla (página de solo lectura).</li><li><strong>Creer que el hook real es igual al simulado</strong>: es una <strong>emulación</strong> controlada, útil y segura.</li><li><strong>No manejar entradas adversas</strong>: un PE malformado no debe tumbar el analizador.</li><li><strong>Ignorar la concurrencia</strong>: condiciones de carrera silenciosas son las más peligrosas.</li><li><strong>Ocultar los límites</strong>: un informe sin limitaciones no es un informe, es publicidad.</li></ul>
+<h2>Evidencia y resultados</h2>
+<p>Del README: <em>"Suite T13-T17 → parte de los <strong>166 PASS / 0 FAIL</strong>."</em></p>
+<p>Y de las baterías relacionadas (documentadas en <code>docs/research/</code>):</p>
+<ul><li><strong>Batería extendida (T19):</strong> hook <code>FF 25</code> detectado + FreshyCalls inmune; fuzz de 300 PE.</li><li><strong>Batería pesada (T20):</strong> al hookear los 8 stubs, <code>VirtualProtect</code> se cuelga (usa</li></ul>
+<p><code>NtProtectVirtualMemory</code>) y se resuelve <strong>auto-hospedándose</strong> con nuestro <code>NtProtectVirtualMemory_I</code>.</p>
+<ul><li><strong>Batería global (T21):</strong> <strong>484/484</strong> stubs reales no hookeados (baseline); parser en</li></ul>
+<p>kernel32/kernelbase.</p>
 <hr>
-<h2>🧪 Experimenta tú — rompe tu propio sistema</h2>
-<p><em>(Nivel 🔴, en VM. Con el proyecto compilado.)</em></p>
-<p>El experimento 5 de la batería es el más vistoso: <strong>hookea</strong> el stub de <code>NtClose</code> (en una copia privada, segura) y luego llama a <code>NtClose_I</code>. Verás que <strong>sigue funcionando</strong>.</p>
-<pre><code class="lang-text">bin\Kagemusha_tests.exe      :: la bateria T13-T17 incluye el hook simulado y su restauracion</code></pre>
-<p>Puedes seguir la idea en <code>cdb</code>:</p>
-<pre><code class="lang-text">bp Kagemusha!KageIsStubHooked
-g
-; (al instalar el hook) -&gt; TRUE
-; (tras restaurar)       -&gt; FALSE</code></pre>
-<p><strong>Qué deberías concluir:</strong> aunque el stub esté modificado, FreshyCalls <strong>no se inmuta</strong> (no lo lee) y el gadget se localiza <strong>fuera</strong> del stub hookeado. La técnica sobrevive a un hook de user-mode.</p>
-<blockquote><p><strong>Mini-reto:</strong> instala un hook <code>FF 25</code> (jmp indirecto a un puntero) en lugar de <code>E9</code> y comprueba que <code>KageIsStubHooked</code> también lo detecta y que la ejecución indirecta sigue en pie (es el experimento de la batería extendida T19).</p></blockquote>
+<h2>Reproducir (del README)</h2>
+<pre><code class="lang-text">tools\build.cmd
+bin\Kagemusha_tests.exe
+powershell -File tools\verify.ps1</code></pre>
 <hr>
-<h2>Fondo: cómo hookea un EDR (y por qué nos afecta o no)</h2>
-<p>Existen varias formas de interceptar llamadas. Conocerlas explica por qué la técnica elegida importa:</p>
-<table><thead><tr><th>Tipo de hook</th><th>Dónde</th><th>Efecto sobre nosotros</th></tr></thead><tbody><tr><td><strong>Inline (byte patching)</strong></td><td>Al inicio del stub <code>Nt*</code> (<code>E9</code>/<code>FF 25</code>)</td><td><strong>No</strong> nos afecta: no ejecutamos el stub</td></tr><tr><td><strong>IAT hook</strong></td><td>En la <em>Import Address Table</em> del proceso</td><td><strong>No</strong> nos afecta: no usamos la IAT</td></tr><tr><td><strong>Kernel callbacks</strong></td><td>En el kernel (procesos, hilos, imágenes)</td><td><strong>Sí</strong> nos observa, pero no en user-mode</td></tr><tr><td><strong>ETW</strong></td><td>Trazas del kernel y componentes</td><td><strong>Sí</strong>: es telemetría independiente</td></tr></tbody></table>
-<p>La clave de la Fase 6 es la primera fila: si un EDR <strong>reescribe el stub</strong>, Hell's Gate / Halo's Gate leerían bytes equivocados. Nosotros <strong>no leemos el stub</strong>, así que seguimos enteros.</p>
-<blockquote><p>Un defensor serio no depende de <strong>un</strong> hook: combina callbacks y ETW. Por eso la serie <strong>no</strong> promete invisibilidad; mide la correlación.</p></blockquote>
-<hr>
-<h2>El hook no es "el enemigo": es un sensor</h2>
-<p>Conviene cambiar el marco mental. Un hook no es "algo malo que hay que evitar": es un <strong>sensor</strong> que un defensor colocó. Los hooks de user-mode son <strong>baratos y potentes</strong>, pero <strong>frágiles ante código que no ejecuta el stub</strong>. Y los sensores de kernel son <strong>más robustos</strong>, pero <strong>más costosos</strong> y <strong>más genéricos</strong>.</p>
-<p>Entender este intercambio es la mitad de la investigación defensiva. La serie <strong>documenta ambos</strong> lados: cómo se evita el sensor de user-mode (Fase 6) y qué queda visible (Fase 8).</p>
-<hr>
-<h2>Fondo: por qué el parser PE es un objetivo</h2>
-<p>Un analizador que confía ciegamente en un PE es un analizador <strong>atacable</strong>. Si un atacante puede convencerte de que "el export A está en tal dirección", puede desviar tu resolución. Por eso el endurecimiento <strong>A1</strong> valida las <strong>RVAs del export directory contra <code>SizeOfImage</code></strong>: si una RVA apunta fuera de la imagen, se rechaza.</p>
-<p>El fuzz (9 PE malformados en T13–T17, y un <strong>export directory malicioso</strong> en el endurecimiento) no busca "encontrar un bug por diversión": busca <strong>garantizar</strong> que el sistema no crashea ni se desvía con basura. Un analizador fiable es aquel que <strong>no se cree</strong> la entrada.</p>
-<hr>
-<h2>Los 12 experimentos, por grupos</h2>
-<p>Los experimentos no están sueltos; forman tres bloques con un propósito:</p>
-<p><strong>Bloque 1 — Hook y resiliencia (1–7).</strong> Instalar un <code>E9</code> en el stub, <strong>detectarlo</strong>, resolver el SSN con el stub modificado, encontrar el gadget, <strong>ejecutar</strong> la syscall, <strong>restaurar</strong> y <strong>re-init</strong> con el hook presente. Es el corazón de la fase: probar que un hook <strong>no nos tumba</strong>.</p>
-<p><strong>Bloque 2 — Cobertura (8–9).</strong> Resolver <strong>todo</strong> el catálogo <code>Nt*</code>: <strong>488/488</strong> stubs reales coinciden con el SSN. Y detectar los <strong>2</strong> exports <code>Nt*</code> que <strong>no</strong> son stubs.</p>
-<p><strong>Bloque 3 — Entradas adversas y concurrencia (10–12).</strong> Fuzz del parser PE (9 malformados), concurrencia (4 hilos × 1000 syscalls) e <strong>init idempotente</strong> (100 × <code>KageInitialize</code>).</p>
-<hr>
-<h2>Detectar un hook: <code>E9</code> y <code>FF 25</code></h2>
-<p><code>KageIsStubHooked</code> reconoce los <strong>prólogos</strong> de hook habituales:</p>
-<pre><code class="lang-text">E9 xx xx xx xx   ; jmp relativo a otra direccion
-FF 25 ...        ; jmp qword ptr [rip+disp]  (indirecto)</code></pre>
-<p>El primer test usa <code>E9</code>; la <strong>batería extendida (T19)</strong> añade el caso <strong><code>FF 25</code></strong> (jmp indirecto), comprobando que también se detecta y que FreshyCalls sigue inmune. Dos formas de hook, dos pruebas: no basta con verificar la que te gusta.</p>
-<hr>
-<h2>El fuzz del parser, con más veneno</h2>
-<p>La Fase 6 hace fuzz con <strong>9 PE malformados</strong> (<code>e_lfanew</code> extremo). El endurecimiento posterior (<strong>A1</strong>) va más allá: un <strong>export directory malicioso</strong> (G8) que intenta que el parser lea una RVA fuera de <code>SizeOfImage</code>. El parser <strong>rechaza</strong> y no crashea. Es la diferencia entre "aceptar entrada" y "<strong>validar</strong> entrada".</p>
-<hr>
-<h2>Endurecimiento (A1/A2) y tests nuevos (T0/T24)</h2>
-<p>La revisión de código añadió dos blindajes y dos tests:</p>
-<ul><li><strong>A1 — parser PE:</strong> valida las RVAs del export directory contra <code>SizeOfImage</code>.</li><li><strong>A2 — wrappers:</strong> guardia de init → <code>KAGE_STATUS_NOT_INITIALIZED</code> (nunca <code>jmp</code> a <code>NULL</code>).</li><li><strong>T0:</strong> usar el sistema <strong>sin init</strong>.</li><li><strong>T24:</strong> wrap-around del ledger, errores del resolver, parser malicioso, <code>KageSlotName</code> fuera</li></ul>
-<p>de rango.</p>
-<p>Con esto, la suite global subió a <strong>166 PASS / 0 FAIL</strong>. El patrón es claro: cada revisión <strong>añade pruebas</strong> para que el fallo no pueda volver.</p>
-<hr>
-<h2>Concurrencia e idempotencia, en corto</h2>
-<ul><li><strong>Concurrencia:</strong> 4 hilos ejecutando syscalls a la vez → 0 fallos. Detecta condiciones de carrera</li></ul>
-<p>en el uso de las tablas.</p>
-<ul><li><strong>Idempotencia:</strong> <code>KageInitialize()</code> 100 veces deja las tablas <strong>estables</strong>. Un init que "se pisa"</li></ul>
-<p>a sí mismo sería un bug latente; aquí se descarta.</p>
-<hr>
-<h2>Cómo se ve el hook en memoria (antes / después)</h2>
-<pre><code class="lang-text">ANTES (stub limpio):
-  4C 8B D1        mov r10, rcx
-  B8 0F 00 00 00  mov eax, 0Fh
-  0F 05 C3        syscall ; ret
-
-DESPUES (hook E9):
-  E9 00 00 00 00  jmp +0            &lt;-- el stub ya no ejecuta nada util
-  00 00 00 00 00  (bytes desplazados)
-  0F 05 C3        syscall ; ret     &lt;-- &quot;tapado&quot; por el jmp</code></pre>
-<p><code>KageIsStubHooked</code> mira el <strong>primer byte</strong>: si es <code>E9</code> o <code>FF</code>, hay hook. Y como nuestro sistema <strong>no ejecuta el stub</strong> (salta al gadget), el <code>jmp</code> del hook nunca se corre.</p>
-<hr>
-<h2>Por qué la defensa no depende de "un" hook</h2>
-<p>Si un defensa confiara <strong>solo</strong> en hooks de user-mode, cualquier técnica que no ejecute el stub la sortearía. Por eso un EDR serio <strong>combina</strong> sensores:</p>
-<ul><li><strong>Callbacks del kernel</strong> (creación de proceso/hilo, carga de imagen): más robustos, más caros.</li><li><strong>ETW:</strong> telemetría independiente del user-mode.</li><li><strong>Análisis de pila:</strong> detectar <em>callers</em> no habituales para un <code>syscall</code>.</li></ul>
-<p>La Fase 6 demuestra <strong>un</strong> lado (el hook de user-mode no basta). La honestidad está en decir que el otro lado existe y <strong>medirlo</strong> (Fase 8).</p>
-<hr>
-<h2>Preguntas frecuentes (Fase 6)</h2>
-<p><strong>¿El hook simulado equivale a un EDR real?</strong> No exactamente: es una <strong>emulación</strong> controlada y segura del mismo efecto (un <code>jmp</code> al inicio del stub). Sirve para probar resiliencia sin un EDR.</p>
-<p><strong>¿Por qué FreshyCalls es inmune aunque el stub esté hookeado?</strong> Porque no lee los <strong>bytes</strong> del stub: usa el <strong>orden de exports por dirección</strong>, que no cambia al parchear el prólogo.</p>
-<p><strong>¿Qué pasa si hookean el gadget, no el stub?</strong> El gadget se busca/valida en el pool; si un candidato estuviera corrupto, se descarta (validación de bytes + rango). El diseño contempla "gadget re-escrito" como riesgo a vigilar.</p>
-<p><strong>¿Por qué importa el fuzz del parser?</strong> Porque un analizador que confía en un PE malformado es atacable. Validar <code>e_lfanew</code>/RVAs es tan importante como la lógica principal.</p>
-<hr>
-<h2>Matriz de robustez (amenaza → prueba → resultado)</h2>
-<table><thead><tr><th>Amenaza</th><th>Prueba</th><th>Resultado</th></tr></thead><tbody><tr><td>Hook inline <code>E9</code></td><td>Instalar + ejecutar</td><td>✅ sigue funcionando</td></tr><tr><td>Hook indirecto <code>FF 25</code></td><td>T19</td><td>✅ detectado, FreshyCalls inmune</td></tr><tr><td>Stub de la propia función hookeado</td><td>Batería T20 (los 8)</td><td>✅ auto-hospedaje</td></tr><tr><td>PE malformado</td><td>Fuzz (9 + export directory malicioso)</td><td>✅ sin crash</td></tr><tr><td>Uso sin init</td><td>T0</td><td>✅ <code>KAGE_STATUS_NOT_INITIALIZED</code></td></tr><tr><td>Concurrencia</td><td>4 hilos × 1000</td><td>✅ 0 fallos</td></tr><tr><td>Re-init en uso</td><td>100 × init</td><td>✅ tablas estables</td></tr><tr><td>Exports <code>Nt*</code> que no son stubs</td><td>Cobertura total</td><td>✅ 488/490 detectados</td></tr></tbody></table>
-<p>Una matriz así es el <strong>resumen ejecutivo</strong> de la fase: cada fila, una amenaza; cada ✅, una prueba.</p>
-<hr>
-<h2>Lecciones para defensores</h2>
-<ul><li><strong>No te fíes de un solo sensor.</strong> El hook de user-mode es útil pero evitable; combina callbacks</li></ul>
-<p>de kernel y ETW.</p>
-<ul><li><strong>La correlación gana.</strong> Una señal aislada (un <code>syscall</code> en <code>ntdll</code> con <em>caller</em> raro) no basta;</li></ul>
-<p>el valor está en <strong>cruzar</strong> señales (pila + comportamiento + binario).</p>
-<ul><li><strong>Los hooks son frágiles por diseño</strong> ante código que no ejecuta el stub; saberlo te permite</li></ul>
-<p><strong>priorizar</strong> qué proteger con sensores más robustos.</p>
-<ul><li><strong>Mide tu detección.</strong> Un EDR no es "mejor" por tener más hooks, sino por <strong>detectar</strong> más con</li></ul>
-<p>menos falsos positivos.</p>
-<hr>
-<h2>Sesión anotada: instalar y quitar un hook</h2>
-<p>El experimento, paso a paso (conceptualmente):</p>
-<pre><code class="lang-text">1. localizar el stub:        stub = export &quot;NtClose&quot; de ntdll
-2. hacerlo escribible:       VirtualProtect(stub, 5, RW)
-3. escribir el hook:         memcpy(stub, &quot;\xE9\x00\x00\x00\x00&quot;, 5)
-4. comprobar el sensor:      KageIsStubHooked(stub) == TRUE
-5. ejecutar el indirecto:    NtClose_I(handle_valido) -&gt; STATUS_SUCCESS
-6. restaurar los bytes:      memcpy(stub, &quot;\x4C\x8B\xD1\xB8...&quot;, 5)
-7. comprobar de nuevo:       KageIsStubHooked(stub) == FALSE</code></pre>
-<p>Lo importante del experimento <strong>no</strong> es el resultado de un <code>NtClose</code> concreto: es que, entre los pasos 4 y 5, el stub está <strong>roto</strong> y el sistema <strong>funciona igual</strong>. Eso prueba, de la forma más directa posible, que la ejecución indirecta <strong>no depende</strong> del stub.</p>
-<blockquote><p>Y el auto-hospedaje aparece si hookeas <strong>todos</strong> los stubs: <code>VirtualProtect</code> (que usa <code>NtProtectVirtualMemory</code>) se cuelga, así que el propio sistema se usa para manipular <code>ntdll</code>.</p></blockquote>
-<hr>
-<h2>Resumen ejecutivo de la Fase 6</h2>
-<ul><li><strong>Qué logramos:</strong> demostrar que el sistema <strong>resiste hooks</strong> (inline <code>E9</code> y <code>FF 25</code>) y</li></ul>
-<p><strong>entradas adversas</strong>.</p>
-<ul><li><strong>Cómo se prueba:</strong> 12 experimentos (hook/resiliencia, cobertura total, fuzz, concurrencia) +</li></ul>
-<p><code>T0</code>/<code>T24</code> del endurecimiento.</p>
-<ul><li><strong>Hallazgo:</strong> de <strong>490</strong> exports <code>Nt*</code>, <strong>488</strong> son stubs reales y coinciden al 100%; 2 no lo son.</li><li><strong>Qué falta:</strong> herramientas (ledger/CLI, Fase 7) y análisis de detección (Fase 8).</li></ul>
-<h2>Checklist de robustez</h2>
-<ul><li>[ ] FreshyCalls <strong>no lee</strong> bytes del stub (inmune a hooks).</li><li>[ ] Gadget siempre <strong>validado</strong> (bytes + rango + no-hook).</li><li>[ ] Hook <code>E9</code> <strong>y</strong> <code>FF 25</code> detectados.</li><li>[ ] Ejecución indirecta funciona con el stub <strong>hookeado</strong>.</li><li>[ ] Parser PE <strong>rechaza</strong> entradas malformadas (sin crash).</li><li>[ ] <code>init</code> idempotente y uso sin init <strong>seguro</strong> (<code>KAGE_STATUS_NOT_INITIALIZED</code>).</li><li>[ ] Concurrencia sin fallos (4 hilos).</li></ul>
-<p>Si todas las casillas están marcadas, tienes un sistema <strong>robusto por diseño</strong>, no por suerte.</p>
-<hr>
-<h2>Cómo verificar la Fase 6 en 5 minutos</h2>
-<pre><code class="lang-text">bin\Kagemusha_tests.exe     :: T13-T17 (hook simulado, cobertura, fuzz, concurrencia)
-bin\Kagemusha.exe --trace   :: el ledger confirma que las llamadas llegan al kernel</code></pre>
-<p>Y, si quieres el momento "wow": observa en <code>cdb</code> el <code>KageIsStubHooked</code> pasar de <code>FALSE</code> a <code>TRUE</code> al instalar el hook, y a <code>FALSE</code> al restaurar —mientras <code>NtClose_I</code> sigue devolviendo <code>STATUS_SUCCESS</code> en medio del hook.</p>
-<hr>
-<h2>Glosario de la Fase 6</h2>
-<table><thead><tr><th>Término</th><th>Significado en esta fase</th></tr></thead><tbody><tr><td><strong>Hook</strong></td><td>Desvío colocado en el código para observar/alterar llamadas</td></tr><tr><td><strong>Inline hook</strong></td><td>Parchear el inicio del stub (<code>E9</code>/<code>FF 25</code>)</td></tr><tr><td><strong>IAT hook</strong></td><td>Parchear la <em>Import Address Table</em> del proceso</td></tr><tr><td><strong>COW (Copy-On-Write)</strong></td><td>Al escribir en una página compartida, el SO crea una copia privada</td></tr><tr><td><strong>Callback de kernel</strong></td><td>Notificación del kernel a drivers (procesos, hilos, imágenes)</td></tr><tr><td><strong>ETW</strong></td><td>Sistema de trazas del sistema (telemetría independiente)</td></tr><tr><td><strong>Fuzz</strong></td><td>Alimentar con entradas adversas para buscar crashes</td></tr><tr><td><strong>Idempotente</strong></td><td>Que repetir una operación no cambie el resultado</td></tr><tr><td><strong>Auto-hospedaje</strong></td><td>Usar el propio sistema para operar sobre <code>ntdll</code></td></tr></tbody></table>
-<p>Con esto, la Fase 6 queda como el <strong>escudo</strong>: no promete invisibilidad, promete que el sistema <strong>no se rompe</strong> cuando el mundo se pone hostil. Y lo demuestra con pruebas, no con titulares.</p>
-<hr>
-<h2>Para profundizar en el repositorio</h2>
-<ul><li><code>src/resolver/gadget.c</code>: <code>KageIsStubHooked</code> y la validación del gadget.</li><li><code>tests/run_tests.c</code> (T13–T17, T24): los 12 experimentos + endurecimiento.</li><li><code>docs/research/experimentos-fase6.md</code> y <code>experimentos-extendidos.md</code> (hook <code>FF 25</code>).</li><li><code>docs/evidencias/m5.txt</code>: cobertura <strong>488/488</strong>.</li><li><code>bin\Kagemusha_tests.exe</code>: la suite completa.</li></ul>
-<h2>Cierre de la fase</h2>
-<p>La Fase 6 no busca "ganar" a un EDR: busca <strong>saber dónde estás parado</strong>. Y lo hace <strong>midiendo</strong>, no prometiendo: el sistema resiste hooks de user-mode (demostrado, con <code>E9</code> y <code>FF 25</code>), pero sigue siendo visible al kernel (declarado, sin esconderlo). Esa honestidad es lo que convierte el resultado en <strong>investigación</strong> y no en publicidad. El siguiente paso —herramientas y análisis de detección— se apoya justo en esta base: ya sabes qué <strong>no</strong> te tumba y qué <strong>sí</strong> te ve.</p>
-<hr>
-<h2>Nota final</h2>
-<p>La robustez no es un <strong>estado</strong>, es un <strong>proceso</strong>: cada revisión añadió pruebas (T0, T24, el export directory malicioso <code>G8</code>) para que un fallo <strong>no pudiera volver</strong>. Un sistema "robusto" que no se vuelve a probar cada vez no es robusto: tiene suerte. Y la suerte, en seguridad, no es una estrategia. Probar, medir y documentar: ese es el trabajo. Y ese —<strong>no romperse</strong> cuando el mundo se pone hostil— es el único resultado que un investigador serio puede prometer sin mentir. Medir es incómodo —a veces desmiente tus deseos—, pero es lo único que separa un hallazgo de una opinión.</p>
+<h2>Cómo sigue la serie</h2>
+<ol><li><a href="/blog/como-leer-serie-mision-0.html">Cómo leer la serie + Misión 0</a></li><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><strong>Fase 6: robustez, hooks y límites reales</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol>
 <hr>
 <h2>Bibliografía y referencias</h2>
-<ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>); Sektor7 — <em>Halo's Gate</em>.</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li><li>Microsoft Learn — <em>ETW</em>, <em>kernel callbacks</em> y telemetría de seguridad.</li><li>Fuentes primarias: <code>docs/research/experimentos-fase6.md</code>, <code>docs/evidencias/m5.txt</code>.</li></ul>
-<blockquote><p>Aprender a romper para poder defender.</p></blockquote>
-<h2>Cómo sigue la serie</h2>
-<ol><li><a href="/blog/guia-syscalls-windows.html">Guía de syscalls</a></li><li><a href="/blog/kagemusha-indirect-syscalls.html">Visión general, tesis y metodología</a></li><li><a href="/blog/kagemusha-fases-0-3.html">Fases 0 a 3: del toolchain al gadget</a></li><li><a href="/blog/kagemusha-fase-4-ejecucion-indirecta.html">Fase 4: ejecución indirecta real</a></li><li><a href="/blog/kagemusha-fase-5-generalizacion.html">Fase 5: generalización y aridad</a></li><li><strong>Fase 6: robustez, hooks y límites reales</strong> (esta entrada)</li><li><a href="/blog/kagemusha-fase-7-baterias-cet.html">Fase 7 y baterías (T19–T22): ledger, CLI y CET</a></li></ol></div>
+<ul><li>Fuentes primarias: <code>README.md</code>, <code>docs/research/experimentos-fase6.md</code>,</li></ul>
+<p><code>experimentos-extendidos.md</code>, <code>experimentos-pesados.md</code>, <code>experimentos-globales.md</code>, <code>src/resolver/gadget.c</code>, <code>src/util/exhash.c</code>, <code>src/resolver/freshycalls.c</code>.</p>
+<ul><li>am0nsec &amp; smelly__vx — <em>Hell's Gate</em> (<code>github.com/am0nsec/HellsGate</code>).</li><li>crummie5 — <em>FreshyCalls</em> (<code>github.com/crummie5/FreshyCalls</code>).</li></ul>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote></div>
     </article>
   </main>
 
