@@ -16,6 +16,7 @@ Uso:
 """
 
 import html
+import json
 import os
 import re
 import email.utils
@@ -31,6 +32,17 @@ INDEX = os.path.join(ROOT, "index.html")
 SITE = "KANON UFO"
 SITE_URL = "https://juanbarrero-art.github.io"
 SITE_DESC = "Blog personal de ciberseguridad: notas, writeups y laboratorio."
+AUTHOR = "Juan Barrero"
+AUTHOR_ALIAS = "KANON UFO"
+AUTHOR_URL = "https://github.com/juanbarrero-art"
+
+# Palabras clave base para SEO (nicho: malware research / Windows internals)
+BASE_KEYWORDS = [
+    "windows internals", "syscalls", "indirect syscalls", "malware analysis",
+    "red team", "blue team", "EDR", "ntdll", "Windows kernel", "FreshyCalls",
+    "reverse engineering", "offensive security", "ciberseguridad",
+    "seguridad informatica", "Windows x64", "MASM",
+]
 # Cuantas entradas mostrar en la portada
 HOME_COUNT = 3
 
@@ -308,6 +320,50 @@ def build_robots():
     return f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
 
 
+def first_image(body):
+    """Devuelve el nombre del primer archivo de imagen referenciado en el post."""
+    m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", body)
+    if not m:
+        return ""
+    return m.group(1).split("/")[-1]
+
+
+def post_seo(p, content):
+    """Calcula los campos SEO de una entrada."""
+    img = first_image(p["body"])
+    ogimage = f"{SITE_URL}/assets/{img}" if img else f"{SITE_URL}/assets/banner.gif"
+    canonical = f"{SITE_URL}/blog/{p['slug']}.html"
+    tags_list = [t.strip() for t in p["tags"].split(",") if t.strip()]
+    keywords = ", ".join(dict.fromkeys(BASE_KEYWORDS + tags_list))
+    tag_meta = "\n".join(
+        f'  <meta property="article:tag" content="{html.escape(t)}">' for t in tags_list
+    )
+    jsonld = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": p["title"],
+        "description": p["summary"],
+        "datePublished": p["date"],
+        "dateModified": p["date"],
+        "author": {"@type": "Person", "name": AUTHOR, "alternateName": AUTHOR_ALIAS, "url": AUTHOR_URL},
+        "publisher": {"@type": "Person", "name": AUTHOR_ALIAS, "url": AUTHOR_URL},
+        "image": ogimage,
+        "keywords": keywords,
+        "articleSection": p.get("serie") or "Blog",
+        "inLanguage": "es",
+        "mainEntityOfPage": {"@type": "WebPage", "@id": canonical},
+        "url": canonical,
+    }, ensure_ascii=False, indent=2)
+    return {
+        "canonical": canonical,
+        "ogimage": ogimage,
+        "keywords": html.escape(keywords),
+        "date_iso": p["date"],
+        "tag_meta": tag_meta,
+        "jsonld": jsonld,
+    }
+
+
 def build():
     os.makedirs(BLOG_DIR, exist_ok=True)
     posts = load_posts()
@@ -315,7 +371,7 @@ def build():
     # Paginas de cada post
     for p in posts:
         content = md_to_html(p["body"])
-        page = render_template("post.html", {
+        repl = {
             "title": html.escape(p["title"]),
             "summary": html.escape(p["summary"]),
             "date": p["date_h"],
@@ -324,7 +380,9 @@ def build():
             "serie": serie_html(p),
             "content": content,
             "site": SITE,
-        })
+        }
+        repl.update(post_seo(p, content))
+        page = render_template("post.html", repl)
         with open(os.path.join(BLOG_DIR, p["slug"] + ".html"), "w", encoding="utf-8") as f:
             f.write(page)
 
@@ -332,7 +390,27 @@ def build():
     cards = "\n".join(card_html(p, "") for p in posts)
     if not posts:
         cards = '<li class="entradas__vacio">A&uacute;n no hay entradas. Pronto.</li>'
-    index_page = render_template("blog-index.html", {"posts": cards, "site": SITE})
+    idx_canonical = f"{SITE_URL}/blog/"
+    idx_jsonld = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": f"{SITE} - Blog",
+        "description": SITE_DESC,
+        "url": idx_canonical,
+        "inLanguage": "es",
+        "author": {"@type": "Person", "name": AUTHOR, "alternateName": AUTHOR_ALIAS},
+        "blogPost": [
+            {"@type": "BlogPosting", "headline": p["title"],
+             "url": f"{SITE_URL}/blog/{p['slug']}.html", "datePublished": p["date"]}
+            for p in posts
+        ],
+    }, ensure_ascii=False, indent=2)
+    index_page = render_template("blog-index.html", {
+        "posts": cards, "site": SITE, "canonical": idx_canonical,
+        "ogimage": f"{SITE_URL}/assets/banner.gif",
+        "keywords": html.escape(", ".join(BASE_KEYWORDS)),
+        "jsonld": idx_jsonld,
+    })
     with open(os.path.join(BLOG_DIR, "index.html"), "w", encoding="utf-8") as f:
         f.write(index_page)
 
@@ -346,10 +424,27 @@ def build():
     for nombre, items in series.items():
         items.sort(key=lambda x: x["date"])
         s_cards = "\n".join(card_html(p, "../") for p in items)
+        s_canonical = f"{SITE_URL}/blog/serie/{slugify(nombre)}.html"
+        s_jsonld = json.dumps({
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": f"Serie: {nombre}",
+            "url": s_canonical,
+            "inLanguage": "es",
+            "hasPart": [
+                {"@type": "BlogPosting", "headline": it["title"],
+                 "url": f"{SITE_URL}/blog/{it['slug']}.html", "datePublished": it["date"]}
+                for it in items
+            ],
+        }, ensure_ascii=False, indent=2)
         s_page = render_template("serie.html", {
             "titulo": html.escape(nombre),
             "posts": s_cards,
             "site": SITE,
+            "canonical": s_canonical,
+            "ogimage": f"{SITE_URL}/assets/banner.gif",
+            "keywords": html.escape(", ".join(BASE_KEYWORDS)),
+            "jsonld": s_jsonld,
         })
         with open(os.path.join(BLOG_DIR, "serie", slugify(nombre) + ".html"), "w", encoding="utf-8") as f:
             f.write(s_page)

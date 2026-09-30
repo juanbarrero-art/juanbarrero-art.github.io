@@ -7,6 +7,34 @@
   <meta name="theme-color" content="#060810">
   <title>{{title}} | {{site}}</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="{{keywords}}">
+  <link rel="canonical" href="{{canonical}}">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{summary}}">
+  <meta property="og:url" content="{{canonical}}">
+  <meta property="og:image" content="{{ogimage}}">
+  <meta property="og:site_name" content="{{site}}">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="{{date_iso}}">
+  <meta property="article:author" content="Juan Barrero">
+{{tag_meta}}
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{title}}">
+  <meta name="twitter:description" content="{{summary}}">
+  <meta name="twitter:image" content="{{ogimage}}">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{{jsonld}}
+  </script>
+
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
 </head>

@@ -7,6 +7,64 @@
   <meta name="theme-color" content="#060810">
   <title>&quot;Guía: syscalls en Windows para principiantes&quot; | KANON UFO</title>
   <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="&quot;Guía: syscalls en Windows para principiantes&quot;">
+  <meta property="og:description" content="Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-09-29">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="guia">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="syscalls">
+  <meta property="article:tag" content="principiantes">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="&quot;Guía: syscalls en Windows para principiantes&quot;">
+  <meta name="twitter:description" content="Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "\"Guía: syscalls en Windows para principiantes\"",
+  "description": "Una introducción clara y detallada a las system calls de Windows: user-mode vs kernel, ntdll, SSN, stubs, syscalls directas e indirectas, hooks y por qué existe la serie Kagemusha.",
+  "datePublished": "2026-09-29",
+  "dateModified": "2026-09-29",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, principiantes",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/guia-syscalls-windows.html"
+}
+  </script>
+
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
 </head>
