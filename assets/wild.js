@@ -164,8 +164,14 @@
       drops = [];
       for (var i = 0; i < cols; i++) drops[i] = Math.random() * -60;
     }
-    function draw() {
-      ctx.fillStyle = "rgba(5,7,13,0.09)";
+    var ultimo = 0;
+    function draw(ts) {
+      requestAnimationFrame(draw);
+      if (document.hidden) return;
+      ts = ts || 0;
+      if (ts - ultimo < 33) return; /* ~30 fps */
+      ultimo = ts;
+      ctx.fillStyle = "rgba(5,7,13,0.1)";
       ctx.fillRect(0, 0, W, H);
       ctx.font = (size * DPR) + "px monospace";
       for (var i = 0; i < cols; i++) {
@@ -177,11 +183,10 @@
         if (y > H && Math.random() > 0.975) drops[i] = 0;
         drops[i] += 0.9;
       }
-      requestAnimationFrame(draw);
     }
     setup();
     window.addEventListener("resize", setup);
-    draw();
+    requestAnimationFrame(draw);
   }
 
   /* ---------------- Fondo Matrix: parallax de centinelas ---------------- */
@@ -194,19 +199,22 @@
       if (el.classList.contains("sent-capa--medio")) return 18;
       return 9;
     }
-    var mx = 0, my = 0, tx = 0, ty = 0;
+    var mx = 0, my = 0, tx = 0, ty = 0, activo = false;
     document.addEventListener("mousemove", function (e) {
       mx = e.clientX / window.innerWidth - 0.5;
       my = e.clientY / window.innerHeight - 0.5;
+      if (!activo) { activo = true; requestAnimationFrame(loop); }
     });
-    (function loop() {
+    function loop() {
+      if (document.hidden) { activo = false; return; }
       tx += (mx - tx) * 0.06; ty += (my - ty) * 0.06;
       for (var i = 0; i < capas.length; i++) {
         var f = factor(capas[i]);
         capas[i].style.transform = "translate3d(" + (-tx * f) + "px," + (-ty * f) + "px,0)";
       }
+      if (Math.abs(mx - tx) < 0.0015 && Math.abs(my - ty) < 0.0015) { activo = false; return; }
       requestAnimationFrame(loop);
-    })();
+    }
   }
 
   /* ---------------- Intro BIOS/POST ---------------- */
@@ -372,14 +380,18 @@
     var punto = document.createElement("div"); punto.id = "wild-cursor";
     var anillo = document.createElement("div"); anillo.id = "wild-cursor-ring";
     document.body.appendChild(punto); document.body.appendChild(anillo);
-    var x = 0, y = 0, rx = 0, ry = 0;
-    document.addEventListener("mousemove", function (ev) { x = ev.clientX; y = ev.clientY; });
-    (function seguir() {
+    var x = 0, y = 0, rx = 0, ry = 0, activo = false;
+    document.addEventListener("mousemove", function (ev) {
+      x = ev.clientX; y = ev.clientY;
+      if (!activo) { activo = true; requestAnimationFrame(seguir); }
+    });
+    function seguir() {
       rx += (x - rx) * 0.45; ry += (y - ry) * 0.45;
       punto.style.transform = "translate(" + x + "px," + y + "px)";
       anillo.style.transform = "translate(" + rx + "px," + ry + "px)";
+      if (Math.abs(x - rx) < 0.4 && Math.abs(y - ry) < 0.4) { activo = false; return; }
       requestAnimationFrame(seguir);
-    })();
+    }
   }
 
   /* ---------------- Arranque ---------------- */
