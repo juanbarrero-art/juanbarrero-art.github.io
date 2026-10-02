@@ -315,15 +315,15 @@
   function init() {
     var btn = document.querySelector(".wild-toggle");
     if (btn) btn.addEventListener("click", function () { activar(!wild); });
-    activar(wild);
+    try { activar(wild); } catch (e) {}
     if (wild && !reduce) {
-      initFondo();      /* fallback inmediato */
-      initVanta();      /* upgrade 3D (si carga) */
-      initCursor();
+      try { initFondo(); } catch (e) {}
+      try { initVanta(); } catch (e) {}
+      try { initCursor(); } catch (e) {}
     }
-    initBoot();
-    initImplant();
-    initTerminalVanilla();
+    try { initBoot(); } catch (e) {}
+    try { initImplant(); } catch (e) {}
+    try { initTerminalVanilla(); } catch (e) {}
     /* initXterm() desactivado: la terminal vanilla es la fiable (Xterm daba problemas). */
   }
 
