@@ -148,3 +148,8 @@
   .sent-capa--cerca .centinela { display: none; }
   .sent-capa--medio .centinela { opacity: 0.32; }
 }
+
+/* ---------- Modo ligero (movil / tactil / bajo consumo) ---------- */
+.perf-light #matrix-sentinels,
+.perf-light #matrix-rain { display: none !important; }
+.wild-on.perf-light::after { opacity: 0.22; }

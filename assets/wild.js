@@ -13,6 +13,15 @@
   try { guardado = localStorage.getItem("wild"); } catch (e) {}
   var wild = guardado === null ? !reduce : guardado === "on";
 
+  /* Modo ligero: movil / tactil / save-data / pocos nucleos -> sin fondo pesado */
+  var ligero = false;
+  try {
+    ligero = (window.matchMedia && (window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 820px)").matches))
+      || (navigator.connection && navigator.connection.saveData)
+      || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+  } catch (e) {}
+  document.documentElement.classList.toggle("perf-light", ligero);
+
   function activar(on) {
     wild = on;
     document.documentElement.classList.toggle("wild-on", on);
@@ -378,7 +387,13 @@
     var btn = document.querySelector(".wild-toggle");
     if (btn) btn.addEventListener("click", function () { activar(!wild); });
     try { activar(wild); } catch (e) {}
-    if (wild && !reduce) {
+    if (ligero) {
+      var s = document.getElementById("matrix-sentinels");
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+      var r = document.getElementById("matrix-rain");
+      if (r && r.parentNode) r.parentNode.removeChild(r);
+    }
+    if (wild && !reduce && !ligero) {
       if (!document.getElementById("matrix-sentinels")) {
         try { initFondo(); } catch (e) {}
         try { initVanta(); } catch (e) {}
