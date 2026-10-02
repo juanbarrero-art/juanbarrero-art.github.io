@@ -144,8 +144,8 @@
     if (!cv || !cv.getContext) return;
     var ctx = cv.getContext("2d");
     var chars = "01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ<>/\\|=+*#0123456789ABCDEF".split("");
-    var DPR = Math.min(2, window.devicePixelRatio || 1);
-    var W, H, cols, drops, size = 16;
+    var DPR = 1;
+    var W, H, cols, drops, size = 18;
     function setup() {
       W = cv.width = Math.floor(window.innerWidth * DPR);
       H = cv.height = Math.floor(window.innerHeight * DPR);
