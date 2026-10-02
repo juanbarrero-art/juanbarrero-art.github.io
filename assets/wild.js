@@ -366,7 +366,7 @@
     var x = 0, y = 0, rx = 0, ry = 0;
     document.addEventListener("mousemove", function (ev) { x = ev.clientX; y = ev.clientY; });
     (function seguir() {
-      rx += (x - rx) * 0.18; ry += (y - ry) * 0.18;
+      rx += (x - rx) * 0.45; ry += (y - ry) * 0.45;
       punto.style.transform = "translate(" + x + "px," + y + "px)";
       anillo.style.transform = "translate(" + rx + "px," + ry + "px)";
       requestAnimationFrame(seguir);
