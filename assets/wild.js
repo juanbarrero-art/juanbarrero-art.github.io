@@ -39,7 +39,7 @@
 
   /* ---------------- Comandos (compartidos) ---------------- */
   var COMANDOS = {
-    help: "Comandos: whoami · about · focus · skills · posts · projects · contact · sudo · matrix · banner · date · clear",
+    help: "Comandos: whoami · about · focus · skills · posts · projects · contact · rootkit · implant · procs · unhook · etw · sudo · matrix · banner · date · clear",
     whoami: "KANON UFO  ·  Juan Barrero\nEstudiante de ciberseguridad | Blue Team (base Red Team)\nMalware Analysis · Windows Internals · Lubuntu",
     about: "Blog de ciberseguridad a bajo nivel: notas, writeups y laboratorio.\nVer: /blog/",
     focus: "[+] malware analysis\n[+] windows internals\n[+] blue team (base red team)",
@@ -48,6 +48,11 @@
     projects: "Kagemusha: sistema de indirect syscalls en C + MASM (investigacion).",
     contact: "GitHub: https://github.com/juanbarrero-art",
     date: new Date().toString(),
+    rootkit: "rootkit v0.7  ·  implante ring 0\n  unhook: OK   etw: suppressed   callbacks: filtered\n  hidden processes: 3   status: UNDETECTED",
+    implant: "implant --mode stealth\n[+] cargando en kernel ...\n[+] ocultando procesos .... 3\n[*] UNDETECTED",
+    procs: "PID     NOMBRE            ESTADO\n    4   System            [visible]\n  780   svchost.exe       [visible]\n 1337   kage.exe          [HIDDEN]\n31337   rootkit.sys       [HIDDEN]\n0xDEAD  implant.exe       [HIDDEN]",
+    unhook: "unhook: ntdll .text restaurado de disco -> stubs limpios: 488/488",
+    etw: "etw(user): suppressed  |  etw-ti(kernel): [WARN] requiere ring 0",
     banner: " _  __   _   _  _  ___  _  _   _  _  ___  ___\n| |/ /  /_\\ | \\| |/ _ \\| \\| | | | || |/ _ \\| __|\n| ' <  / _ \\| .` | (_) | .` | | |_|| | (_) | _|\n|_|\\_\\/_/ \\_\\_|\\_|\\___/|_|\\_|  \\___/|_|\\___/|_|"
   };
 
@@ -167,6 +172,30 @@
       else { texto += linea + "\n"; salida.textContent = texto + "\u2588"; i++; j = 0; setTimeout(paso, 70); }
     }
     setTimeout(paso, 200);
+  }
+
+  /* ---------------- Hero: implante auto-ejecutado ---------------- */
+  function initImplant() {
+    var el = document.getElementById("implant-salida");
+    if (!el || !wild || reduce) return;
+    var lineas = [
+      '<span class="t-verde">root@kernel:~#</span> implant --mode stealth',
+      '<span class="t-cian">[+] syscall stub ....... unhooked</span>',
+      '<span class="t-cian">[+] etw (user) ........ suppressed</span>',
+      '<span class="t-cian">[+] callbacks ......... filtered</span>',
+      '<span class="t-cian">[+] hidden procs ...... 3</span>',
+      '<span class="t-magenta">[*] status: UNDETECTED</span>',
+      '<span class="t-verde">root@kernel:~#</span> <span class="cursor">_</span>'
+    ];
+    var i = 0;
+    function frame() {
+      el.innerHTML = lineas.slice(0, i + 1).join("\n");
+      i++;
+      if (i < lineas.length) setTimeout(frame, 520);
+      else setTimeout(function () { i = 0; el.innerHTML = ""; setTimeout(frame, 500); }, 2800);
+    }
+    el.innerHTML = "";
+    setTimeout(frame, 500);
   }
 
   /* ---------------- Terminal vanilla (fallback) ---------------- */
@@ -293,6 +322,7 @@
       initCursor();
     }
     initBoot();
+    initImplant();
     initTerminalVanilla();
     initXterm();        /* upgrade real (si carga) */
   }

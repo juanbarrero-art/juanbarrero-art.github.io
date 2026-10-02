@@ -1,0 +1,84 @@
+/* =====================================================================
+   KANON UFO - Tema "ROOTKIT"
+   Barra de estado, hero-implante, chips y tipografía display.
+   ===================================================================== */
+
+/* ---------- Tipografía display ---------- */
+:root {
+  --f-display: "Orbitron", "JetBrains Mono", ui-monospace, monospace;
+  --f-mono: "JetBrains Mono", "Fira Code", ui-monospace, Consolas, monospace;
+}
+
+.marca__texto,
+.hero__titulo,
+.titulo-seccion,
+.seccion__titulo,
+.pie__marca,
+.entrada__titulo,
+.post__titulo,
+.lab__titulo {
+  font-family: var(--f-display);
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Barra de estado rootkit ---------- */
+.rootkit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  color: var(--texto-suave);
+  background: #04060c;
+  border-bottom: 1px solid #121a30;
+  padding: 0.4rem 1rem;
+}
+.rootkit-bar__item b { color: var(--texto); font-weight: 600; }
+.rootkit-bar__estado { color: var(--magenta); font-weight: 700; }
+.rootkit-bar__estado .rk-dot {
+  display: inline-block; width: 7px; height: 7px; margin-right: 0.4rem;
+  border-radius: 50%; background: var(--verde);
+  box-shadow: 0 0 8px var(--verde);
+  animation: rk-pulse 1.4s infinite;
+}
+@keyframes rk-pulse { 50% { opacity: 0.25; } }
+.rk-status { color: var(--verde); font-weight: 700; }
+.rk-status b { color: var(--verde); }
+
+/* ---------- Chips del hero ---------- */
+.hero__badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.9rem 0 0; }
+.chip {
+  font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.03em;
+  padding: 0.22rem 0.65rem; border: 1px solid var(--borde); border-radius: 999px;
+  color: var(--cian); background: rgba(0, 229, 255, 0.05);
+}
+.chip--ok { color: var(--verde); border-color: rgba(57, 255, 20, 0.35); background: rgba(57, 255, 20, 0.05); }
+.chip--mag { color: var(--magenta); border-color: rgba(255, 45, 149, 0.35); background: rgba(255, 45, 149, 0.05); }
+
+/* ---------- Hero: implante (terminal animada) ---------- */
+.terminal--implant {
+  border-color: rgba(57, 255, 20, 0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 42px rgba(57, 255, 20, 0.1);
+}
+.terminal--implant .terminal__ruta { color: var(--verde); }
+.terminal--implant .terminal__cuerpo { min-height: 220px; }
+.t-verde { color: var(--verde); }
+.t-rojo { color: #f87171; }
+
+/* ---------- Consola protagonista ---------- */
+.consola__caja {
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: 0 0 60px rgba(0, 229, 255, 0.12), inset 0 0 80px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Detalle: marca con parpadeo ---------- */
+.marca__acento { animation: rk-flicker 4s infinite; }
+@keyframes rk-flicker {
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.35; }
+  98% { opacity: 1; }
+  99% { opacity: 0.5; }
+}

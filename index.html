@@ -32,9 +32,14 @@
   }
   </script>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="assets/wild.css">
+  <link rel="stylesheet" href="assets/rootkit.css">
   <script src="script.js" defer></script>
   <script src="assets/wild.js" defer></script>
 </head>
@@ -49,6 +54,17 @@
 
   <!-- Enlace para saltar al contenido (teclado) -->
   <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <!-- ===================== BARRA DE ESTADO ROOTKIT ===================== -->
+  <div class="rootkit-bar" aria-hidden="true">
+    <span class="rootkit-bar__estado"><span class="rk-dot"></span>ROOTKIT v0.7</span>
+    <span class="rootkit-bar__item">ring: <b>0</b></span>
+    <span class="rootkit-bar__item">hooks: <b>unhooked</b></span>
+    <span class="rootkit-bar__item">etw: <b>suppressed</b></span>
+    <span class="rootkit-bar__item">callbacks: <b>filtered</b></span>
+    <span class="rootkit-bar__item">hidden: <b>3</b></span>
+    <span class="rootkit-bar__item rk-status">status: <b>UNDETECTED</b></span>
+  </div>
 
   <!-- ===================== CABECERA ===================== -->
   <header class="cabecera">
@@ -93,24 +109,28 @@
             <a class="boton boton--primario" href="blog/index.html">Leer el blog</a>
             <a class="boton boton--fantasma" href="#sobre-mi">Sobre mí</a>
           </div>
+          <p class="hero__badges">
+            <span class="chip">root@kernel</span>
+            <span class="chip">ring 0</span>
+            <span class="chip chip--mag">stealth mode</span>
+            <span class="chip chip--ok">undetected</span>
+          </p>
         </div>
 
-        <div class="terminal" role="img" aria-label="Ventana de terminal con información del blog">
+        <div class="terminal terminal--implant" role="img" aria-label="Terminal del implante (auto-ejecución)">
           <div class="terminal__barra">
             <span class="terminal__punto terminal__punto--rojo"></span>
             <span class="terminal__punto terminal__punto--ambar"></span>
             <span class="terminal__punto terminal__punto--verde"></span>
-            <span class="terminal__ruta">kanon-ufo: ~/blog</span>
+            <span class="terminal__ruta">root@kernel: ~/implant</span>
           </div>
-          <pre class="terminal__cuerpo"><span class="t-verde">kanon@ufo:~$</span> whoami
-<span class="t-cian">KANON UFO</span>
-<span class="t-verde">kanon@ufo:~$</span> cat focus.txt
-[+] malware analysis
-[+] windows internals
-[+] blue team <span class="t-gris">(base red team)</span>
-<span class="t-verde">kanon@ufo:~$</span> status
-<span class="t-magenta">[ BLOG: iniciando... ]</span>
-<span class="t-verde">kanon@ufo:~$</span> <span class="cursor">_</span></pre>
+          <pre class="terminal__cuerpo" id="implant-salida"><span class="t-verde">root@kernel:~#</span> implant --mode stealth
+<span class="t-cian">[+] syscall stub ....... unhooked</span>
+<span class="t-cian">[+] etw (user) ........ suppressed</span>
+<span class="t-cian">[+] callbacks ......... filtered</span>
+<span class="t-cian">[+] hidden procs ...... 3</span>
+<span class="t-magenta">[*] status: UNDETECTED</span>
+<span class="t-verde">root@kernel:~#</span> <span class="cursor">_</span></pre>
         </div>
       </div>
     </section>
