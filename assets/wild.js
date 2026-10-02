@@ -324,7 +324,7 @@
     initBoot();
     initImplant();
     initTerminalVanilla();
-    initXterm();        /* upgrade real (si carga) */
+    /* initXterm() desactivado: la terminal vanilla es la fiable (Xterm daba problemas). */
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

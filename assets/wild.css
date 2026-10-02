@@ -138,8 +138,10 @@
 }
 
 /* ---------- Consola interactiva ---------- */
-.consola { padding: var(--esp-xl) 0; }
+.consola { padding: var(--esp-lg) 0; }
 .consola__caja {
+  max-width: 820px;
+  margin: 0 auto;
   border: 1px solid var(--borde);
   border-radius: var(--radio);
   background: rgba(3, 6, 12, 0.92);
@@ -157,7 +159,7 @@
 .consola__ruta { margin-left: 0.6rem; font-family: var(--f-mono); font-size: 0.78rem; color: var(--texto-suave); }
 .consola__salida {
   margin: 0; padding: 1rem 1.1rem;
-  max-height: 340px; overflow-y: auto;
+  max-height: 240px; overflow-y: auto;
   font-family: var(--f-mono); font-size: 0.86rem; line-height: 1.6;
   color: var(--texto); white-space: pre-wrap; word-break: break-word;
 }
@@ -190,7 +192,7 @@
 #wild-vanta canvas { width: 100% !important; height: 100% !important; display: block; }
 
 /* ---------- Terminal Xterm (upgrade) ---------- */
-#consola-xterm { min-height: 300px; padding: 0.7rem 0.5rem; background: #03060c; }
+#consola-xterm { min-height: 200px; padding: 0.7rem 0.5rem; background: #03060c; }
 #consola-xterm[hidden] { display: none; }
 #consola-xterm .xterm .xterm-viewport { background: transparent !important; }
 
