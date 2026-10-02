@@ -181,6 +181,19 @@
 }
 .wild-toggle:hover { border-color: var(--cian); }
 
+/* ---------- Fondo Vanta.js (upgrade) ---------- */
+#wild-vanta {
+  position: fixed; inset: 0; z-index: -2;
+  pointer-events: none; opacity: 0; transition: opacity 0.8s ease;
+}
+#wild-vanta.wild-vanta--on { opacity: 1; }
+#wild-vanta canvas { width: 100% !important; height: 100% !important; display: block; }
+
+/* ---------- Terminal Xterm (upgrade) ---------- */
+#consola-xterm { min-height: 300px; padding: 0.7rem 0.5rem; background: #03060c; }
+#consola-xterm[hidden] { display: none; }
+#consola-xterm .xterm .xterm-viewport { background: transparent !important; }
+
 /* ---------- Respeta la preferencia de movimiento reducido ---------- */
 @media (prefers-reduced-motion: reduce) {
   .wild-on::after { display: none; }
