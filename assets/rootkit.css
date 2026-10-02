@@ -83,6 +83,13 @@
   99% { opacity: 0.5; }
 }
 
+/* ---------- Fondo Matrix: lluvia de codigo ---------- */
+#matrix-rain {
+  position: fixed; inset: 0; z-index: -3;
+  pointer-events: none; opacity: 0; transition: opacity 0.8s ease;
+}
+.wild-on #matrix-rain { opacity: 0.5; }
+
 /* ---------- Fondo Matrix: enjambre de centinelas ---------- */
 #matrix-sentinels {
   position: fixed; inset: 0; z-index: -2;
@@ -91,26 +98,53 @@
 }
 .wild-on #matrix-sentinels { opacity: 1; }
 .sent-capa { position: absolute; inset: 0; will-change: transform; }
-.centinela { position: absolute; display: block; animation: sent-float 12s ease-in-out infinite alternate; }
+.centinela {
+  position: absolute; display: block;
+  animation: sent-float 11s ease-in-out infinite alternate;
+}
 
-.sent-capa--lejos .centinela:nth-child(1) { top: 3%; left: 5%; }
-.sent-capa--lejos .centinela:nth-child(2) { top: 12%; right: 8%; animation-duration: 15s; animation-delay: -4s; }
-.sent-capa--lejos .centinela:nth-child(3) { bottom: 14%; left: 16%; animation-duration: 13s; animation-delay: -8s; }
-.sent-capa--medio .centinela:nth-child(1) { top: 22%; right: 2%; animation-duration: 10s; animation-delay: -2s; }
-.sent-capa--medio .centinela:nth-child(2) { bottom: 6%; left: -2%; animation-duration: 14s; animation-delay: -6s; }
-.sent-capa--cerca .centinela:nth-child(1) { bottom: -14%; right: -9%; animation-duration: 17s; animation-delay: -5s; }
+/* Capa lejana (5) */
+.sent-capa--lejos .centinela { opacity: 0.24; filter: blur(1.6px); }
+.sent-capa--lejos .centinela:nth-child(1) { top: 6%; left: 4%; }
+.sent-capa--lejos .centinela:nth-child(2) { top: 16%; right: 6%; animation-duration: 15s; animation-delay: -4s; }
+.sent-capa--lejos .centinela:nth-child(3) { top: 42%; left: 1%; animation-duration: 13s; animation-delay: -8s; }
+.sent-capa--lejos .centinela:nth-child(4) { bottom: 18%; right: 12%; animation-duration: 16s; animation-delay: -6s; }
+.sent-capa--lejos .centinela:nth-child(5) { bottom: 30%; left: 28%; animation-duration: 12s; animation-delay: -2s; }
 
-.sent-capa--lejos .centinela { opacity: 0.26; filter: blur(1.4px); }
+/* Capa media (4) */
 .sent-capa--medio .centinela { opacity: 0.5; }
-.sent-capa--cerca .centinela { opacity: 0.34; }
+.sent-capa--medio .centinela:nth-child(1) { top: 22%; right: 1%; animation-duration: 10s; animation-delay: -3s; }
+.sent-capa--medio .centinela:nth-child(2) { top: 56%; left: -3%; animation-duration: 9s; animation-delay: -5s; }
+.sent-capa--medio .centinela:nth-child(3) { bottom: 8%; right: 22%; animation-duration: 14s; animation-delay: -7s; }
+.sent-capa--medio .centinela:nth-child(4) { top: 5%; left: 44%; animation-duration: 12s; animation-delay: -1s; }
 
+/* Capa cercana (3) */
+.sent-capa--cerca .centinela { opacity: 0.32; }
+.sent-capa--cerca .centinela:nth-child(1) { bottom: -18%; right: -10%; animation-duration: 17s; animation-delay: -5s; }
+.sent-capa--cerca .centinela:nth-child(2) { top: -14%; left: -10%; animation-duration: 19s; animation-delay: -9s; }
+.sent-capa--cerca .centinela:nth-child(3) { bottom: -24%; left: 22%; animation-duration: 15s; animation-delay: -2s; }
+
+/* Movimientos: flotar / cruzar / atacar */
 @keyframes sent-float {
   from { transform: translateY(-12px) rotate(-1.5deg); }
   to { transform: translateY(14px) rotate(1.5deg); }
 }
+.centinela--cruza { animation-name: sent-cross; animation-duration: 24s; animation-timing-function: ease-in-out; animation-direction: alternate; animation-iteration-count: infinite; }
+@keyframes sent-cross {
+  from { transform: translateX(-18vw) rotate(-4deg); }
+  to { transform: translateX(18vw) rotate(4deg); }
+}
+.centinela--ataca { animation-name: sent-dive; animation-duration: 9s; animation-timing-function: ease-in-out; animation-direction: alternate; animation-iteration-count: infinite; }
+@keyframes sent-dive {
+  from { transform: translateY(-22vh) scale(0.82) rotate(-3deg); }
+  to { transform: translateY(20vh) scale(1.22) rotate(3deg); }
+}
 
-@media (prefers-reduced-motion: reduce) { .centinela { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .centinela { animation: none !important; }
+  #matrix-rain { display: none; }
+}
 @media (max-width: 640px) {
   .sent-capa--cerca .centinela { display: none; }
-  .sent-capa--medio .centinela { opacity: 0.35; }
+  .sent-capa--medio .centinela { opacity: 0.32; }
 }

@@ -38,27 +38,34 @@
 
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="assets/wild.css?v=4">
-  <link rel="stylesheet" href="assets/rootkit.css?v=4">
+  <link rel="stylesheet" href="assets/wild.css?v=5">
+  <link rel="stylesheet" href="assets/rootkit.css?v=5">
   <script src="script.js" defer></script>
-  <script src="assets/wild.js?v=4" defer></script>
+  <script src="assets/wild.js?v=5" defer></script>
 </head>
 <body>
   <!-- Modo salvaje: fondo animado + intro BIOS + toggle -->
   <canvas id="wild-fondo" aria-hidden="true"></canvas>
-  <!-- Fondo Matrix: enjambre de centinelas -->
+  <!-- Fondo Matrix: lluvia de codigo + enjambre de centinelas -->
+  <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div id="matrix-sentinels" aria-hidden="true">
     <div class="sent-capa sent-capa--lejos">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="300" height="188" loading="lazy">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="250" height="156" loading="lazy">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="270" height="169" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="240" height="150" loading="lazy">
+      <img class="centinela centinela--cruza" src="assets/centinela.svg" alt="" width="220" height="137" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="200" height="125" loading="lazy">
+      <img class="centinela centinela--cruza" src="assets/centinela.svg" alt="" width="260" height="163" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="210" height="131" loading="lazy">
     </div>
     <div class="sent-capa sent-capa--medio">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="460" height="288" loading="lazy">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="400" height="250" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="380" height="238" loading="lazy">
+      <img class="centinela centinela--ataca" src="assets/centinela.svg" alt="" width="340" height="213" loading="lazy">
+      <img class="centinela centinela--cruza" src="assets/centinela.svg" alt="" width="420" height="263" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="360" height="225" loading="lazy">
     </div>
     <div class="sent-capa sent-capa--cerca">
-      <img class="centinela" src="assets/centinela.svg" alt="" width="820" height="512" loading="lazy">
+      <img class="centinela centinela--ataca" src="assets/centinela.svg" alt="" width="760" height="475" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="680" height="425" loading="lazy">
+      <img class="centinela centinela--ataca" src="assets/centinela.svg" alt="" width="820" height="512" loading="lazy">
     </div>
   </div>
   <div id="wild-boot" hidden role="presentation">

@@ -7,10 +7,10 @@
       .carne{fill:#101d33;stroke:#22385a;stroke-width:1}
       .placa{fill:#0b1526;stroke:#2c4a6e;stroke-width:1}
       .energia{fill:none;stroke-width:1.6;stroke-opacity:.5;filter:url(#fGlow)}
-      .tentaculo{transform-box:view-box;animation:vaiven 6s ease-in-out infinite alternate}
+      .tentaculo{transform-box:view-box;animation:vaiven 3.6s ease-in-out infinite alternate}
       #tent-1{animation-delay:-1s}#tent-2{animation-delay:-2.4s}#tent-3{animation-delay:-3.6s}#tent-4{animation-delay:-0.8s}
       #tent-5{animation-delay:-4.4s}#tent-6{animation-delay:-1.6s}#tent-7{animation-delay:-2.8s}#tent-8{animation-delay:-3.2s}
-      #ojos{animation:pulso 3.2s ease-in-out infinite}
+      #ojos{animation:pulso 2.2s ease-in-out infinite}
       .led{animation:blink 2.4s steps(2) infinite}
       @keyframes vaiven{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
       @keyframes pulso{0%,100%{opacity:.78}50%{opacity:1}}

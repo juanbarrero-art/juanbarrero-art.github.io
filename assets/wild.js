@@ -138,6 +138,43 @@
       .catch(function () { /* fallback: se queda el canvas propio */ });
   }
 
+  /* ---------------- Fondo Matrix: lluvia de codigo ---------------- */
+  function initMatrixRain() {
+    var cv = document.getElementById("matrix-rain");
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext("2d");
+    var chars = "01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿ<>/\\|=+*#0123456789ABCDEF".split("");
+    var DPR = Math.min(2, window.devicePixelRatio || 1);
+    var W, H, cols, drops, size = 16;
+    function setup() {
+      W = cv.width = Math.floor(window.innerWidth * DPR);
+      H = cv.height = Math.floor(window.innerHeight * DPR);
+      cv.style.width = window.innerWidth + "px";
+      cv.style.height = window.innerHeight + "px";
+      cols = Math.floor(window.innerWidth / size);
+      drops = [];
+      for (var i = 0; i < cols; i++) drops[i] = Math.random() * -60;
+    }
+    function draw() {
+      ctx.fillStyle = "rgba(5,7,13,0.09)";
+      ctx.fillRect(0, 0, W, H);
+      ctx.font = (size * DPR) + "px monospace";
+      for (var i = 0; i < cols; i++) {
+        var ch = chars[Math.floor(Math.random() * chars.length)];
+        var x = i * size * DPR;
+        var y = drops[i] * size * DPR;
+        ctx.fillStyle = Math.random() < 0.08 ? "rgba(190,255,205,0.95)" : "rgba(57,255,20,0.5)";
+        ctx.fillText(ch, x, y);
+        if (y > H && Math.random() > 0.975) drops[i] = 0;
+        drops[i] += 0.9;
+      }
+      requestAnimationFrame(draw);
+    }
+    setup();
+    window.addEventListener("resize", setup);
+    draw();
+  }
+
   /* ---------------- Fondo Matrix: parallax de centinelas ---------------- */
   function initCentinelas() {
     var cont = document.getElementById("matrix-sentinels");
@@ -345,6 +382,8 @@
       if (!document.getElementById("matrix-sentinels")) {
         try { initFondo(); } catch (e) {}
         try { initVanta(); } catch (e) {}
+      } else {
+        try { initMatrixRain(); } catch (e) {}
       }
       try { initCentinelas(); } catch (e) {}
       try { initCursor(); } catch (e) {}
