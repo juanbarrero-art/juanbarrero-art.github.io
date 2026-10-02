@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="titulo desc">
+  <title id="titulo">Centinela KANON UFO</title>
+  <desc id="desc">Criatura mecanica tipo calamar: casco blindado con optica roja, mastil sensor, aletas laterales y ocho tentaculos articulados con garras. Diseno original cyberpunk.</desc>
+
+  <defs>
+    <style>
+      .carne{fill:#101d33;stroke:#22385a;stroke-width:1}
+      .placa{fill:#0b1526;stroke:#2c4a6e;stroke-width:1}
+      .energia{fill:none;stroke-width:1.6;stroke-opacity:.5;filter:url(#fGlow)}
+      .tentaculo{transform-box:view-box;animation:vaiven 6s ease-in-out infinite alternate}
+      #tent-1{animation-delay:-1s}#tent-2{animation-delay:-2.4s}#tent-3{animation-delay:-3.6s}#tent-4{animation-delay:-0.8s}
+      #tent-5{animation-delay:-4.4s}#tent-6{animation-delay:-1.6s}#tent-7{animation-delay:-2.8s}#tent-8{animation-delay:-3.2s}
+      #ojos{animation:pulso 3.2s ease-in-out infinite}
+      .led{animation:blink 2.4s steps(2) infinite}
+      @keyframes vaiven{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+      @keyframes pulso{0%,100%{opacity:.78}50%{opacity:1}}
+      @keyframes blink{50%{opacity:.25}}
+      @media (prefers-reduced-motion:reduce){.tentaculo,#ojos,.led{animation:none}}
+    </style>
+
+    <linearGradient id="gCuerpo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c2c48"/><stop offset=".55" stop-color="#0c1626"/><stop offset="1" stop-color="#060b15"/>
+    </linearGradient>
+    <linearGradient id="gAleta" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16263e"/><stop offset="1" stop-color="#0a1424"/>
+    </linearGradient>
+    <linearGradient id="gGarra" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#33507a"/><stop offset="1" stop-color="#0c1422"/>
+    </linearGradient>
+    <radialGradient id="gOjo">
+      <stop offset="0" stop-color="#fff0f3"/><stop offset=".18" stop-color="#ff8fa8"/><stop offset=".42" stop-color="#ff2d55"/>
+      <stop offset=".75" stop-color="#a40f2e"/><stop offset="1" stop-color="#5c0a1c"/>
+    </radialGradient>
+    <radialGradient id="gOjoSat">
+      <stop offset="0" stop-color="#ffd7de"/><stop offset=".38" stop-color="#ff3d63"/><stop offset=".8" stop-color="#8f1030"/>
+    </radialGradient>
+    <radialGradient id="gHalo">
+      <stop offset="0" stop-color="#00e5ff" stop-opacity=".1"/><stop offset=".45" stop-color="#00e5ff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="fGlow" x="-350%" y="-350%" width="800%" height="800%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="fGlowMax" x="-160%" y="-160%" width="420%" height="420%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <g id="garra">
+      <path d="M -4 -20 C -16 -6 -22 8 -24 24 C -11 15 -2 3 5 -12 Z" fill="url(#gGarra)" stroke="#00e5ff" stroke-opacity=".3" stroke-width=".8"/>
+      <path d="M 7 -14 C 2 2 1 16 3 30 C 12 17 17 4 16 -10 Z" fill="url(#gGarra)" stroke="#00e5ff" stroke-opacity=".3" stroke-width=".8"/>
+      <circle cx="-7" cy="21" r="2.4" fill="#ff3355" filter="url(#fGlow)"/>
+    </g>
+  </defs>
+
+  <g id="sentinela">
+    <ellipse id="halo" cx="400" cy="185" rx="230" ry="160" fill="url(#gHalo)"/>
+
+    <g id="tentaculos">
+      <g id="tent-1" class="tentaculo" style="transform-origin:356px 232px">
+        <path class="carne" d="M 366 222 Q 190 258 84 452 Q 196 318 346 242 Z"/>
+        <path class="energia" stroke="#00e5ff" d="M 356 234 Q 200 290 96 444"/>
+        <circle class="placa" cx="240" cy="294" r="6"/><circle class="placa" cx="188" cy="336" r="5"/><circle class="placa" cx="136" cy="386" r="3.5"/>
+        <use href="#garra" transform="translate(84 452) rotate(29)"/>
+      </g>
+      <g id="tent-2" class="tentaculo" style="transform-origin:369px 244px">
+        <path class="carne" d="M 380 238 Q 298 298 248 472 Q 320 316 358 250 Z"/>
+        <path class="energia" stroke="#a855f7" d="M 368 246 Q 306 306 258 458"/>
+        <circle class="placa" cx="321" cy="309" r="5.5"/><circle class="placa" cx="299" cy="351" r="5"/><circle class="placa" cx="278" cy="401" r="4"/>
+        <use href="#garra" transform="translate(248 472) rotate(16)"/>
+      </g>
+      <g id="tent-3" class="tentaculo" style="transform-origin:362px 251px">
+        <path class="carne" d="M 372 246 Q 318 318 328 420 Q 350 328 352 256 Z"/>
+        <path class="energia" stroke="#00e5ff" d="M 360 252 Q 330 320 332 406"/>
+        <circle class="placa" cx="341" cy="309" r="5"/><circle class="placa" cx="335" cy="348" r="4.5"/><circle class="placa" cx="332" cy="381" r="4"/>
+        <use href="#garra" transform="translate(328 420) rotate(-6)"/>
+      </g>
+      <g id="tent-4" class="tentaculo" style="transform-origin:358px 253px">
+        <path class="carne" d="M 352 248 Q 332 306 338 382 Q 356 306 364 258 Z"/>
+        <path class="energia" stroke="#39ff14" stroke-opacity=".55" d="M 358 256 Q 344 306 346 374"/>
+        <circle class="placa" cx="349" cy="305" r="4.5"/><circle class="placa" cx="346" cy="335" r="4"/>
+        <use href="#garra" transform="translate(338 382) rotate(-5) scale(.85)"/>
+      </g>
+      <g id="tent-5" class="tentaculo" style="transform-origin:442px 253px">
+        <path class="carne" d="M 436 248 Q 468 306 462 382 Q 444 306 448 258 Z"/>
+        <path class="energia" stroke="#39ff14" stroke-opacity=".55" d="M 444 256 Q 456 306 456 372"/>
+        <circle class="placa" cx="452" cy="305" r="4.5"/><circle class="placa" cx="455" cy="335" r="4"/>
+        <use href="#garra" transform="translate(462 382) rotate(5) scale(.85)"/>
+      </g>
+      <g id="tent-6" class="tentaculo" style="transform-origin:438px 251px">
+        <path class="carne" d="M 428 246 Q 482 318 472 420 Q 450 328 448 256 Z"/>
+        <path class="energia" stroke="#00e5ff" d="M 440 252 Q 470 320 468 406"/>
+        <circle class="placa" cx="459" cy="309" r="5"/><circle class="placa" cx="465" cy="348" r="4.5"/><circle class="placa" cx="468" cy="381" r="4"/>
+        <use href="#garra" transform="translate(472 420) rotate(6)"/>
+      </g>
+      <g id="tent-7" class="tentaculo" style="transform-origin:431px 244px">
+        <path class="carne" d="M 420 238 Q 510 290 560 440 Q 478 314 442 250 Z"/>
+        <path class="energia" stroke="#a855f7" d="M 430 248 Q 500 298 548 428"/>
+        <circle class="placa" cx="482" cy="301" r="5.5"/><circle class="placa" cx="506" cy="337" r="5"/><circle class="placa" cx="528" cy="379" r="4"/>
+        <use href="#garra" transform="translate(560 440) rotate(-18)"/>
+      </g>
+      <g id="tent-8" class="tentaculo" style="transform-origin:444px 232px">
+        <path class="carne" d="M 434 222 Q 600 240 700 420 Q 590 310 454 242 Z"/>
+        <path class="energia" stroke="#ff2d95" stroke-opacity=".55" d="M 444 234 Q 600 272 682 412"/>
+        <circle class="placa" cx="557" cy="281" r="6"/><circle class="placa" cx="605" cy="316" r="5"/><circle class="placa" cx="646" cy="360" r="4"/>
+        <use href="#garra" transform="translate(700 420) rotate(-29) scale(1.05)"/>
+      </g>
+    </g>
+
+    <g id="cuerpo">
+      <path d="M 340 154 C 312 142 294 146 282 164 C 302 164 322 158 342 164 Z" fill="url(#gAleta)" stroke="#24425f" stroke-width="1"/>
+      <path d="M 460 154 C 488 142 506 146 518 164 C 498 164 478 158 458 164 Z" fill="url(#gAleta)" stroke="#24425f" stroke-width="1"/>
+      <path d="M 400 64 C 468 84 494 132 486 182 C 480 224 452 252 400 260 C 348 252 320 224 314 182 C 306 132 332 84 400 64 Z" fill="url(#gCuerpo)" stroke="#22385a" stroke-width="1.5"/>
+      <path d="M 395 66 L 400 32 L 405 66 Z" fill="url(#gCuerpo)" stroke="#22385a" stroke-width="1"/>
+      <path d="M 400 30 L 400 16" stroke="#00e5ff" stroke-width="1.4" opacity=".7"/>
+      <circle cx="400" cy="30" r="3" fill="#00e5ff" filter="url(#fGlow)"/>
+      <path d="M 342 150 Q 400 176 458 150 M 338 188 Q 400 216 462 188" fill="none" stroke="#1d3050" stroke-width="2" opacity=".9"/>
+      <path d="M 400 72 Q 403 160 400 246" fill="none" stroke="#1d3050" stroke-width="2" opacity=".9"/>
+      <path d="M 336 132 Q 372 118 392 96 M 464 132 Q 428 118 408 96" fill="none" stroke="#1d3050" stroke-width="1.5" opacity=".8"/>
+      <path d="M 344 160 L 328 168 M 346 180 L 330 188 M 348 200 L 334 206" stroke="#28425f" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 456 160 L 472 168 M 454 180 L 470 188 M 452 200 L 466 206" stroke="#28425f" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M 386 72 C 342 94 318 138 323 186" fill="none" stroke="#00e5ff" stroke-width="2.2" opacity=".5"/>
+      <path d="M 414 72 C 458 94 482 138 477 186" fill="none" stroke="#a855f7" stroke-width="2.2" opacity=".5"/>
+      <path d="M 356 246 Q 400 264 444 246" fill="none" stroke="#ff2d95" stroke-width="2" opacity=".45"/>
+      <g class="led" filter="url(#fGlow)" fill="#39ff14">
+        <circle cx="376" cy="226" r="2.2"/><circle cx="400" cy="230" r="2.2"/><circle cx="424" cy="226" r="2.2"/>
+      </g>
+      <circle cx="400" cy="116" r="3" fill="#0a1322" stroke="#2c4a6e"/>
+      <circle cx="382" cy="132" r="2" fill="#0a1322" stroke="#2c4a6e"/>
+      <circle cx="418" cy="132" r="2" fill="#0a1322" stroke="#2c4a6e"/>
+      <path d="M 334 228 C 350 268 450 268 466 228 C 452 252 348 252 334 228 Z" fill="#0c1728" stroke="#a855f7" stroke-opacity=".35"/>
+      <g fill="#0e1930" stroke="#2c4a6e">
+        <circle cx="356" cy="232" r="11"/><circle cx="369" cy="244" r="10"/><circle cx="362" cy="251" r="9"/><circle cx="358" cy="253" r="8"/>
+        <circle cx="442" cy="253" r="8"/><circle cx="438" cy="251" r="9"/><circle cx="431" cy="244" r="10"/><circle cx="444" cy="232" r="11"/>
+      </g>
+    </g>
+
+    <g id="ojos">
+      <circle cx="400" cy="166" r="30" fill="url(#gOjo)" filter="url(#fGlowMax)"/>
+      <circle cx="400" cy="166" r="30" fill="none" stroke="#ff5c7a" stroke-opacity=".55" stroke-width="1.5"/>
+      <ellipse cx="400" cy="166" rx="4.5" ry="11" fill="#07030a" opacity=".9"/>
+      <circle cx="389" cy="155" r="4.5" fill="#ffffff" opacity=".8"/>
+      <g class="satelites" filter="url(#fGlow)">
+        <circle cx="356" cy="148" r="9" fill="url(#gOjoSat)"/><circle cx="444" cy="148" r="9" fill="url(#gOjoSat)"/>
+        <circle cx="370" cy="192" r="7" fill="url(#gOjoSat)"/><circle cx="430" cy="192" r="7" fill="url(#gOjoSat)"/>
+      </g>
+      <rect x="374" y="205" width="52" height="5" rx="2.5" fill="#00e5ff" opacity=".9" filter="url(#fGlow)"/>
+    </g>
+  </g>
+</svg>

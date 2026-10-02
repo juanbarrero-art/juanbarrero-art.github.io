@@ -138,6 +138,31 @@
       .catch(function () { /* fallback: se queda el canvas propio */ });
   }
 
+  /* ---------------- Fondo Matrix: parallax de centinelas ---------------- */
+  function initCentinelas() {
+    var cont = document.getElementById("matrix-sentinels");
+    if (!cont) return;
+    var capas = Array.prototype.slice.call(cont.querySelectorAll(".sent-capa"));
+    function factor(el) {
+      if (el.classList.contains("sent-capa--cerca")) return 34;
+      if (el.classList.contains("sent-capa--medio")) return 18;
+      return 9;
+    }
+    var mx = 0, my = 0, tx = 0, ty = 0;
+    document.addEventListener("mousemove", function (e) {
+      mx = e.clientX / window.innerWidth - 0.5;
+      my = e.clientY / window.innerHeight - 0.5;
+    });
+    (function loop() {
+      tx += (mx - tx) * 0.06; ty += (my - ty) * 0.06;
+      for (var i = 0; i < capas.length; i++) {
+        var f = factor(capas[i]);
+        capas[i].style.transform = "translate3d(" + (-tx * f) + "px," + (-ty * f) + "px,0)";
+      }
+      requestAnimationFrame(loop);
+    })();
+  }
+
   /* ---------------- Intro BIOS/POST ---------------- */
   function initBoot() {
     var boot = document.getElementById("wild-boot");
@@ -317,8 +342,11 @@
     if (btn) btn.addEventListener("click", function () { activar(!wild); });
     try { activar(wild); } catch (e) {}
     if (wild && !reduce) {
-      try { initFondo(); } catch (e) {}
-      try { initVanta(); } catch (e) {}
+      if (!document.getElementById("matrix-sentinels")) {
+        try { initFondo(); } catch (e) {}
+        try { initVanta(); } catch (e) {}
+      }
+      try { initCentinelas(); } catch (e) {}
       try { initCursor(); } catch (e) {}
     }
     try { initBoot(); } catch (e) {}

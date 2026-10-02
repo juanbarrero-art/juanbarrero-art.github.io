@@ -38,14 +38,29 @@
 
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="assets/wild.css?v=3">
-  <link rel="stylesheet" href="assets/rootkit.css?v=3">
+  <link rel="stylesheet" href="assets/wild.css?v=4">
+  <link rel="stylesheet" href="assets/rootkit.css?v=4">
   <script src="script.js" defer></script>
-  <script src="assets/wild.js?v=3" defer></script>
+  <script src="assets/wild.js?v=4" defer></script>
 </head>
 <body>
   <!-- Modo salvaje: fondo animado + intro BIOS + toggle -->
   <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <!-- Fondo Matrix: enjambre de centinelas -->
+  <div id="matrix-sentinels" aria-hidden="true">
+    <div class="sent-capa sent-capa--lejos">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="300" height="188" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="250" height="156" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="270" height="169" loading="lazy">
+    </div>
+    <div class="sent-capa sent-capa--medio">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="460" height="288" loading="lazy">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="400" height="250" loading="lazy">
+    </div>
+    <div class="sent-capa sent-capa--cerca">
+      <img class="centinela" src="assets/centinela.svg" alt="" width="820" height="512" loading="lazy">
+    </div>
+  </div>
   <div id="wild-boot" hidden role="presentation">
     <div class="boot__texto"></div>
     <button class="boot__skip" type="button">saltar intro &gt;&gt;</button>

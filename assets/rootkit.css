@@ -82,3 +82,35 @@
   98% { opacity: 1; }
   99% { opacity: 0.5; }
 }
+
+/* ---------- Fondo Matrix: enjambre de centinelas ---------- */
+#matrix-sentinels {
+  position: fixed; inset: 0; z-index: -2;
+  overflow: hidden; pointer-events: none;
+  opacity: 0; transition: opacity 0.8s ease;
+}
+.wild-on #matrix-sentinels { opacity: 1; }
+.sent-capa { position: absolute; inset: 0; will-change: transform; }
+.centinela { position: absolute; display: block; animation: sent-float 12s ease-in-out infinite alternate; }
+
+.sent-capa--lejos .centinela:nth-child(1) { top: 3%; left: 5%; }
+.sent-capa--lejos .centinela:nth-child(2) { top: 12%; right: 8%; animation-duration: 15s; animation-delay: -4s; }
+.sent-capa--lejos .centinela:nth-child(3) { bottom: 14%; left: 16%; animation-duration: 13s; animation-delay: -8s; }
+.sent-capa--medio .centinela:nth-child(1) { top: 22%; right: 2%; animation-duration: 10s; animation-delay: -2s; }
+.sent-capa--medio .centinela:nth-child(2) { bottom: 6%; left: -2%; animation-duration: 14s; animation-delay: -6s; }
+.sent-capa--cerca .centinela:nth-child(1) { bottom: -14%; right: -9%; animation-duration: 17s; animation-delay: -5s; }
+
+.sent-capa--lejos .centinela { opacity: 0.26; filter: blur(1.4px); }
+.sent-capa--medio .centinela { opacity: 0.5; }
+.sent-capa--cerca .centinela { opacity: 0.34; }
+
+@keyframes sent-float {
+  from { transform: translateY(-12px) rotate(-1.5deg); }
+  to { transform: translateY(14px) rotate(1.5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) { .centinela { animation: none; } }
+@media (max-width: 640px) {
+  .sent-capa--cerca .centinela { display: none; }
+  .sent-capa--medio .centinela { opacity: 0.35; }
+}
