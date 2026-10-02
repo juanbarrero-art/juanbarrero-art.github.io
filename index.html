@@ -34,9 +34,19 @@
 
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="assets/wild.css">
   <script src="script.js" defer></script>
+  <script src="assets/wild.js" defer></script>
 </head>
 <body>
+  <!-- Modo salvaje: fondo animado + intro BIOS + toggle -->
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <div id="wild-boot" hidden role="presentation">
+    <div class="boot__texto"></div>
+    <button class="boot__skip" type="button">saltar intro &gt;&gt;</button>
+  </div>
+  <button class="wild-toggle" type="button">efectos: ON</button>
+
   <!-- Enlace para saltar al contenido (teclado) -->
   <a class="saltar" href="#contenido">Saltar al contenido</a>
 
@@ -73,7 +83,7 @@
         <div class="hero__texto">
           <p class="hero__prompt" aria-hidden="true">root&commat;kanon-ufo:~$&nbsp;cat about.txt</p>
           <h1 class="hero__titulo" id="hero-titulo">
-            Seguridad informática,<br><span class="hero__neon">a bajo nivel</span>
+            Seguridad informática,<br><span class="hero__neon" data-texto="a bajo nivel">a bajo nivel</span>
           </h1>
           <p class="hero__subtitulo">
             Blog personal de <strong>ciberseguridad</strong>: notas, writeups y laboratorio
@@ -101,6 +111,28 @@
 <span class="t-verde">kanon@ufo:~$</span> status
 <span class="t-magenta">[ BLOG: iniciando... ]</span>
 <span class="t-verde">kanon@ufo:~$</span> <span class="cursor">_</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CONSOLA INTERACTIVA ===================== -->
+    <section class="consola" id="consola" aria-labelledby="consola-titulo">
+      <div class="contenedor">
+        <h2 class="seccion__titulo" id="consola-titulo"><span class="seccion__marca">&gt;_</span> Consola</h2>
+        <p class="seccion__subtitulo">Escribe <code>help</code> y pulsa Enter. S&iacute;, funciona.</p>
+        <div class="consola__caja">
+          <div class="consola__barra">
+            <span class="consola__punto consola__punto--rojo"></span>
+            <span class="consola__punto consola__punto--ambar"></span>
+            <span class="consola__punto consola__punto--verde"></span>
+            <span class="consola__ruta">kanon@ufo: ~</span>
+          </div>
+          <div class="consola__salida" id="consola-salida" aria-live="polite"></div>
+          <form class="consola__linea" id="consola-form" autocomplete="off">
+            <span class="consola__prompt" aria-hidden="true">kanon@ufo:~$</span>
+            <input class="consola__input" id="consola-input" name="cmd" type="text"
+                   spellcheck="false" autocomplete="off" aria-label="Escribe un comando de la consola">
+          </form>
         </div>
       </div>
     </section>

@@ -1,0 +1,189 @@
+/* =====================================================================
+   KANON UFO - "Modo salvaje" (cyberpunk / hacker)
+   Fondo animado, intro BIOS, cursor retícula, scanlines y glitch.
+   Todo se activa con la clase .wild-on en <html>.
+   ===================================================================== */
+
+/* ---------- Fondo animado (canvas) ---------- */
+#wild-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.wild-on #wild-fondo { opacity: 1; }
+
+/* ---------- Scanlines + grano ---------- */
+.wild-on::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.16) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+/* ---------- Intro BIOS / POST ---------- */
+#wild-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #03060c;
+  color: #4dffa6;
+  font-family: var(--f-mono);
+  font-size: clamp(0.7rem, 1.6vw, 0.95rem);
+  padding: clamp(1rem, 5vw, 3rem);
+  white-space: pre-wrap;
+  line-height: 1.5;
+  overflow: hidden;
+}
+#wild-boot[hidden] { display: none; }
+#wild-boot .boot__cursor {
+  display: inline-block;
+  width: 0.6em;
+  background: #4dffa6;
+  animation: parpadeo 1s steps(1) infinite;
+}
+#wild-boot .boot__skip {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  background: transparent;
+  border: 1px solid #4dffa6;
+  color: #4dffa6;
+  font-family: var(--f-mono);
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+#wild-boot .boot__skip:hover { background: #4dffa6; color: #03060c; }
+
+/* ---------- Cursor retícula (solo puntero fino) ---------- */
+#wild-cursor, #wild-cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 9998;
+  pointer-events: none;
+  will-change: transform;
+}
+#wild-cursor {
+  width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 1.5px solid var(--cian);
+  border-radius: 50%;
+  transition: width 0.12s ease, height 0.12s ease, border-color 0.12s ease;
+}
+#wild-cursor::before, #wild-cursor::after {
+  content: ""; position: absolute; background: var(--magenta);
+}
+#wild-cursor::before { left: 50%; top: -6px; width: 1px; height: 4px; }
+#wild-cursor::after { top: 50%; left: -6px; height: 1px; width: 4px; }
+#wild-cursor-ring {
+  width: 34px; height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  border-radius: 50%;
+  transition: transform 0.16s ease-out, opacity 0.2s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .wild-on, .wild-on * { cursor: none !important; }
+  .wild-on #wild-cursor, .wild-on #wild-cursor-ring { opacity: 1; }
+}
+@media (hover: none), (pointer: coarse) {
+  #wild-cursor, #wild-cursor-ring { display: none; }
+}
+
+/* ---------- Glitch en el titular ---------- */
+.wild-on .hero__neon { position: relative; display: inline-block; }
+.wild-on .hero__neon::before,
+.wild-on .hero__neon::after {
+  content: attr(data-texto);
+  position: absolute;
+  left: 0; top: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.wild-on .hero__neon::before {
+  color: var(--cian);
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+  animation: glitch-a 3.4s infinite steps(1, end);
+}
+.wild-on .hero__neon::after {
+  color: var(--magenta);
+  text-shadow: 0 0 8px rgba(255, 45, 149, 0.6);
+  animation: glitch-b 3.4s infinite steps(1, end);
+}
+@keyframes glitch-a {
+  0%, 88% { opacity: 0; transform: translate(0, 0); }
+  89% { opacity: 1; transform: translate(-3px, -1px); }
+  91% { opacity: 1; transform: translate(2px, 1px); }
+  93% { opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes glitch-b {
+  0%, 89% { opacity: 0; transform: translate(0, 0); }
+  90% { opacity: 1; transform: translate(3px, 1px); }
+  92% { opacity: 1; transform: translate(-2px, -1px); }
+  94% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+/* ---------- Consola interactiva ---------- */
+.consola { padding: var(--esp-xl) 0; }
+.consola__caja {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: rgba(3, 6, 12, 0.92);
+  box-shadow: 0 0 40px rgba(0, 229, 255, 0.08), inset 0 0 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.consola__barra {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 0.85rem; background: var(--panel); border-bottom: 1px solid var(--borde);
+}
+.consola__punto { width: 11px; height: 11px; border-radius: 50%; }
+.consola__punto--rojo { background: #f87171; }
+.consola__punto--ambar { background: #fbbf24; }
+.consola__punto--verde { background: #34d399; }
+.consola__ruta { margin-left: 0.6rem; font-family: var(--f-mono); font-size: 0.78rem; color: var(--texto-suave); }
+.consola__salida {
+  margin: 0; padding: 1rem 1.1rem;
+  max-height: 340px; overflow-y: auto;
+  font-family: var(--f-mono); font-size: 0.86rem; line-height: 1.6;
+  color: var(--texto); white-space: pre-wrap; word-break: break-word;
+}
+.consola__linea { display: flex; gap: 0.5rem; align-items: baseline; padding: 0 1.1rem 1rem; }
+.consola__prompt { font-family: var(--f-mono); font-size: 0.86rem; color: var(--verde); flex: none; }
+.consola__input {
+  flex: 1; background: transparent; border: 0; outline: 0;
+  color: var(--cian); font-family: var(--f-mono); font-size: 0.86rem; caret-color: var(--magenta);
+}
+.consola__entrada-eco { color: var(--texto-suave); }
+.consola__error { color: var(--magenta); }
+.consola__ok { color: var(--verde); }
+
+/* ---------- Toggle de efectos ---------- */
+.wild-toggle {
+  position: fixed; right: 12px; bottom: 12px; z-index: 70;
+  font-family: var(--f-mono); font-size: 0.72rem;
+  background: rgba(6, 8, 16, 0.85); color: var(--cian);
+  border: 1px solid var(--borde); border-radius: 999px;
+  padding: 0.45rem 0.8rem; cursor: pointer;
+}
+.wild-toggle:hover { border-color: var(--cian); }
+
+/* ---------- Respeta la preferencia de movimiento reducido ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .wild-on::after { display: none; }
+  .wild-on .hero__titulo::before,
+  .wild-on .hero__titulo::after { animation: none; opacity: 0; }
+}
