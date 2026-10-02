@@ -17,7 +17,7 @@
   <meta property="og:title" content="Kagemusha — Fase 6: robustez, hooks y límites reales">
   <meta property="og:description" content="Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-fase-6-robustez.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-hook.svg">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fase-6-robustez.png">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-10-04">
@@ -31,7 +31,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Kagemusha — Fase 6: robustez, hooks y límites reales">
   <meta name="twitter:description" content="Documentación de la Fase 6 (M6) del repositorio: simulación de hook, detección con KageIsStubHooked, inmunidad de FreshyCalls, los 12 experimentos, el límite 488/490 y el endurecimiento A1/A2 (T0/T24).">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-hook.svg">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fase-6-robustez.png">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
@@ -53,7 +53,7 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/diag-hook.svg",
+  "image": "https://juanbarrero-art.github.io/assets/og/kagemusha-fase-6-robustez.png",
   "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
@@ -67,8 +67,12 @@
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/wild.css">
+  <script src="../assets/wild.js" defer></script>
 </head>
 <body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
 
   <header class="cabecera">

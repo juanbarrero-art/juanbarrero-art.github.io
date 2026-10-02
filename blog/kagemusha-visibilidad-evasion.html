@@ -17,7 +17,7 @@
   <meta property="og:title" content="Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)">
   <meta property="og:description" content="Documentación de la cara de detección/evasión del repositorio: experimento con Microsoft Defender (0 detecciones), instrumentation callbacks / ETW-TI (E2, T25), firma residual en el call-stack (E3, T26) y evasión bajo CET/Shadow Stack (E4c, T27).">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-visibilidad-evasion.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-detection.svg">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-visibilidad-evasion.png">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-10-06">
@@ -33,7 +33,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Kagemusha — Visibilidad y evasión: Defender, instrumentation callbacks (E2), firma de pila (E3) y CET (E4c)">
   <meta name="twitter:description" content="Documentación de la cara de detección/evasión del repositorio: experimento con Microsoft Defender (0 detecciones), instrumentation callbacks / ETW-TI (E2, T25), firma residual en el call-stack (E3, T26) y evasión bajo CET/Shadow Stack (E4c, T27).">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-detection.svg">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-visibilidad-evasion.png">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
@@ -55,7 +55,7 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/diag-detection.svg",
+  "image": "https://juanbarrero-art.github.io/assets/og/kagemusha-visibilidad-evasion.png",
   "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion, deteccion, edr",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
@@ -69,8 +69,12 @@
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/wild.css">
+  <script src="../assets/wild.js" defer></script>
 </head>
 <body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
 
   <header class="cabecera">

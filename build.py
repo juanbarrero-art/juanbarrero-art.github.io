@@ -28,6 +28,7 @@ POSTS_DIR = os.path.join(ROOT, "content", "posts")
 BLOG_DIR = os.path.join(ROOT, "blog")
 TPL_DIR = os.path.join(ROOT, "templates")
 INDEX = os.path.join(ROOT, "index.html")
+OG_DIR = os.path.join(ROOT, "assets", "og")
 
 SITE = "KANON UFO"
 SITE_URL = "https://juanbarrero-art.github.io"
@@ -333,10 +334,11 @@ def first_image(body):
     return m.group(1).split("/")[-1]
 
 
-def post_seo(p, content):
+def post_seo(p, content, ogimage=None):
     """Calcula los campos SEO de una entrada."""
-    img = first_image(p["body"])
-    ogimage = f"{SITE_URL}/assets/{img}" if img else f"{SITE_URL}/assets/banner.gif"
+    if not ogimage:
+        img = first_image(p["body"])
+        ogimage = f"{SITE_URL}/assets/{img}" if img else f"{SITE_URL}/assets/banner.gif"
     canonical = f"{SITE_URL}/blog/{p['slug']}.html"
     tags_list = [t.strip() for t in p["tags"].split(",") if t.strip()]
     keywords = ", ".join(dict.fromkeys(BASE_KEYWORDS + tags_list))
@@ -369,6 +371,74 @@ def post_seo(p, content):
     }
 
 
+def _og_font(size, bold=False):
+    from PIL import ImageFont
+    path = r"C:\Windows\Fonts\consolab.ttf" if bold else r"C:\Windows\Fonts\consola.ttf"
+    try:
+        return ImageFont.truetype(path, size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def _og_wrap(draw, text, font, maxw):
+    words = text.split()
+    lines, cur = [], ""
+    for w in words:
+        test = (cur + " " + w).strip()
+        if draw.textlength(test, font=font) <= maxw:
+            cur = test
+        else:
+            if cur:
+                lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def make_og(titulo, subtitulo, tags, filename):
+    """Genera una imagen Open Graph (1200x630) estilo cyberpunk. Devuelve 'og/<file>' o ''."""
+    try:
+        from PIL import Image, ImageDraw
+    except Exception:
+        return ""
+    try:
+        os.makedirs(OG_DIR, exist_ok=True)
+        W, H = 1200, 630
+        img = Image.new("RGB", (W, H), (5, 7, 13))
+        d = ImageDraw.Draw(img)
+        # Rejilla
+        for x in range(0, W, 44):
+            d.line([(x, 0), (x, H)], fill=(11, 18, 34))
+        for y in range(0, H, 44):
+            d.line([(0, y), (W, y)], fill=(11, 18, 34))
+        # Barra de acento superior
+        d.rectangle([0, 0, W, 8], fill=(0, 229, 255))
+        d.rectangle([W // 2, 0, W, 8], fill=(168, 85, 247))
+        # Glow esquinas
+        d.ellipse([-160, -160, 260, 260], fill=(10, 20, 40))
+        d.ellipse([W - 220, H - 220, W + 160, H + 160], fill=(28, 10, 40))
+        # Marca
+        d.text((60, 44), "KANON_UFO", font=_og_font(34, True), fill=(0, 229, 255))
+        if subtitulo:
+            d.text((60, 92), subtitulo[:60], font=_og_font(22), fill=(139, 147, 184))
+        # Titulo (envuelto)
+        font_t = _og_font(60, True)
+        lineas = _og_wrap(d, titulo, font_t, 1080)
+        y = 190
+        for ln in lineas[:4]:
+            d.text((60, y), ln, font=font_t, fill=(230, 236, 246))
+            y += 74
+        # Tags
+        t = " ".join("#" + x.strip() for x in tags.split(",") if x.strip())
+        d.text((60, H - 84), t[:80], font=_og_font(26, True), fill=(255, 45, 149))
+        d.text((60, H - 42), "juanbarrero-art.github.io", font=_og_font(22), fill=(139, 147, 184))
+        img.save(os.path.join(OG_DIR, filename))
+        return "og/" + filename
+    except Exception:
+        return ""
+
+
 def build():
     os.makedirs(BLOG_DIR, exist_ok=True)
     posts = load_posts()
@@ -376,6 +446,7 @@ def build():
     # Paginas de cada post
     for p in posts:
         content = md_to_html(p["body"])
+        og = make_og(p["title"], (p.get("serie", "") + " · " if p.get("serie") else "") + "KANON UFO", p["tags"], p["slug"] + ".png")
         repl = {
             "title": html.escape(p["title"]),
             "summary": html.escape(p["summary"]),
@@ -386,7 +457,7 @@ def build():
             "content": content,
             "site": SITE,
         }
-        repl.update(post_seo(p, content))
+        repl.update(post_seo(p, content, f"{SITE_URL}/assets/{og}" if og else None))
         page = render_template("post.html", repl)
         with open(os.path.join(BLOG_DIR, p["slug"] + ".html"), "w", encoding="utf-8") as f:
             f.write(page)
@@ -470,6 +541,10 @@ def build():
         if new != idx:
             with open(INDEX, "w", encoding="utf-8") as f:
                 f.write(new)
+
+    # OG image de la portada
+    make_og("KANON UFO", "Blog de ciberseguridad · malware analysis & Windows internals",
+            "syscalls, edr, evasion, windows internals", "home.png")
 
     # RSS, sitemap y robots
     with open(os.path.join(ROOT, "feed.xml"), "w", encoding="utf-8") as f:

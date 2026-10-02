@@ -17,7 +17,7 @@
   <meta property="og:title" content="Cómo leer esta serie + Misión 0: ve una syscall con tus ojos">
   <meta property="og:description" content="El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/como-leer-serie-mision-0.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/como-leer-serie-mision-0.png">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-09-28">
@@ -32,7 +32,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Cómo leer esta serie + Misión 0: ve una syscall con tus ojos">
   <meta name="twitter:description" content="El punto de entrada de la serie. Explica cómo leerla (niveles y recorrido), y trae la Misión 0: tres experimentos guiados para VER con tus propios ojos que todo programa le pide cosas a Windows, y dónde vive ntdll.">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/como-leer-serie-mision-0.png">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
@@ -54,7 +54,7 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/diag-syscall-flow.svg",
+  "image": "https://juanbarrero-art.github.io/assets/og/como-leer-serie-mision-0.png",
   "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, guia, introduccion, principiantes",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
@@ -68,8 +68,12 @@
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/wild.css">
+  <script src="../assets/wild.js" defer></script>
 </head>
 <body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
 
   <header class="cabecera">

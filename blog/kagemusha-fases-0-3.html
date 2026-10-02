@@ -17,7 +17,7 @@
   <meta property="og:title" content="Kagemusha — Fases 0 a 3: del toolchain al gadget">
   <meta property="og:description" content="Documentación de las fases M0–M3 del repositorio: toolchain C+MASM y debugger por CLI, utilidades (PEB walk, hash DJB2, exports, rangos), resolución de SSN por FreshyCalls (sort-by-RVA) y validación del gadget syscall;ret.">
   <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-fases-0-3.html">
-  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/diag-peb.svg">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fases-0-3.png">
   <meta property="og:site_name" content="KANON UFO">
   <meta property="og:locale" content="es_ES">
   <meta property="article:published_time" content="2026-10-01">
@@ -31,7 +31,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Kagemusha — Fases 0 a 3: del toolchain al gadget">
   <meta name="twitter:description" content="Documentación de las fases M0–M3 del repositorio: toolchain C+MASM y debugger por CLI, utilidades (PEB walk, hash DJB2, exports, rangos), resolución de SSN por FreshyCalls (sort-by-RVA) y validación del gadget syscall;ret.">
-  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/diag-peb.svg">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fases-0-3.png">
 
   <!-- Datos estructurados -->
   <script type="application/ld+json">
@@ -53,7 +53,7 @@
     "name": "KANON UFO",
     "url": "https://github.com/juanbarrero-art"
   },
-  "image": "https://juanbarrero-art.github.io/assets/diag-peb.svg",
+  "image": "https://juanbarrero-art.github.io/assets/og/kagemusha-fases-0-3.png",
   "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, investigacion",
   "articleSection": "Kagemusha",
   "inLanguage": "es",
@@ -67,8 +67,12 @@
 
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
   <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/wild.css">
+  <script src="../assets/wild.js" defer></script>
 </head>
 <body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
 
   <header class="cabecera">
