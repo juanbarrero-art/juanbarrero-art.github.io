@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.">
+  <meta name="theme-color" content="#060810">
+  <title>Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, kagemusha, edr, evasion, instrumentation callback, research">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR">
+  <meta property="og:description" content="Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fase-10-contrainstrumentacion-callback.png">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-13">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="kagemusha">
+  <meta property="article:tag" content="edr">
+  <meta property="article:tag" content="evasion">
+  <meta property="article:tag" content="instrumentation callback">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="syscalls">
+  <meta property="article:tag" content="research">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR">
+  <meta name="twitter:description" content="Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/kagemusha-fase-10-contrainstrumentacion-callback.png">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR",
+  "description": "Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.",
+  "datePublished": "2026-10-13",
+  "dateModified": "2026-10-13",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/og/kagemusha-fase-10-contrainstrumentacion-callback.png",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, kagemusha, edr, evasion, instrumentation callback, research",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css?v=10">
+  <link rel="stylesheet" href="../assets/wild.css?v=10">
+  <link rel="stylesheet" href="../assets/rootkit.css?v=10">
+  <script src="../assets/wild.js?v=10" defer></script>
+</head>
+<body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">13 oct 2026 &middot; 37 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR</h1>
+        <p class="post__tags"><span class="tag">#kagemusha</span> <span class="tag">#edr</span> <span class="tag">#evasion</span> <span class="tag">#instrumentation callback</span> <span class="tag">#windows internals</span> <span class="tag">#syscalls</span> <span class="tag">#research</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR</h1>
+<p>Hay un momento en cualquier investigación en el que dejas de preguntarte <em>"¿cómo esquivo esto?"</em> y empiezas a preguntarte <em>"¿esto que creía intocable, lo es de verdad?"</em>. La Fase 10 de <strong>Kagemusha</strong> nació exactamente así: la fase anterior había terminado con una lista de "techos estructurales" —sensores que, decíamos, no se podían cegar desde user-mode— y uno de ellos arrastraba una sospecha incómoda. No había ingeniería inversa detrás de esa clasificación. Era una <strong>inferencia</strong>. Y las inferencias, en este proyecto, se auditan.</p>
+<p>Este artículo cuenta la Fase 10 completa: <strong>qué es el <code>ProcessInstrumentationCallback</code> de Windows</strong>, por qué los EDR lo usan, cómo lo reversamos (<code>E10.1</code>), cómo construimos un <em>probe</em> para detectarlo (<code>E10.2</code>), cómo montamos un <strong>shim zero-clobber</strong> que <strong>encadena</strong> al callback del EDR sin romperlo (<code>E10.3</code>), cómo <strong>filtramos selectivamente por pila</strong> los syscalls del mecanismo (<code>E10.4</code>), cómo añadimos una <strong>sonda de liveness</strong> para la guerra de punteros (<code>E10.5</code>) y cómo medimos el <strong>delta kernel-vs-callback</strong> que delata la manipulación ante un EDR que sepa fusionar fuentes (<code>E10.5.3</code>).</p>
+<p>Con números medidos, con los errores que encontramos por el camino y con los límites bien marcados. Como siempre en esta serie: <strong>un informe sin límites es publicidad</strong>.</p>
+<h2>Resumen ejecutivo (para quien tiene prisa)</h2>
+<ul><li><strong>Qué se consiguió:</strong> un proceso puede descubrir si un tercero instaló un instrumentation callback, <strong>encadenarse</strong> a él (el EDR sigue viendo el <strong>100 %</strong> de los syscalls, sin notar nada), <strong>filtrar</strong> después solo los syscalls de Kagemusha (<code>100 → 0</code> con <strong>0 colaterales</strong> en las llamadas legítimas), <strong>detectar en ≤ 1 syscall</strong> que le han robado el slot y <strong>reinstalarse</strong>, todo desde <strong>user-mode</strong>, sin hooks y sin una sola instrucción <code>syscall</code> propia.</li><li><strong>Qué NO se consiguió (y se dice):</strong> un EDR que <strong>fusione</strong> la telemetría de kernel con su callback ve un hueco de <strong>delta = 100</strong> entre lo que el kernel contó y lo que su callback reportó. Ese silencio es la señal de manipulación. El techo real no desaparece: se <strong>mueve</strong>.</li><li><strong>Corrección al modelo propio:</strong> la Fase 9 clasificó este sensor como <em>"techo estructural, no cegable desde user-mode"</em>. La Fase 10 demuestra que esa clasificación era <strong>incorrecta</strong>: S5 pasa de techo absoluto a <strong>plano reducible con techo residual de fusión</strong>.</li><li><strong>Suite del proyecto:</strong> <strong>440 PASS / 0 FAIL</strong> (build stealth) y <strong>407 PASS / 0 FAIL</strong> (build CET); <strong>0 instrucciones <code>syscall</code></strong> en los binarios propios; 0 detecciones de Defender sobre el mecanismo.</li><li><strong>Estado:</strong> Fase 10 cerrada (M10), commits <code>b88c3f6</code> → <code>9a69741</code> en <code>main</code>.</li></ul>
+<h2>1. La grieta en un techo</h2>
+<h3>1.1 Qué había dicho la Fase 9</h3>
+<p>Para situarnos. La <a href="/blog/serie/kagemusha.html">Fase 9</a> del proyecto construyó una capa de ejecución de blobs con "señal mínima" y, al cerrar, publicó una <strong>matriz de señal</strong>: 9 sensores de EDR cruzados con 8 pasos del ciclo de ejecución (resolver, planificar, asignar, escribir, proteger, transferir, ejecutar, limpiar). Cada celda se midió <strong>antes → después</strong> y se clasificó: reducible, techo estructural, o "requiere capa conducta".</p>
+<p>De aquella matriz quedaron <strong>4 celdas <code>=2</code></strong> declaradas <strong>techo estructural</strong>, es decir, insumos de regla que no se pueden eliminar desde user-mode:</p>
+<table><thead><tr><th>Celda</th><th>Sensor</th><th>Qué la producía</th></tr></thead><tbody><tr><td>S5 @ E5/E6</td><td>Instrumentation callback del EDR</td><td>Ve <strong>todos</strong> los syscalls, incluidos los indirectos</td></tr><tr><td>S4 @ E5/E6</td><td>Scanner/walk de pila</td><td>Retorno a mitad del stub de ntdll + caller = módulo propio</td></tr><tr><td>S6</td><td>ETW-TI del kernel</td><td>Telemetría de kernel sobre memoria/hilos</td></tr><tr><td>S8</td><td>Callbacks de kernel</td><td>Plano no observable desde el proceso</td></tr></tbody></table>
+<p>La justificación de S5 en el documento era una frase: <em>"el callback del EDR ve todos los syscalls (incl. indirectos), retorno en R10; no cegable desde user-mode"</em>. Y aquí está el problema: <strong>esa segunda cláusula nunca se había reversado</strong>. No sabíamos quién escribe el slot, si se puede leer, si se puede encadenar, qué ve exactamente el callback ni cuándo. Era un techo heredado de una suposición razonable, pero suposición al fin y al cabo.</p>
+<p>Además había una contradicción interna en el propio repo: la Fase 9 ya había demostrado que <strong><code>KageClearInstrumentationCallback</code> funciona</strong>, es decir, que un proceso <strong>sí puede escribir su propio slot</strong> vía <code>NtSetInformationProcess</code>. Teníamos la primitiva de escritura en casa y, aun así, habíamos clasificado el sensor como inalcanzable.</p>
+<h3>1.2 La hipótesis</h3>
+<p>La Fase 10 parte de un principio que el propio marco teórico del proyecto ya tenía escrito: <strong>un sensor de user-mode que vive dentro del proceso observado es ciego ante un atacante que controla su propio proceso</strong>. Y el instrumentation callback cumple esa condición de principio a fin: el puntero vive en la estructura del proceso, el código suele vivir en una DLL inyectada por el EDR, y el despacho ocurre al volver del syscall, en user-mode.</p>
+<p>La hipótesis, por tanto: <strong>si el sensor vive en el proceso, se puede auditar, encadenar y filtrar</strong>. No se trataba de eliminar el techo real (ETW-TI y callbacks de kernel siguen ahí), sino de demostrar con medición que <strong>S5 pertenece al plano reducible</strong> y reescribir la clasificación.</p>
+<h3>1.3 La analogía, antes de bajar al detalle</h3>
+<p>En la entrada <a href="/blog/kagemusha-articulo-por-que-evasion-capas.html">¿Por qué la evasión es en capas?</a> usamos una casa con cámaras. Sigamos con esa imagen, porque el instrumentation callback encaja perfecto:</p>
+<ul><li>Tu programa es una casa. Cada vez que necesitas algo del "ayuntamiento" (el kernel), pasas por la <strong>puerta principal</strong> (el syscall).</li><li>El EDR quiere saber <strong>qué pides</strong>. Para eso no basta con mirar desde fuera: coloca una <strong>cámara dentro de tu casa</strong>, en el pasillo de salida de la puerta. Cada vez que vuelves del ayuntamiento, la cámara graba qué pediste y qué te contestaron.</li><li>Esa cámara es el <strong>instrumentation callback</strong>. No es un hook: es una <strong>redirección legítima</strong> que Windows ofrece. Por eso la Fase 1 del proyecto (indirect syscalls) no la evita: el <code>syscall</code> ocurre dentro de <code>ntdll</code>, sí, pero la cámara graba <strong>al volver</strong>, no al salir. Da igual por qué puerta salgas: la cámara está en el pasillo de vuelta.</li></ul>
+<p>Y aquí viene lo interesante de la Fase 10: si la cámara está <strong>dentro de tu casa</strong>, tú puedes poner delante de ella tu propia cámara intermedia que:</p>
+<ol><li><strong>Deje pasar la señal original</strong> (que la cámara del EDR siga grabando todo, exactamente igual: transparencia).</li><li><strong>Decida qué no se graba</strong> (filtrar solo los pedidos que hacen los "empleados" del mecanismo, no todos).</li><li><strong>Detecte si alguien la desenchufó</strong> (liveness).</li><li><strong>Asuma que el ayuntamiento tiene su propio registro</strong> y que, si alguien compara, el hueco se ve (delta de fusión).</li></ol>
+<p>Las cuatro piezas son las cuatro secciones centrales de este artículo. Antes, dos fundamentos imprescindibles: <strong>qué es exactamente el callback</strong> (contrato) y <strong>cómo trabaja este proyecto</strong> (metodología).</p>
+<h2>2. El sensor: qué es el <code>ProcessInstrumentationCallback</code></h2>
+<h3>2.1 El mecanismo</h3>
+<p>Windows permite que <strong>cada proceso</strong> tenga un callback de instrumentación. Se instala con una clase de información de proceso:</p>
+<pre><code class="lang-c">NtSetInformationProcess(
+    NtCurrentProcess(),
+    ProcessInstrumentationCallback,   /* clase 0x28 */
+    &amp;CallbackAddress,
+    sizeof(CallbackAddress));</code></pre>
+<p>Cuando ese puntero está puesto, el kernel deja de devolver el control directamente al user-mode al terminar <strong>cada syscall</strong>. En su lugar, redirige la ejecución a tu callback <strong>en modo usuario</strong> y con el estado del retorno intacto. Cuando tu callback termina (saltando a <code>R10</code>, que contiene la dirección de retorno efectiva), el hilo continúa como si nada.</p>
+<p>Esto no es un hook ni un parche: es una <strong>funcionalidad documentada y soportada por el sistema operativo</strong>. Ese detalle es el que hace al sensor tan atractivo para un EDR y, a la vez, tan interesante para nosotros: vive en el proceso observado.</p>
+<h3>2.2 El contrato de dispatch (lo que el callback recibe)</h3>
+<p>La Fase 10 invirtió sesiones enteras de depurador en formalizar el contrato exacto, registro a registro. La tabla siguiente está medida con <code>cdb</code> sobre la build de referencia (Windows 11, build 26100) y es la base de todo el diseño posterior:</p>
+<table><thead><tr><th>Registro</th><th>Contenido observado</th><th>Semántica verificada</th></tr></thead><tbody><tr><td><code>RAX</code></td><td><code>0</code> / <code>0xC0000008</code></td><td><strong>NTSTATUS</strong> de retorno del syscall</td></tr><tr><td><code>R10</code></td><td><code>ntdll!stub+2</code></td><td><strong>RIP de retorno efectivo</strong> (el <code>ret</code> del gadget; o el dispatcher de excepciones)</td></tr><tr><td><code>RCX</code></td><td>dirección del propio callback</td><td><strong>no es el RCX del usuario</strong>: es la dirección del callback instalado</td></tr><tr><td><code>R8</code></td><td>igual a <code>RSP</code></td><td><strong>RSP del usuario</strong> en el punto del syscall</td></tr><tr><td><code>R11</code></td><td>igual a <code>RFLAGS</code> (<code>0x246</code>)</td><td><strong>RFLAGS</strong> del usuario</td></tr><tr><td><code>RDX</code> / <code>R9</code></td><td><code>0</code></td><td>machacados por el dispatch (no fiables)</td></tr><tr><td><code>RBX</code>, <code>RBP</code>, <code>RSI</code>, <code>RDI</code>, <code>R12</code>–<code>R15</code></td><td>valores del hilo</td><td>contexto de usuario <strong>preservado</strong></td></tr><tr><td><code>RSP</code></td><td>pila de usuario</td><td><strong>sin frame de kernel</strong>: <code>[rsp]</code> es el call-site original, intacto</td></tr><tr><td><code>CS</code> / <code>SS</code> / <code>FS</code> / <code>GS</code></td><td><code>0x33</code> / <code>0x2b</code> / <code>0x53</code> / TEB</td><td>modo usuario, TEB accesible vía <code>gs:</code></td></tr></tbody></table>
+<p>Dos consecuencias que parecen detalles y lo cambian todo:</p>
+<ol><li><strong>El callback corre con la pila del usuario intacta.</strong> Eso significa que puede leer <code>[rsp]</code> y saber <em>desde dónde</em> se llamó al syscall (el call-site). Es la materia prima del filtrado selectivo.</li><li><strong><code>RCX</code> no es un registro libre.</strong> Es parte del contrato: el kernel lo entrega apuntando al callback. Un shim que lo modifique rompe el proceso anfitrión. Esto lo aprendimos de la peor manera (ver §5.4).</li></ol>
+<h3>2.3 Por qué un EDR lo usa (y por qué la Fase 1 no bastaba)</h3>
+<p>Un EDR con este callback consigue algo que los hooks de <code>ntdll</code> no le dan:</p>
+<ul><li><strong>Ve todos los syscalls</strong>, incluidos los <strong>indirect syscalls</strong> como los de Kagemusha. La Fase 1 del proyecto (<a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión</a>) ya midió esto: el hook inline se evita con FreshyCalls, pero el callback ve el indirecto igual.</li><li><strong>Ve el retorno</strong> (<code>RAX</code>) y <strong>puede reconstruir nombre y argumentos</strong> del syscall: la pila del usuario sigue conteniendo los argumentos, y con <code>NtQueryInformationThread(ThreadLastSystemCall)</code> se puede mapear el SSN a la función. Nuestro propio observador (<code>E2</code>, <code>--instrument</code>) lo hace exactamente así.</li><li><strong>No depende de que el atacante use los stubs</strong>: aunque salgas por una "puerta lateral", la cámara del pasillo de vuelta graba.</li><li><strong>Es silencioso y barato</strong>: unas pocas instrucciones por syscall, sin tocar código ajeno.</li></ul>
+<p>La técnica pública existe en dos linajes que el proyecto reconoce y cita en el código:</p>
+<ul><li><strong>x86matthew — InstrumentationCallbackSyscallLogger</strong> (MIT): el logger de syscalls que el proyecto portó como observador propio (<code>src/core/instrument.c</code>).</li><li><strong>paranoidninja — Process-Instrumentation-Syscall-Hook (<code>etwti-hook</code>)</strong>: el callback que lee el número de syscall desde <code>[r10-0x10]</code> y decide con un pequeño prólogo en ASM. El proyecto lo usa como <strong>EDR-simulado</strong> (el harness <code>AVA</code>, <code>--avatest/--cbava</code>) y como detector de referencia.</li></ul>
+<h3>2.4 El ciclo de vida del slot: "el último que escribe gana"</h3>
+<p>El puntero del callback vive en una única ranura ("slot") por proceso. No hay cola, no hay notificación, no hay contrato de exclusividad:</p>
+<ul><li>Instalar cuando ya había otro <strong>sustituye en silencio</strong> al anterior. El callback viejo deja de ejecutarse sin enterarse.</li><li>Re-afirmar el mismo puntero es inocuo (el kernel no avisa, pero tampoco pasa nada).</li><li>Ponerlo a <code>NULL</code> lo desactiva. La Fase 9 ya lo hacía desde user-mode.</li></ul>
+<p>Ese comportamiento explica las dos guerras del proyecto: la <strong>guerra de punteros</strong> (el EDR puede re-afirmar su callback cuando quiera y el shim debe detectarlo) y el <strong>techo de re-verificación</strong> (el EDR puede, en teoría, leer su slot; resulta que desde user-mode <strong>no puede</strong> — ver §4.2).</p>
+<h2>3. Cómo trabaja este proyecto (metodología en cinco reglas)</h2>
+<p>Antes de contar la implementación conviene recordar las reglas no negociables de Kagemusha, porque son las que convierten esto en ingeniería y no en una demo:</p>
+<ol><li><strong>Solo indirect syscalls, cero <code>syscall</code> propio.</strong> Ningún binario del proyecto contiene la instrucción <code>0F 05</code>; el <code>syscall</code> se ejecuta siempre dentro de <code>ntdll</code>, saltando a un gadget <code>syscall;ret</code> real. Lo verifica <code>dumpbin</code> en cada cierre.</li><li><strong>SSN en runtime (FreshyCalls).</strong> Nada hardcodeado; los números de servicio se resuelven por orden de export. En F10, además, <strong>los call-sites se auto-calibran</strong> desde los propios stubs: cero offsets fijos también aquí.</li><li><strong>Oráculo independiente por afirmación.</strong> Si decimos "el EDR vio 100 llamadas", contrastamos contra el <strong>ledger</strong> interno; si decimos "el error es exacto", contrastamos el NTSTATUS contra el valor real; cada hallazgo de RE lleva su transcript de <code>cdb</code> reproducible.</li><li><strong>Fallar ruidoso.</strong> Ante una inconsistencia se aborta con error; nunca se "adivina". En F10 añadimos <code>KageInstrumentLastStatus</code> para que un fallo de instalación diga <em>por qué</em>.</li><li><strong>Un hallazgo sin transcript no es un hallazgo.</strong> Cada pregunta <code>Q10.x</code> se cerró con evidencia versionada en <code>docs/evidencias/e10_*.txt</code>.</li></ol>
+<p>El <strong>modelo de amenaza</strong> del experimento es local y controlado: un "EDR-sim" que vive en el propio proceso (el harness AVA, que instala su callback y cuenta lo que ve) más el detector de referencia de paranoidninja. No hay EDR comercial real en la ecuación, y eso se dice en los límites.</p>
+<p>Y un apunte de método que da color a la fase: el plan original asumía que el discriminador del indirecto sería <code>R10</code>. La revisión de ingeniería inversa (<code>E10.1</code>) <strong>desmintió esa suposición con evidencia</strong> y obligó a rediseñar el shim sobre <code>[rsp]</code>. Que el plan se equivoque y la evidencia mande es exactamente cómo debe funcionar esto.</p>
+<h2>4. E10.1 — Ingeniería inversa: el contrato, el slot y la guerra</h2>
+<p>La fase arrancó con seis preguntas numeradas (<code>Q10.1</code> a <code>Q10.6</code>) y una regla: <strong>nadie escribe código que dependa de una pregunta sin cerrarla antes con evidencia</strong>. Estas son las respuestas.</p>
+<h3>4.1 Q10.1 — El contrato de dispatch, medido</h3>
+<p>Método: dos scripts de <code>cdb</code> reproducibles (<code>k10_cb_dispatch.txt</code>, <code>k10_cb_indirect.txt</code>) con el observador propio activo. El primero rompe en la primera instrucción del callback (<code>pushfq</code>) y captura el estado de entrada; el segundo filtra por pila para capturar <strong>específicamente</strong> los syscalls originados en wrappers de Kagemusha.</p>
+<p>La tabla completa está en §2.2; lo relevante aquí es <strong>cómo se validó</strong>: el contrato observado se contrastó con el que ya usaba nuestro observador (que guarda <code>RAX</code> como retorno y sale con <code>jmp r10</code>) y con el que usa el detector de referencia. Coincidencia registro a registro. <strong>No hay frame de kernel en la pila de usuario</strong> al entrar: el callback es user-mode puro.</p>
+<p>Un detalle operativo que salió de aquí: el callback <strong>también ve los syscalls del propio instrumentador</strong> (por ejemplo, los <code>NtRaiseException</code>/<code>NtQueryInformationThread</code> que el handler usa para resolver nombres). El shim tendrá que no confundirlos con los del catálogo: se resuelve clasificando por call-site, no por "quién llama".</p>
+<h3>4.2 Q10.2 — ¿Se puede <em>leer</em> el slot? Negativo (y es una buena noticia)</h3>
+<p>La pregunta era: ¿puede un proceso preguntarle a Windows quién es su callback? Si se pudiera, un EDR podría <strong>re-leer</strong> su slot y detectar que lo hemos sustituido. El proyecto probó la clase <code>0x28</code> en modo lectura:</p>
+<pre><code class="lang-text">NtQueryInformationProcess(proceso actual, 0x28, &amp;buf, 16, &amp;retlen)
+  -&gt; 0xC0000003  (STATUS_INVALID_INFO_CLASS)
+  -&gt; retlen = 0
+  -&gt; buffer intacto (patrón 0xAA)
+  -&gt; barrido de longitudes 0..32 en pasos de 4: mismo status en todas</code></pre>
+<p>Resultado: en esta build la clase <strong>solo soporta escritura (Set)</strong>. Consecuencias directas:</p>
+<ul><li>El <strong>discovery</strong> del callback ajeno no puede usar una query; será por <strong>firma de código</strong> y orden de instalación en laboratorio.</li><li>Un EDR user-mode <strong>no puede re-verificar su puntero por esta vía</strong>. El "techo de re-verificación" que temíamos queda, de momento, del lado del atacante... salvo que el EDR tenga su propio driver de kernel (que es precisamente el techo que no se toca; ver §10).</li></ul>
+<h3>4.3 Q10.3 — Dónde vive el código ajeno y qué firma tiene</h3>
+<p>Instalamos el EDR-sim (el harness AVA) y localizamos su callback con <code>cdb</code> + <code>!kage</code>:</p>
+<table><thead><tr><th>Caso</th><th>Dirección</th><th>Región</th><th>Tipo</th></tr></thead><tbody><tr><td>Callback del EDR-sim (AVA)</td><td><code>Kagemusha.exe+0x90a5</code></td><td><code>.text</code> de la imagen principal</td><td><code>MEM_IMAGE</code>, <code>PAGE_EXECUTE_READ</code></td></tr><tr><td>Callback de <code>etwti-hook.exe</code> (paranoidninja)</td><td><code>0x4016f0</code></td><td><code>.text</code> de [<code>0x401000</code>,<code>0x403000</code>)</td><td><code>MEM_IMAGE</code>, <code>PAGE_EXECUTE_READ</code></td></tr></tbody></table>
+<p>Y extrajimos la <strong>firma común</strong> del prólogo estilo <code>hook.asm</code> (14 bytes):</p>
+<pre><code class="lang-text">51 52 49 8B 52 F0 E8 ?? ?? ?? ?? 5A 59 C3
+push rcx ; push rdx ; mov rdx,[r10-10h] ; call rel32 ; pop rdx ; pop rcx ; ret</code></pre>
+<p>Dos observaciones de oro:</p>
+<ul><li>El callback de esta familia <strong>termina en <code>ret</code></strong>, no en <code>jmp r10</code>. Es una variante válida (consume de la pila la dirección real), pero nosotros ya sabíamos por <code>Q10.6</code> que <code>ret</code> es frágil en el primer retorno de hilos nuevos. El shim, por contrato, saldrá siempre con <code>jmp r10</code>.</li><li><code>[r10-0x10]</code> es el <strong>número de syscall</strong>, visible para el callback sin tocar el kernel. Es exactamente lo que el detector usa para saber qué se llamó.</li></ul>
+<p>El barrido de falsos positivos con la firma completa de 14 bytes dio <strong>0 hits</strong> en <code>ntdll.dll</code>, <code>kernel32.dll</code>, <code>KernelBase.dll</code> y <code>user32.dll</code>, y 1 hit en cada binario que la contiene. Eso valida el discovery por firma <em>para esta familia de callbacks</em>, con el límite declarado: un EDR con otro compilador o prólogo no tiene por qué matchear; por eso <code>KageCbProbe</code> usa una <strong>cascada</strong> (firma + calibración por orden de instalación en el laboratorio), no una sola heurística.</p>
+<h3>4.4 Q10.5 — Los offsets del PDB (Ghidra headless)</h3>
+<p>Para no depender de foros ni de offsets de terceros, el proyecto descargó el PDB de <code>ntoskrnl</code> y lo procesó con <strong>Ghidra 12.1 headless</strong> (un script Java que vuelca todos los campos <code>*Instrumentation*</code>). Resultado:</p>
+<table><thead><tr><th>Estructura</th><th>Offset</th><th>Campo</th></tr></thead><tbody><tr><td><code>_KPROCESS</code></td><td><strong>+0x168</strong></td><td><code>InstrumentationCallback</code> (puntero del slot)</td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x2d0</td><td><code>InstrumentationCallbackSp</code></td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x2d8</td><td><code>InstrumentationCallbackPreviousPc</code></td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x2e0</td><td><code>InstrumentationCallbackPreviousSp</code></td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x2ec</td><td><code>InstrumentationCallbackDisabled</code></td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x110</td><td><code>ReservedForDebuggerInstrumentation[16]</code></td></tr><tr><td><code>_TEB</code> / <code>_TEB64</code></td><td>+0x16b8</td><td><code>Instrumentation[11]</code></td></tr><tr><td><code>_TEB32</code> (WOW64)</td><td>+0x1ac…+0x1b8</td><td>equivalentes 32-bit</td></tr></tbody></table>
+<p>Dos lecturas importantes:</p>
+<ol><li><strong>El slot no está en <code>EPROCESS</code>, está en <code>_KPROCESS+0x168</code></strong> (el proyecto lo había supuesto mal en el plan). Inaccesible desde user-mode directamente: solo se llega vía la llamada de Set.</li><li>El <strong>TEB sí es user-mode</strong> y expone maquinaria interna (Sp/Pc/Sp previos y un flag <code>Disabled</code>), pero en esta build <strong>no señaliza</strong>: los campos quedan a 0 incluso con el callback ejecutándose (20/20). Traducción: el TEB no sirve para confirmar "hay callback instalado"; esa confirmación queda para la <strong>sonda de liveness</strong> de <code>E10.5</code>. Otro plan que se corrige con medición.</li></ol>
+<h3>4.5 Q10.6 — La guerra de punteros y los dos bugs reales</h3>
+<p>El modo <code>--cbwar</code> monta una guerra determinista entre dos callbacks (A y B) y documenta el modelo:</p>
+<pre><code class="lang-text">[A instalado]      syscalls=5
+[A re-afirmado x3] syscalls=13      (re-afirmar el mismo puntero: inocuo, sin pérdida)
+[B sustituye a A]  AVA=0  B=7       (sustitución silenciosa: el anterior queda mudo)
+[A recupera slot]  syscalls=5       (el slot es &quot;el último que escribe&quot;)</code></pre>
+<p>Pero lo valioso de <code>Q10.6</code> fue lo que se rompió mientras lo construíamos. El port literal del callback de paranoidninja tenía <strong>dos bugs reales</strong>, y los dos importan:</p>
+<p><strong>Bug 1 — <code>RAX</code> no preservado.</strong> El harness AVA era C y machacaba <code>RAX</code>; con el callback activo, <code>CreateEventA</code> devolvía <code>NULL</code> (error 317). Diagnóstico con <code>--cbava</code>:</p>
+<pre><code class="lang-text">[AVA on] CreateEventA=0            &lt;- roto
+(fix)     CreateEventA=0xA8 err=0  &lt;- correcto</code></pre>
+<p>Cualquier API que lea el NTSTATUS que el callback dejó en <code>RAX</code> se rompía. Lección: <strong>zero-clobber no es solo <code>R10</code></strong>; <code>RAX</code>, <code>RCX</code>, <code>RDX</code> y <code>RFLAGS</code> también son contrato.</p>
+<p><strong>Bug 2 — salir con <code>ret</code>.</strong> En el <strong>primer retorno de un hilo nuevo</strong> creado con el callback activo, la pila no tiene el marco que <code>ret</code> espera; el hilo salta a un destino inválido y se produce una <strong>excepción de acceso (<code>c0000005</code>)</strong> capturada con <code>cdb</code> en <code>docs/evidencias/e10_cbwar_crash.txt</code>. El fix es el contrato correcto: salir con <strong><code>jmp r10</code></strong> (la dirección de retorno efectiva que el kernel dejó en <code>R10</code>), no fabricar un <code>ret</code>.</p>
+<p>De aquí salieron las reglas de diseño del shim que veremos en §5: <strong>zero-clobber obligatorio</strong>, salida por <code>jmp r10</code>, y contadores en memoria (nunca en registros).</p>
+<h2>5. E10.2 — <code>KageCbProbe</code>: descubrir si te están grabando</h2>
+<p>Antes de tocar nada, hay que saber <strong>si hay alguien</strong>. Como la query del slot es negativa (§4.2), <code>KageCbProbe</code> implementa el discovery en cascada por <strong>firma de código</strong>:</p>
+<ul><li>Recorre las regiones <strong>ejecutables</strong> del proceso con <code>NtQueryVirtualMemory</code> (wrapper indirecto propio), con un presupuesto máximo de <strong>512 MB</strong> y validación <code>SEH</code> por región para no caer con mapeos raros.</li><li>Busca dos patrones de la familia <code>hook.asm</code>/paranoidninja:</li><li><strong>Firma completa</strong> (14 bytes): <code>51 52 49 8B 52 F0 E8 ?? ?? ?? ?? 5A 59 C3</code>.</li><li><strong>Variante</strong> <code>49 8B 52 F0 E8</code> con validación de cola (<code>41 FF E2</code> = <code>jmp r10</code>) en una ventana de 48 bytes.</li><li>Resuelve el <strong>módulo anfitrión</strong> del candidato (para reportar "está en <code>KageAvaCallback</code>", no una dirección suelta).</li></ul>
+<h3>5.1 Resultados</h3>
+<table><thead><tr><th>Prueba</th><th>Resultado</th></tr></thead><tbody><tr><td>Proceso limpio, sin callback instalado (TEB sin señal)</td><td><strong>20/20</strong> "sin callback"</td></tr><tr><td>Candidato de código presente pero sin instalar</td><td><strong>20/20</strong> 1 hit (el código existe en la imagen)</td></tr><tr><td>EDR-sim (AVA) instalado</td><td><strong>20/20</strong> 1 candidato dentro de <code>KageAvaCallback</code></td></tr><tr><td>Build CET</td><td>idéntico, exit 0</td></tr></tbody></table>
+<p>Dos aprendizajes medidos que conviene apuntar:</p>
+<ul><li>El patrón correcto es <strong><code>49 8B 52 F0</code></strong> (<code>REX.WB</code> de <code>mov rdx,[r10-0x10]</code>), no <code>48 …</code>: el bug se detectó y corrigió durante la implementación.</li><li>El hit cae a <strong>+0x8 del entry</strong> del callback, porque el harness AVA antepone 8 bytes de prólogo. El probe reporta el candidato y la normalización al entry exacto se hace al encadenar.</li></ul>
+<p>Y una lección conceptual importante: <strong>"código presente" no es "callback instalado"</strong>. El binario contiene el código del AVA siempre; el probe encuentra el candidato igual en un proceso limpio. La confirmación de instalación no viene del TEB (no señaliza) ni de la query (no existe): viene de la <strong>liveness</strong> (§8). El probe, por tanto, es un auditor de <em>"qué telemetría in-proces existe aquí"</em>, no un detector de <em>"me están espiando ahora mismo"</em>.</p>
+<h2>6. Filtrar por pila: por qué <code>[rsp]</code> y no <code>R10</code></h2>
+<p>Este es el hallazgo técnico central de la fase, y merece su propia sección porque <strong>corrige la suposición con la que se escribió el plan</strong>.</p>
+<h3>6.1 La suposición (equivocada)</h3>
+<p>El plan original decía: <em>"el discriminador es <code>R10</code>"</em>, es decir, si el callback mira la dirección de retorno en <code>R10</code> y ve que cae dentro del módulo sospechoso, marca el syscall como indirecto. Suena razonable... hasta que se mide.</p>
+<h3>6.2 Lo que dice la evidencia</h3>
+<p>Captura filtrada por pila de un syscall <strong>indirecto</strong> de Kagemusha (<code>NtClose_I</code> con handle inválido):</p>
+<pre><code class="lang-text">R10  = 00007ffc`48544e80   -&gt; ntdll!KiRaiseUserExceptionDispatcher
+[rsp]= 00007ff6`5b665039   -&gt; Kagemusha!NtClose_I+0x29   (call-site del wrapper)</code></pre>
+<p>Y en un syscall <strong>nativo</strong> (por ejemplo, el <code>NtAllocateVirtualMemory</code> interno del heap):</p>
+<pre><code class="lang-text">R10  = 00007ffc`48540f92   -&gt; stub de ntdll +2
+[rsp]= dirección de kernelbase/ntdll (código del sistema)</code></pre>
+<p>Conclusiones:</p>
+<ol><li><strong>En el indirecto, <code>R10</code> apunta al mismo tipo de sitio que en el nativo</strong>: nuestro stub salta al <strong>mismo gadget</strong> <code>syscall;ret</code> de <code>ntdll</code> que usa el sistema, así que el retorno efectivo es indistinguible. <code>R10</code> <strong>no identifica el origen</strong>.</li><li>Peor aún: <code>R10</code> <strong>ni siquiera es estable semánticamente</strong>. Si el syscall genera una excepción (<code>NtClose</code> inválido → <code>STATUS_INVALID_HANDLE</code>), el kernel pone en <code>R10</code> el <strong>dispatcher de excepciones del kernel</strong> (<code>KiRaiseUserExceptionDispatcher</code>), no un stub. Cualquier detector que use <code>R10</code> como "dirección de retorno" tiene que lidiar con dos casos distintos.</li><li><strong>Lo que sí identifica es la pila</strong>: el callback corre con la pila de usuario intacta, y <code>[rsp]</code> es <strong>el call-site real</strong> — la dirección dentro del wrapper desde la que se llamó al stub. En el caso indirecto: <code>Kagemusha!NtClose_I+0x29</code>.</li></ol>
+<h3>6.3 Cómo se explota sin offsets hardcodeados</h3>
+<p>Aquí está la parte elegante: los call-sites no se calculan a mano ni se leen de un PDB; <strong>los propios stubs los registran al ejecutarse</strong>. En la macro MASM que genera cada stub del catálogo:</p>
+<pre><code class="lang-asm">; g_CbCallSites[slot] = [rsp]  (call-site real del wrapper)
+mov r11, QWORD PTR [rsp]
+mov QWORD PTR [g_CbCallSites + slot*8], r11
+
+mov r10, rcx                              ; ABI syscall x64
+mov eax, DWORD PTR [g_SsnTable + slot*4]  ; SSN resuelto en runtime
+jmp QWORD PTR [g_GadgetTable + slot*8]    ; gadget syscall;ret de ntdll</code></pre>
+<p>La calibración (<code>KageCbShimCalibrate</code>) ejecuta una invocación benigna de cada wrapper y los stubs van dejando sus call-sites en la tabla. Cero offsets hardcodeados, consistente con el invariante del proyecto. <strong>Coste honesto:</strong> esas dos instrucciones se ejecutan en <strong>cada</strong> syscall del catálogo, incluso sin shim instalado. Es un coste de rendimiento trivial, pero es un artefacto forense permanente (toda syscall del catálogo escribe en <code>g_CbCallSites</code>), y lo dejamos anotado en los límites.</p>
+<p><strong>¿Y los falsos positivos?</strong> ¿Puede una llamada legítima de otro módulo tener un <code>[rsp]</code> que coincida con un call-site nuestro? Por construcción, no: para que <code>[rsp]</code> caiga dentro de un wrapper de Kagemusha, alguien tendría que estar llamando a <strong>nuestros</strong> wrappers. En un <code>.exe</code> de laboratorio, eso solo pasaría si código de terceros invocara nuestros wrappers exportados — no aplica al diseño. Riesgo despreciable, pero listado por completitud.</p>
+<p><strong>Cobertura pendiente:</strong> el caso "filtro activo + syscall que genera excepción" (drop con <code>jmp r10 = KiRaiseUserExceptionDispatcher</code>) no tiene test dedicado; el análisis dice que replica el retorno natural, pero es un hueco de cobertura que dejamos declarado.</p>
+<p>En resumen: <strong><code>R10</code> dice a dónde ibas a volver; <code>[rsp]</code> dice quién te llamó.</strong> Para esconder selectivamente solo lo nuestro, necesitábamos lo segundo. Ese es el "filtrar por pila".</p>
+<h2>7. E10.3 / E10.4 — El shim: encadenar sin romperlo y filtrar</h2>
+<p>Con el contrato claro, el slot localizado y el discriminador resuelto, llegó la pieza central: <strong><code>KageCbShim</code></strong>, un callback propio que se instala en el slot <strong>en lugar</strong> del callback ajeno, pero que lo <strong>encadena</strong> (le reenvía las llamadas) para que el EDR siga viendo exactamente lo mismo... hasta que decidimos qué no ve.</p>
+<h3>7.1 API y ciclo de vida</h3>
+<pre><code class="lang-c">NTSTATUS KageCbProbe(PVOID *ForeignCallback, PWSTR HostModuleHint);
+NTSTATUS KageCbShimInstall(PVOID ForeignCallback);   /* pisa el slot con el shim */
+NTSTATUS KageCbShimUninstall(VOID);                  /* restaura el ajeno (nunca NULL a ciegas) */
+NTSTATUS KageCbShimSetFilter(ULONG64 SlotMask);      /* bitmask de slots a ocultar */
+BOOL     KageCbShimLiveness(VOID);                   /* ¿sigo en el slot? */
+NTSTATUS KageCbShimReinstall(VOID);                  /* me han pisado: vuelvo */</code></pre>
+<p>Reglas del ciclo de vida:</p>
+<ul><li><strong>Install</strong> exige que el núcleo esté inicializado, rechaza doble instalación (<code>KAGE_ERR_COLLISION</code>), guarda el puntero ajeno (<code>g_CbForeign</code>), resetea máscara y contadores, y <strong>pisa el slot</strong> llamando a <code>KageInstrumentSetCallback</code>.</li><li><strong>Uninstall nunca pone <code>NULL</code> a ciegas</strong>: restaura el callback ajeno descubierto (o <code>NULL</code> si éramos los únicos), para dejar el proceso como estaba. Verificado por test y por evidencia (<code>AVA tras restaurar=1</code>).</li><li>Los <strong>contadores</strong> (<code>fwd</code>, <code>drop</code>) viven en memoria y se incrementan con <code>lock inc</code> desde el dispatcher ASM; la máscara de filtro es un bitmask de 10 bits (uno por slot del catálogo).</li></ul>
+<h3>7.2 El dispatcher zero-clobber, instrucción a instrucción</h3>
+<p>Este es el corazón del diseño. El dispatcher entra con <strong>todos</strong> los registros en un estado que el callback ajeno espera recibir intacto. No puede usar registros para clasificar; solo memoria, y con cuidado quirúrgico:</p>
+<pre><code class="lang-asm">KageCbShimEntry:
+    endbr64                       ; defensivo (la entrada real es IRET del kernel)
+    pushfq                        ; salva RFLAGS
+    push rax                      ; salva RAX (NTSTATUS del syscall)
+    mov  rax, QWORD PTR [rsp+10h] ; rax = call-site original ([rsp] antes de los push)
+
+    ; --- clasificador: 10 bloques, uno por slot ---
+    test BYTE PTR [g_CbFilterMask+0], 01h   ; ¿slot 0 enmascarado?
+    jz   kage_shim_skip0
+    cmp  rax, QWORD PTR [g_CbCallSites+0]   ; ¿call-site == el calibrado del slot 0?
+    je   kage_shim_drop                      ; SÍ -&gt; es nuestro: ocultar
+    ; ... (idéntico para los slots 1..9)
+
+    ; --- forward: syscall ajeno o nativo -&gt; que lo vea el EDR ---
+    pop  rax                        ; restaura NTSTATUS
+    cmp  QWORD PTR [g_CbForeign], 0 ; ¿hay callback ajeno?
+    je   kage_shim_drop2
+    lock inc QWORD PTR [g_CbFwdCount]
+    popfq                           ; restaura flags
+    jmp  QWORD PTR [g_CbForeign]    ; encadena: el EDR ve lo mismo que siempre
+
+    ; --- drop: como si el callback no existiera ---
+kage_shim_drop:
+    pop  rax
+kage_shim_drop2:
+    lock inc QWORD PTR [g_CbDropCount]
+    popfq
+    jmp  r10                        ; retorno efectivo (contrato), nunca `ret`</code></pre>
+<p>Detalles que hacen que esto funcione:</p>
+<ul><li><strong><code>[rsp+0x10]</code></strong> es el <code>[rsp]</code> original: tras los dos <code>push</code>, la pila tiene <code>RAX</code> guardado, <code>RFLAGS</code> guardado y luego el call-site. De ahí el <code>+0x10</code>.</li><li><strong>El clasificador solo toca <code>RAX</code> (temporal) y memoria.</strong> <code>RCX</code>, <code>RDX</code>, <code>R8</code>, <code>R11</code>, la pila y los flags quedan intactos.</li><li><strong>El forward no toca <code>RCX</code>.</strong> Este fue el fix crítico de <code>E10.5</code>: el diseño original hacía <code>mov rcx,[g_CbForeign]</code> "para restaurar el contrato", pero el contrato <strong>no</strong> exige la dirección del callback ajeno: exige la <strong>RCX tal cual la entregó el kernel</strong> (la dirección del callback <em>instalado</em>, es decir, la del shim). Modificarla mataba los hilos nuevos con <code>STATUS_DATATYPE_MISALIGNMENT</code>. La lección completa está en <code>Q10.6</code>/<code>E10.5</code> y ahora tiene regresión permanente (<code>T53.3b</code> y el modo <code>--cbthread</code>).</li><li><strong>El drop sale con <code>jmp r10</code></strong>, exactamente el retorno que el kernel habría restaurado si no hubiera callback. Eso hace el drop <strong>indistinguible</strong> para el hilo: no hay frame extra, no hay <code>ret</code> fabricado, no hay pila tocada.</li><li><strong><code>lock inc</code> antes de <code>popfq</code></strong>: así los flags que el <code>inc</code> modifica quedan sobrescritos por los flags restaurados del usuario. El orden está cuidado en ambos caminos.</li></ul>
+<h3>7.3 Resultados medidos</h3>
+<p>Evidencia versionada en <code>docs/evidencias/e10_cbshim.txt</code>, reproducida en cada cierre:</p>
+<table><thead><tr><th>Paso</th><th>Resultado</th></tr></thead><tbody><tr><td>Calibración de call-sites</td><td><strong>10/10</strong></td></tr><tr><td>Fidelidad (forward transparente), 100 syscalls</td><td>el EDR-sim <strong>vio 100</strong></td></tr><tr><td>Zero-clobber: <code>NtClose</code> inválido con shim</td><td><strong><code>0xC0000008</code></strong> exacto</td></tr><tr><td>Filtro total: 100 syscalls del catálogo</td><td>el EDR-sim <strong>vio 0</strong> (drop 100)</td></tr><tr><td>Control nativo (<code>CreateEventA</code>/<code>CloseHandle</code>)</td><td>el EDR-sim vio 3 (<strong>0 colaterales</strong>)</td></tr><tr><td>Contadores</td><td><code>fwd=105</code>, <code>drop=100</code></td></tr><tr><td>Uninstall</td><td>restaura el callback ajeno (status 0)</td></tr><tr><td>Suite</td><td>T50–T52 → 407/0 stealth; con T53 → <strong>440/0</strong> stealth y <strong>407/0</strong> CET</td></tr></tbody></table>
+<p>Traducido a las cuatro piezas del artículo: <strong>encadenar</strong> funciona (100/100), <strong>filtrar</strong> funciona (100→0), <strong>no romperlo</strong> funciona (zero-clobber exacto, 0 colaterales, proceso anfitrión intacto). Y el control nativo es la clave de la discreción: el EDR sigue viendo <strong>todo lo que no es nuestro</strong>, que es lo que hace que no sospeche.</p>
+<h3>7.4 Notas honestas sobre esta parte</h3>
+<ul><li>El harness AVA (EDR-sim) <strong>cuenta toda ejecución de su callback</strong>, no discrimina por "el return address cae en la imagen propia" como decía un comentario heredado del port. La métrica que usamos (cuántas llamadas ven el callback) es exactamente la que necesitábamos, así que los resultados no cambian; pero la <strong>descripción</strong> del criterio en la doc interna quedó inexacta y así lo dejamos anotado.</li><li>El contador <code>drop</code> significa "<strong>no reenviado</strong>", que con un callback ajeno válido instalado coincide con "filtrado por máscara", pero semánticamente es más amplio (también cuenta el caso <code>g_CbForeign == NULL</code>).</li><li><code>Uninstall</code> no limpia el puntero ajeno ni los contadores (solo <code>Install</code> los resetea): estado residual menor entre ciclos.</li><li><code>Install</code> acepta <code>ForeignCallback == NULL</code> por diseño (el shim se comporta como drop total), pero no está declarado explícitamente en la cabecera pública.</li></ul>
+<h2>8. E10.5 — Liveness: la guerra de punteros</h2>
+<h3>8.1 El problema: la derrota es silenciosa</h3>
+<p>El slot tiene una sola plaza y <strong>gana el último que escribe</strong>. Si el EDR re-afirma su callback —porque lo hace periódicamente, porque sospecha, o simplemente porque se reinstala—, nuestro shim deja de ser llamado. Y nadie nos avisa: no hay señal, no hay error, no hay notificación. Para el proceso, todo sigue funcionando; simplemente hemos dejado de ver.</p>
+<p>Si el EDR re-afirma en bucle, un shim pasivo se queda fuera para siempre. La guerra de punteros necesita, por tanto, <strong>un detector propio de que seguimos vivos</strong> y un mecanismo de reconquista.</p>
+<h3>8.2 La sonda de liveness (≤ 1 syscall)</h3>
+<p>La idea es la de un guardia que cada poco se llama a sí mismo para comprobar que su extensión sigue enchufada:</p>
+<pre><code class="lang-c">BOOL KageCbShimLiveness(VOID)
+{
+    LONG64 Before = g_CbFwdCount + g_CbDropCount;
+    NtYieldExecution_I();               /* 1 syscall del catálogo (call-site calibrado) */
+    LONG64 After = g_CbFwdCount + g_CbDropCount;
+    return (After &gt; Before);            /* si el contador subió, el shim sigue en el slot */
+}</code></pre>
+<p>Por qué funciona con cualquier configuración: si el filtro está <strong>OFF</strong>, la llamada de prueba se reenvía y sube <code>fwd</code>; si está <strong>ON</strong> y el slot 7 está enmascarado, se hace drop y sube <code>drop</code>. En ambos casos, <strong>si el shim está instalado, el contador sube</strong>. Y si alguien nos pisó el slot, no sube nada. La latencia de detección es <strong>≤ 1 syscall</strong> por diseño: no hay polling ciego.</p>
+<p>Cuando la sonda falla, <code>KageCbShimReinstall</code> vuelve a pisar el slot con el shim y <code>InterlockedIncrement64</code> cuenta la reconquista. Coste de la sonda: un syscall benigno (<code>NtYieldExecution</code>) y dos lecturas de contadores. La lectura del par de contadores <strong>no es atómica</strong> (son dos cargas separadas), pero el sesgo máximo es de 1 y solo puede producir un falso "sigo vivo" en una carrera extrema, nunca un falso positivo de sustitución. Lo dejamos declarado.</p>
+<h3>8.3 La guerra, medida</h3>
+<p>Dos pruebas complementarias:</p>
+<p><strong>Guerra determinista (10 rondas):</strong> el EDR-sim pisa el slot; la sonda lo detecta; el shim reinstala. Resultado: <strong>10/10 rondas detectadas y reconquistadas</strong>, contador de reinstalaciones coherente. Esto valida el ciclo completo detección → reconquista.</p>
+<p><strong>Guerra concurrente:</strong> dos hilos compitiendo durante 200 ms — uno re-afirmando el callback del EDR-sim cada ~1 ms, otro haciendo liveness + reinstalación sin parar. La evidencia versionada registra:</p>
+<pre><code class="lang-text">[war concurrente] pings vivos=260471 muertos=20 -&gt; shim vivo 100.0%</code></pre>
+<p>Es decir: de ~260 000 comprobaciones, el shim estaba en el slot en todas menos 20, y cada una de esas 20 se convirtió inmediatamente en una reconquista. En la reproducción del cierre, 263 029 vivos / 33 muertos: mismo 100.0 %.</p>
+<p><strong>Soak de 100 000 syscalls con guerra activa:</strong></p>
+<pre><code class="lang-text">soak: N=100000 fallos=0 fwd=276688 drop=0 reinstalls=19 pings=176907/19</code></pre>
+<p>Cero fallos, cero fugas, 19 reconquistas a lo largo de la prueba. (El <code>drop=0</code> es correcto: el soak corre con el filtro OFF, así que todo lo que pasa por el shim se reenvía.)</p>
+<p><strong>Dos matices honestos</strong> sobre estas cifras:</p>
+<ul><li>Entre "la sonda detecta que me han pisado" y "reinstalo" hay una <strong>ventana TOCTOU</strong> en la que el EDR posee el slot. Los "pings muertos" (20, 33, 19) la acotan indirectamente, pero el 100.0 % de "shim vivo" mide <strong>reconvergencia del ping</strong>, no exposición temporal absoluta. Es una métrica conservadora en la dirección correcta, pero no es "0 % de exposición".</li><li>Las cifras buenas lo son porque el EDR-sim re-afirma a un ritmo humano (~1 ms). Un EDR que re-afirmara en un bucle apretado convertiría esto en una carrera de CPU; el modelo de guerra está documentado como <strong>carrera abierta</strong>, no como victoria garantizada.</li></ul>
+<h2>9. El delta kernel vs callback: el techo que no desaparece</h2>
+<h3>9.1 La idea</h3>
+<p>Cegar el callback es cegar <strong>una</strong> fuente. Pero el kernel tiene las suyas: telemetría (ETW-TI), callbacks de kernel, contadores internos. Si un EDR <strong>funde</strong> (cruza) sus fuentes:</p>
+<ul><li>La fuente de kernel dice: <em>"este proceso ejecutó 100 syscalls de su catálogo"</em>.</li><li>Su callback dice: <em>"yo vi 0"</em>.</li></ul>
+<p>Y ese hueco —el <strong>delta</strong>— no es un fallo de telemetría: es <strong>la señal de manipulación</strong>. El silencio delata.</p>
+<h3>9.2 La medición en el laboratorio</h3>
+<p>El proyecto no tiene ETW-TI habilitable desde user-mode, así que construyó el <strong>análogo de laboratorio</strong>: el <code>ledger</code> interno de Kagemusha (la verdad de tierra de lo que el mecanismo ejecutó de verdad) contra el contador del callback del EDR-sim. Con el filtro activo:</p>
+<pre><code class="lang-text">[fusion] catalogo(ledger)=100 callback(AVA)=0 delta=100</code></pre>
+<p>Reproducido por test (<code>T53.9</code>–<code>T53.11</code>) y por el modo <code>--cbwar</code>. <strong>Un EDR que fusione fuentes detecta el filtro con un delta de 100 llamadas.</strong> El experimento no dice "somos invisibles"; dice exactamente lo contrario: <em>"este es el rastro que deja la manipulación ante quien sepa mirar"</em>.</p>
+<p><strong>Nota de precisión:</strong> el "kernel" del delta es el ledger del laboratorio, no ETW-TI real. Es un modelo cuantificado del techo, no una captura del techo. La distinción importa y por eso está escrita.</p>
+<h3>9.3 Qué cambia esto</h3>
+<ul><li><strong>Para el defensor</strong> (que es el objetivo real de esta serie): la lección es de arquitectura de sensores. Un sensor in-proces <strong>solo</strong> no es confiable ante un atacante que controla el proceso. La defensa correcta es <strong>fusión cross-source</strong> (kernel + callback + pila) y <strong>verificación de integridad del propio sensor</strong> desde un plano que el atacante no controle (kernel). Lo que el atacante puede silenciar en user-mode, el defensor debe poder reconstruirlo desde abajo.</li><li><strong>Para el atacante</strong> (que es el modelo simulado): contra un EDR que solo escucha su callback, el filtrado selectivo funciona y es transparente. Contra un EDR que fusiona, no: el hueco lo delata. El techo real de la fase no es "no se puede cegar el callback" —eso se hizo— sino "<strong>no se puede cegar la fusión</strong> desde user-mode".</li></ul>
+<h3>9.4 Y los otros techos siguen ahí</h3>
+<p>Para que no se malinterprete el alcance de la Fase 10, así queda el mapa tras la fase:</p>
+<table><thead><tr><th>Techo / límite</th><th>Estado tras F10</th></tr></thead><tbody><tr><td>Instrumentation callback (S5)</td><td><strong>Reducible</strong>: encadenable, filtrable y con liveness. Con techo residual de <strong>fusión</strong> y <strong>re-verificación desde kernel</strong></td></tr><tr><td>Re-lectura del slot por el EDR</td><td>Imposible desde <strong>user-mode</strong> (query negativa, §4.2); posible con driver propio</td></tr><tr><td>Scanner/walk de pila (S4)</td><td>Intacto: el shim solo ciega la ruta <em>callback</em>; el retorno "a mitad de stub + caller propio" sigue visible a un stack walker</td></tr><tr><td>ETW-TI (S6)</td><td>Intacto: no habilitable ni cegable desde user-mode</td></tr><tr><td>Callbacks de kernel (S8)</td><td>Intactos: plano no observable desde el proceso</td></tr><tr><td>IBT estricto (CET completo)</td><td>Riesgo residual no cerrado: <code>jmp [foreign]</code>/<code>jmp r10</code> sin <code>ENDBR64</code> en los destinos; en el host de referencia no se imponía</td></tr></tbody></table>
+<p>Esa tabla es, en el fondo, la conclusión de la fase: <strong>no existe la invisibilidad; existe el movimiento del techo.</strong></p>
+<h2>10. La corrección del modelo: S5 ya no es "techo estructural"</h2>
+<p>La matriz de la Fase 9 clasificaba <strong>S5 @ E5/E6</strong> como techo estructural con esta justificación: <em>"no cegable desde user-mode"</em>. La Fase 10 midió lo contrario con el detector de referencia (el propio AVA que implementa el criterio in-process de paranoidninja):</p>
+<ul><li>Con el filtro <strong>OFF</strong>: el detector marca los syscalls del catálogo (N de N).</li><li>Con el filtro <strong>ON</strong>: el detector pasa a <strong>0</strong> para los syscalls del catálogo, y <strong>sigue marcando los controles</strong> (llamadas nativas que no son nuestras).</li></ul>
+<p>Es decir: la celda <strong>S5 @ E5/E6 pasa de <code>2</code> a <code>1</code> medida</strong>, con un techo residual formalizado (fusión kernel-vs-callback y re-verificación del puntero desde kernel). La clasificación original no era un dato: era una inferencia. Ahora es una medición.</p>
+<p>Un límite declarado importante: el detector de referencia <strong>in-process</strong> es el oráculo end-to-end; el binario externo <code>etwti-hook.exe</code> <strong>no puede observar nuestro proceso</strong> (vive fuera) y por eso queda fuera del alcance por diseño. No se está midiendo contra un EDR comercial real, y eso se dice.</p>
+<p>Con esto, la jerarquía del proyecto queda aún más clara: <strong>conducta &gt; ejecución &gt; mecanismo</strong>. Puedes encadenar, filtrar y sobrevivir a la guerra de punteros (mecanismo/sensor), pero lo que de verdad decide una alerta sigue siendo lo que el proceso <strong>hace</strong>, y lo que de verdad cierra el techo es lo que se ve desde el <strong>kernel</strong>.</p>
+<h2>11. Errores, deuda y límites (lo que no salió redondo)</h2>
+<p>Publicar solo los números bonitos sería hacer publicidad. Esto es lo que la revisión del código y del repo encontró, y que dejamos anotado:</p>
+<table><thead><tr><th>#</th><th>Hallazgo</th><th>Impacto</th></tr></thead><tbody><tr><td>1</td><td>La sección §11 del informe interno aún describe el forward con <code>mov rcx,[g_CbForeign]</code> (diseño anterior al fix E10.5); la corrección está en §12 del mismo documento</td><td>Doc interna desactualizada; el código manda</td></tr><tr><td>2</td><td>El harness AVA <strong>cuenta toda ejecución</strong> de su callback, no discrimina por return address como sugiere un comentario heredado</td><td>La métrica usada es la correcta; la descripción del criterio era inexacta</td></tr><tr><td>3</td><td>Los stubs <strong>escriben el call-site en cada syscall</strong> del catálogo (2 instrucciones extra), también sin shim instalado</td><td>Coste trivial, pero es un artefacto forense permanente y se aleja del "señal mínima"</td></tr><tr><td>4</td><td>El contador <code>drop</code> significa "no reenviado", no "filtrado por máscara"</td><td>Coinciden en el caso normal; semántica más amplia de lo que sugiere el nombre</td></tr><tr><td>5</td><td>La lectura de los contadores en liveness <strong>no es atómica</strong></td><td>Sesgo de a lo sumo 1, solo en carrera extrema; no puede dar falso positivo de sustitución</td></tr><tr><td>6</td><td>Ventana <strong>TOCTOU</strong> entre detectar el robo del slot y reinstalar</td><td>El EDR ve syscalls en esa ventana; el 100.0 % mide reconvergencia, no exposición cero</td></tr><tr><td>7</td><td><code>Uninstall</code> no limpia <code>g_CbForeign</code> ni los contadores</td><td>Estado residual entre ciclos (menor, por diseño del test)</td></tr><tr><td>8</td><td><code>Install</code> acepta <code>ForeignCallback == NULL</code> sin declararlo en la cabecera</td><td>Comportamiento válido (drop total), documentación incompleta</td></tr><tr><td>9</td><td><strong>IBT estricto</strong>: el forward y el drop saltan a destinos sin <code>ENDBR64</code>; no hay fail-loud si IBT se impone</td><td>Riesgo residual número uno en entornos CET completos (shadow stack + IBT); en el host de referencia no se imponía</td></tr><tr><td>10</td><td>Del plan original quedaron sin implementar: el wrapper propio <code>NtSetInformationProcess_I</code> (se usa <code>GetProcAddress</code> directo), los tests T54–T59, el detector externo end-to-end y el fail-loud de CET</td><td>Deuda declarada; los resultados medidos (T50–T53) no dependen de ello</td></tr><tr><td>11</td><td>El transcript del crash mostraba un AV en la región del callback; la frase "RIP=0" del informe era la explicación del mecanismo, no una línea literal del transcript</td><td>Matiz de precisión; el fenómeno está acreditado</td></tr><tr><td>12</td><td>El README conserva dos referencias a "T0..T49" en la sección de arquitectura</td><td>Cosmético; la suite real llega a T53</td></tr></tbody></table>
+<p>Ninguno de estos hallazgos invalida las mediciones de la fase; pero todos ellos forman parte del resultado y así deben leerse. La crítica número 9 (IBT) es la única con potencial de romper el shim en un entorno distinto, y por eso queda marcada como <strong>riesgo abierto</strong>, no como límite cerrado.</p>
+<h2>12. Cómo reproducirlo</h2>
+<p>Todo el laboratorio es local; nada sale del equipo. Requisitos: Windows 11 x64, VS Build Tools con <code>ml64</code> (la configuración exacta está en <code>tools\build.cmd</code>).</p>
+<pre><code class="lang-text">tools\build.cmd                   :: -&gt; bin\Kagemusha.exe + bin\Kagemusha_tests.exe
+tools\build_cet.cmd               :: -&gt; bin_cet\ (variante /CETCOMPAT)
+
+bin\Kagemusha.exe --cbquery       :: Q10.2: la query del slot es negativa (0xC0000003)
+bin\Kagemusha.exe --cbprobe       :: E10.2: discovery por firma (20/20, 0 FP en modulos del sistema)
+bin\Kagemusha.exe --cbshim        :: E10.3/E10.4: calibracion 10/10, forward 100/100, filtro 100-&gt;0
+bin\Kagemusha.exe --cbthread      :: contrato RCX: hilo nuevo con shim (regresion del fix)
+bin\Kagemusha.exe --cbwar         :: E10.5: guerra deterministico + concurrente + delta de fusion
+bin\Kagemusha.exe --cbsoak        :: soak 100k con guerra activa
+bin\Kagemusha_tests.exe           :: suite completa (T0..T53): 440/0 stealth, 407/0 CET
+powershell -File tools\verify.ps1 :: 0 instrucciones syscall en los binarios propios</code></pre>
+<p>Las preguntas de RE (<code>Q10.1</code>–<code>Q10.6</code>) se reproducen con los scripts de <code>tools\cdb_scripts\k10_*.txt</code> y <code>cdb</code>; los transcripts están en <code>docs\evidencias\e10_*.txt</code> y el informe completo en <code>docs\research\experimento-e10-dispatch.md</code>.</p>
+<h2>13. Qué queda por delante</h2>
+<ul><li><strong>Fase 11 (capa conducta):</strong> romper la correlación S9 (staging multi-contexto) y formalizar los predicados de las reglas; es la fase natural tras mecanismo (F1–F8), ejecución (F9) y sensor (F10).</li><li><strong>L2 (contextos legítimos):</strong> ejecutar blobs en hilos del threadpool en vez de crear un hilo propio, como sub-experimento de F11.</li><li><strong>Techos de kernel:</strong> ETW-TI y callbacks de kernel siguen intactos; la fusión kernel+callback queda cuantificada como el detector que el shim no puede cegar desde user-mode.</li></ul>
+<h2>14. Conclusiones</h2>
+<ol><li><strong>Un sensor de user-mode que vive dentro del proceso observado es controlable.</strong> Eso ya estaba en el marco teórico del proyecto; F10 lo convirtió en medición: encadenado transparente (100/100), filtrado selectivo por pila (100→0, 0 colaterales) y liveness (≤ 1 syscall).</li><li><strong>La transparencia es la clave de la discreción.</strong> El shim no apaga la cámara: la deja grabando todo lo que no es suyo. Un EDR que solo mira su callback no tiene motivo para sospechar.</li><li><strong>La guerra de punteros es ganable contra un rival que no re-verifica</strong>, con métricas medidas (100.0 % de shim vivo, soak de 100 000 syscalls con 0 fallos y 19 reconquistas). Y es <strong>perdible</strong> contra un rival que fusione fuentes: delta = 100.</li><li><strong>El techo se mueve, no desaparece.</strong> S5 pasa de "estructural no cegable" a "reducible con techo residual de fusión/re-verificación". S4, S6 y S8 siguen donde estaban.</li><li><strong>El método es el resultado.</strong> Preguntas cerradas con transcript, oráculos independientes, un plan que se equivoca y una evidencia que lo corrige, y una lista de errores propios publicada junto a los números. Eso es lo que separa un informe de un anuncio.</li></ol>
+<blockquote><p>Aprender a romper para poder defender.</p></blockquote>
+<h2>Referencias</h2>
+<ul><li>Código y documentación del proyecto: <code>Kagemusha</code> (<code>README.md</code>, <code>docs/research/experimento-e10-dispatch.md</code>, <code>docs/evidencias/e10_*.txt</code>, <code>docs/fase9/matriz-final.md</code>).</li><li>Microsoft Learn — <em>ProcessInstrumentationCallback</em> (<code>NtSetInformationProcess</code>), <em>Control-flow Enforcement Technology (CET)</em>.</li><li>x86matthew — <em>InstrumentationCallbackSyscallLogger</em> (MIT).</li><li>paranoidninja — <em>Process-Instrumentation-Syscall-Hook</em> (<code>etwti-hook.exe</code>).</li><li>crummie5 — <em>FreshyCalls</em>; WKL-Sec — <em>LayeredSyscall</em>.</li></ul>
+<p>Serie completa: <strong><a href="/blog/serie/kagemusha.html">Kagemusha</a></strong>. Entradas relacionadas: <a href="/blog/kagemusha-visibilidad-evasion.html">Visibilidad y evasión</a>, <a href="/blog/kagemusha-metodologia-verificacion.html">Metodología de verificación</a>, <a href="/blog/kagemusha-informe-tecnico-evasion.html">Informe técnico de evasión</a> y <a href="/blog/kagemusha-articulo-por-que-evasion-capas.html">Por qué la evasión es en capas</a>.</p></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

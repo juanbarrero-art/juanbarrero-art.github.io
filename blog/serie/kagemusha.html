@@ -113,6 +113,12 @@
       "headline": "Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)",
       "url": "https://juanbarrero-art.github.io/blog/kagemusha-informe-tecnico-evasion.html",
       "datePublished": "2026-10-11"
+    },
+    {
+      "@type": "BlogPosting",
+      "headline": "Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR",
+      "url": "https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html",
+      "datePublished": "2026-10-13"
     }
   ]
 }
@@ -270,6 +276,14 @@
     <p class="entrada__fecha">// 11 oct 2026</p>
     <h3 class="entrada__titulo">Kagemusha — Informe técnico: evasión de EDR (del mecanismo de syscall a la jerarquía de detección)</h3>
     <p class="entrada__resumen">Documentación del informe técnico del repositorio (docs/research/informe-tecnico-evasion.md): el marco conceptual de la evasión de EDR unificado con los experimentos E1–E4, los planos de observación, la jerarquía conducta&gt;ejecución&gt;mecanismo, la matriz de evasión y las recomendaciones para el lado azul.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="../kagemusha-fase-10-contrainstrumentacion-callback.html">
+    <p class="entrada__fecha">// 13 oct 2026</p>
+    <h3 class="entrada__titulo">Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR</h3>
+    <p class="entrada__resumen">Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
