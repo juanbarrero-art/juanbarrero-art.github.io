@@ -5,7 +5,14 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Thu, 15 Oct 2026 06:09:18 +0000</lastBuildDate>
+  <lastBuildDate>Thu, 15 Oct 2026 06:50:58 +0000</lastBuildDate>
+  <item>
+    <title>Kagemusha F14–F15 — El módulo prestado: ejecutar desde una DLL firmada y lo que ve el kernel</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-f14-f15-modulo-prestado-etwti.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-f14-f15-modulo-prestado-etwti.html</guid>
+    <pubDate>Thu, 15 Oct 2026 00:00:00 +0000</pubDate>
+    <description>F14–F15 del proyecto Kagemusha. Ejecución de Mimikatz desde la .text de una DLL firmada (module stomping) con veredicto medido: 0 eventos ETW-TI del ciclo frente a 87.898 del sistema; stomp efímero arbitrado con pe-sieve (0 patches, 0 implantados); frames CET-safe para el stack walk; ciclo full2; y un consumidor ETW-TI propio con TDH y atribución por PID que convierte el plano S6 de techo ciego a señal medida por-operación (matriz v3). Cierre: 610/0 stealth · 562/0 CET.</description>
+  </item>
   <item>
     <title>Kagemusha F11–F13 — Del staging al full-stack: correlación, Mimikatz y sueño</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html</link>
