@@ -5,7 +5,14 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Mon, 05 Oct 2026 03:26:27 +0000</lastBuildDate>
+  <lastBuildDate>Thu, 15 Oct 2026 06:09:18 +0000</lastBuildDate>
+  <item>
+    <title>Kagemusha F11–F13 — Del staging al full-stack: correlación, Mimikatz y sueño</title>
+    <link>https://juanbarrero-art.github.io/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html</guid>
+    <pubDate>Wed, 14 Oct 2026 00:00:00 +0000</pubDate>
+    <description>F11–F13 del proyecto Kagemusha. Staging en secciones pagefile con vistas W^X y ejecución en worker del thread pool (0 protects, 0 hilos), correlador propio R1–R4 calibrado contra el pipeline (baseline 3/4 real), sondas de integridad del instrumentation callback, Mimikatz real por el pipeline con Defender activo, capa RC4 con doble CRC, sleep obfuscation y el full-stack encadenado (staging+RC4+shim+sueño) con 0 protects/0 hilos verificado por ledger, cdb y Ghidra.</description>
+  </item>
   <item>
     <title>Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html</link>

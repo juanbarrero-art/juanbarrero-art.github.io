@@ -119,6 +119,12 @@
       "headline": "Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR",
       "url": "https://juanbarrero-art.github.io/blog/kagemusha-fase-10-contrainstrumentacion-callback.html",
       "datePublished": "2026-10-13"
+    },
+    {
+      "@type": "BlogPosting",
+      "headline": "Kagemusha F11–F13 — Del staging al full-stack: correlación, Mimikatz y sueño",
+      "url": "https://juanbarrero-art.github.io/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html",
+      "datePublished": "2026-10-14"
     }
   ]
 }
@@ -284,6 +290,14 @@
     <p class="entrada__fecha">// 13 oct 2026</p>
     <h3 class="entrada__titulo">Kagemusha F10 — Contra-instrumentación: encadenar, filtrar y medir el callback de un EDR</h3>
     <p class="entrada__resumen">Fase 10 del proyecto Kagemusha. Reversamos el ProcessInstrumentationCallback, construimos un shim zero-clobber que encadena al callback del EDR sin romperlo, filtramos por pila ([rsp]) los syscalls propios (100→0 sin colaterales), añadimos una sonda de liveness para la guerra de punteros y medimos el delta kernel-vs-callback (100) que delata la manipulación ante un EDR que fusione fuentes. Con errores encontrados, límites declarados y reproducción.</p>
+    <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
+  </a>
+</li>
+<li>
+  <a class="entrada" href="../kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html">
+    <p class="entrada__fecha">// 14 oct 2026</p>
+    <h3 class="entrada__titulo">Kagemusha F11–F13 — Del staging al full-stack: correlación, Mimikatz y sueño</h3>
+    <p class="entrada__resumen">F11–F13 del proyecto Kagemusha. Staging en secciones pagefile con vistas W^X y ejecución en worker del thread pool (0 protects, 0 hilos), correlador propio R1–R4 calibrado contra el pipeline (baseline 3/4 real), sondas de integridad del instrumentation callback, Mimikatz real por el pipeline con Defender activo, capa RC4 con doble CRC, sleep obfuscation y el full-stack encadenado (staging+RC4+shim+sueño) con 0 protects/0 hilos verificado por ledger, cdb y Ghidra.</p>
     <span class="entrada__enlace">Leer m&aacute;s &rarr;</span>
   </a>
 </li>
