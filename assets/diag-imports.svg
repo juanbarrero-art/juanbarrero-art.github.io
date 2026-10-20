@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" role="img" aria-label="Cómo se resuelven los imports y se rellena la IAT">
+  <rect width="900" height="430" fill="#0b0f1c"/>
+  <text x="24" y="32" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Imports: de nombres a direcciones (y por qué existe la IAT)</text>
+
+  <rect x="24" y="60" width="250" height="56" rx="8" fill="#101a22" stroke="#a855f7"/>
+  <text x="38" y="82" font-family="Consolas,monospace" font-size="12" fill="#a855f7">DataDirectory[1]</text>
+  <text x="38" y="102" font-family="Consolas,monospace" font-size="11" fill="#c9d1e0">RVA de la Import Directory</text>
+
+  <rect x="304" y="60" width="250" height="56" rx="8" fill="#101a22" stroke="#00e5ff"/>
+  <text x="318" y="82" font-family="Consolas,monospace" font-size="12" fill="#00e5ff">IMAGE_IMPORT_DESCRIPTOR</text>
+  <text x="318" y="102" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">20 bytes; uno por DLL</text>
+
+  <rect x="584" y="60" width="290" height="56" rx="8" fill="#101a22" stroke="#39ff14"/>
+  <text x="598" y="82" font-family="Consolas,monospace" font-size="12" fill="#39ff14">Name: "KERNEL32.dll"</text>
+  <text x="598" y="102" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">RVA a un string ASCII</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M274 88 H304"/><path d="M296 82 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M554 88 H584"/><path d="M576 82 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <rect x="24" y="150" width="250" height="96" rx="8" fill="#111a2e" stroke="#a855f7"/>
+  <text x="38" y="172" font-family="Consolas,monospace" font-size="12" fill="#a855f7">OriginalFirstThunk (INT)</text>
+  <text x="38" y="192" font-family="Consolas,monospace" font-size="11" fill="#c9d1e0">array de nombres</text>
+  <text x="38" y="214" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">Hint (2 B) + "CloseHandle"</text>
+  <text x="38" y="232" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">termina en 0</text>
+
+  <rect x="304" y="150" width="250" height="96" rx="8" fill="#111a2e" stroke="#39ff14"/>
+  <text x="318" y="172" font-family="Consolas,monospace" font-size="12" fill="#39ff14">FirstThunk (IAT)</text>
+  <text x="318" y="192" font-family="Consolas,monospace" font-size="11" fill="#c9d1e0">array de punteros</text>
+  <text x="318" y="214" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">lo que el PE llama</text>
+  <text x="318" y="232" font-family="Consolas,monospace" font-size="11" fill="#f59e0b">se rellena al cargar</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M274 198 H304"/><path d="M296 192 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <rect x="584" y="150" width="290" height="60" rx="8" fill="#101a22" stroke="#f59e0b"/>
+  <text x="598" y="174" font-family="Consolas,monospace" font-size="12" fill="#f59e0b">LoadLibraryA("KERNEL32.dll")</text>
+  <text x="598" y="194" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">devuelve la base del módulo</text>
+
+  <rect x="584" y="226" width="290" height="60" rx="8" fill="#101a22" stroke="#f59e0b"/>
+  <text x="598" y="250" font-family="Consolas,monospace" font-size="12" fill="#f59e0b">GetProcAddress(base, nombre)</text>
+  <text x="598" y="270" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">devuelve la dirección real</text>
+
+  <g stroke="#39ff14" stroke-width="2" fill="none">
+    <path d="M430 246 V300 H304 V286"/>
+    <path d="M296 292 l8 -6 8 6" fill="#39ff14" stroke="none"/>
+    <path d="M729 286 V300 H304"/>
+    <path d="M314 294 l-10 6 10 6" fill="#39ff14" stroke="none"/>
+  </g>
+  <text x="470" y="294" font-family="Consolas,monospace" font-size="12" fill="#39ff14">*IAT++ = dirección</text>
+
+  <rect x="24" y="330" width="852" height="72" rx="8" fill="#0d1424" stroke="#1c2440"/>
+  <text x="40" y="354" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">Trucos que verás en un loader real:</text>
+  <text x="40" y="376" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">· ordinal en vez de nombre: bit alto 0x8000000000000000 → GetProcAddress(mod, (LPCSTR)ordinal)</text>
+  <text x="40" y="394" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">· API sets (api-ms-win-*), forwarders y bound imports; delay-load usa otra directorio (DataDirectory[13]).</text>
+</svg>

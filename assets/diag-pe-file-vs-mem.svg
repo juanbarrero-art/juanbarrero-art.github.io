@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="420" viewBox="0 0 860 420" role="img" aria-label="PE en disco frente a PE mapeado en memoria">
+  <rect width="860" height="420" fill="#0b0f1c"/>
+  <text x="24" y="32" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">El mismo PE, dos formas: en disco y en memoria</text>
+
+  <text x="24" y="66" font-family="Consolas,monospace" font-size="13" fill="#8b93b8">ARCHIVO .EXE (offsets de fichero)</text>
+  <rect x="24" y="78" width="340" height="30" rx="6" fill="#101a22" stroke="#a855f7"/>
+  <text x="38" y="98" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">DOS header (0x00) + PE header</text>
+  <rect x="24" y="114" width="340" height="34" rx="6" fill="#101a22" stroke="#39ff14"/>
+  <text x="38" y="136" font-family="Consolas,monospace" font-size="12" fill="#39ff14">.text  (raw @ 0x400, 0x600 bytes)</text>
+  <rect x="24" y="154" width="340" height="34" rx="6" fill="#101a22" stroke="#00e5ff"/>
+  <text x="38" y="176" font-family="Consolas,monospace" font-size="12" fill="#00e5ff">.rdata (raw @ 0xA00, 0x400 bytes)</text>
+  <rect x="24" y="194" width="340" height="34" rx="6" fill="#101a22" stroke="#3b82f6"/>
+  <text x="38" y="216" font-family="Consolas,monospace" font-size="12" fill="#3b82f6">.data  (raw @ 0xE00, 0x200 bytes)</text>
+  <text x="24" y="252" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">Los tamaños raw están alineados a FileAlignment (0x200).</text>
+
+  <text x="496" y="66" font-family="Consolas,monospace" font-size="13" fill="#8b93b8">MEMORIA (RVAs desde Base)</text>
+  <rect x="496" y="78" width="340" height="30" rx="6" fill="#101a22" stroke="#a855f7"/>
+  <text x="510" y="98" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">headers  Base + 0x0000</text>
+  <rect x="496" y="114" width="340" height="34" rx="6" fill="#101a22" stroke="#39ff14"/>
+  <text x="510" y="136" font-family="Consolas,monospace" font-size="12" fill="#39ff14">.text  Base + 0x1000  (RVA)</text>
+  <rect x="496" y="154" width="340" height="34" rx="6" fill="#101a22" stroke="#00e5ff"/>
+  <text x="510" y="176" font-family="Consolas,monospace" font-size="12" fill="#00e5ff">.rdata Base + 0x2000  (RVA)</text>
+  <rect x="496" y="194" width="340" height="34" rx="6" fill="#101a22" stroke="#3b82f6"/>
+  <text x="510" y="216" font-family="Consolas,monospace" font-size="12" fill="#3b82f6">.data  Base + 0x3000  (RVA)</text>
+  <text x="496" y="252" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">Los RVAs están alineados a SectionAlignment (0x1000).</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M364 131 C420 131 430 131 496 131"/>
+    <path d="M484 125 l12 6 -12 6" fill="#3b82f6" stroke="none"/>
+    <path d="M364 171 C420 171 430 171 496 171"/>
+    <path d="M484 165 l12 6 -12 6" fill="#3b82f6" stroke="none"/>
+    <path d="M364 211 C420 211 430 211 496 211"/>
+    <path d="M484 205 l12 6 -12 6" fill="#3b82f6" stroke="none"/>
+  </g>
+  <text x="382" y="300" font-family="Consolas,monospace" font-size="12" fill="#f59e0b">Para cada sección:</text>
+  <text x="382" y="322" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">memcpy(Base + RVA,</text>
+  <text x="382" y="342" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">       file + PointerToRawData,</text>
+  <text x="382" y="362" font-family="Consolas,monospace" font-size="12" fill="#c9d1e0">       min(SizeOfRawData, VirtualSize))</text>
+  <text x="24" y="322" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">El disco guarda posiciones de fichero;</text>
+  <text x="24" y="342" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">la memoria usa direcciones relativas a Base.</text>
+  <text x="24" y="362" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">Ese cambio es toda la primera mitad del loader.</text>
+  <text x="24" y="400" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">Oráculo: dumpbin /headers te da exactamente estos números (RVA, raw, alignment).</text>
+</svg>

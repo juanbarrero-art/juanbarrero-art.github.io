@@ -5,7 +5,14 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Thu, 15 Oct 2026 06:50:58 +0000</lastBuildDate>
+  <lastBuildDate>Tue, 20 Oct 2026 01:01:00 +0000</lastBuildDate>
+  <item>
+    <title>Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</title>
+    <link>https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html</link>
+    <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html</guid>
+    <pubDate>Fri, 16 Oct 2026 00:00:00 +0000</pubDate>
+    <description>Tutorial desde cero para programadores sin Windows internals. Quince pasos para leer un PE, mapearlo en memoria, aplicar relocations, resolver imports, registrar .pdata y ejecutarlo sin LoadLibrary; después cifrarlo con AES-GCM, borrar sus cabeceras y medir qué se ve. Con diagramas, código explicado y errores típicos.</description>
+  </item>
   <item>
     <title>Kagemusha F14–F15 — El módulo prestado: ejecutar desde una DLL firmada y lo que ve el kernel</title>
     <link>https://juanbarrero-art.github.io/blog/kagemusha-f14-f15-modulo-prestado-etwti.html</link>

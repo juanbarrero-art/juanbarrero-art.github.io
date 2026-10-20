@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Tutorial desde cero para programadores sin Windows internals. Quince pasos para leer un PE, mapearlo en memoria, aplicar relocations, resolver imports, registrar .pdata y ejecutarlo sin LoadLibrary; después cifrarlo con AES-GCM, borrar sus cabeceras y medir qué se ve. Con diagramas, código explicado y errores típicos.">
+  <meta name="theme-color" content="#060810">
+  <title>Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero) | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, pe format, loader, tutorial, c, kagemusha">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)">
+  <meta property="og:description" content="Tutorial desde cero para programadores sin Windows internals. Quince pasos para leer un PE, mapearlo en memoria, aplicar relocations, resolver imports, registrar .pdata y ejecutarlo sin LoadLibrary; después cifrarlo con AES-GCM, borrar sus cabeceras y medir qué se ve. Con diagramas, código explicado y errores típicos.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/mini-loader-15-pasos-pe-sin-loadlibrary.png">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-16">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="pe format">
+  <meta property="article:tag" content="loader">
+  <meta property="article:tag" content="tutorial">
+  <meta property="article:tag" content="c">
+  <meta property="article:tag" content="kagemusha">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)">
+  <meta name="twitter:description" content="Tutorial desde cero para programadores sin Windows internals. Quince pasos para leer un PE, mapearlo en memoria, aplicar relocations, resolver imports, registrar .pdata y ejecutarlo sin LoadLibrary; después cifrarlo con AES-GCM, borrar sus cabeceras y medir qué se ve. Con diagramas, código explicado y errores típicos.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/mini-loader-15-pasos-pe-sin-loadlibrary.png">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)",
+  "description": "Tutorial desde cero para programadores sin Windows internals. Quince pasos para leer un PE, mapearlo en memoria, aplicar relocations, resolver imports, registrar .pdata y ejecutarlo sin LoadLibrary; después cifrarlo con AES-GCM, borrar sus cabeceras y medir qué se ve. Con diagramas, código explicado y errores típicos.",
+  "datePublished": "2026-10-16",
+  "dateModified": "2026-10-16",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/og/mini-loader-15-pasos-pe-sin-loadlibrary.png",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, pe format, loader, tutorial, c, kagemusha",
+  "articleSection": "Kagemusha",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css?v=10">
+  <link rel="stylesheet" href="../assets/wild.css?v=10">
+  <link rel="stylesheet" href="../assets/rootkit.css?v=10">
+  <script src="../assets/wild.js?v=10" defer></script>
+</head>
+<body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">16 oct 2026 &middot; 37 min de lectura</p>
+        <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
+        <h1 class="post__titulo">Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</h1>
+        <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#pe format</span> <span class="tag">#loader</span> <span class="tag">#tutorial</span> <span class="tag">#c</span> <span class="tag">#kagemusha</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</h1>
+<p>Cuando llamas a <code>LoadLibrary</code> y a <code>GetProcAddress</code>, Windows hace una cantidad enorme de trabajo por ti: lee el fichero, reserva memoria, copia secciones, arregla direcciones, carga dependencias, registra tablas de excepciones y llama al punto de entrada. Es una caja negra tan cómoda que casi nadie la abre.</p>
+<p>Este artículo la abre. En <strong>15 pasos</strong> vamos a construir un <em>mini-loader</em> en C que:</p>
+<ol><li>Lee un <code>.exe</code> de disco.</li><li>Lo mapea en memoria como lo haría Windows.</li><li>Aplica sus <em>relocations</em>.</li><li>Resuelve sus <em>imports</em>.</li><li>Registra sus tablas de excepciones.</li><li>Ejecuta su punto de entrada.</li></ol>
+<p>Y después lo endurecemos: lo ciframos con AES-256-GCM, lo desciframos en memoria, le borramos las cabeceras y <strong>medimos</strong> qué queda visible. Al final tendrás un loader de unas 300 líneas y, sobre todo, un modelo mental de qué pasa dentro de Windows cada vez que un programa arranca.</p>
+<p><strong>Para quién es:</strong> sabes programar en C y entiendes punteros. No hace falta saber qué es un PE, un RVA, la IAT, el unwind ni ETW. Todo eso se explica aquí, con analogías, diagramas y código que puedes compilar.</p>
+<p><strong>Qué usamos:</strong> MSVC (x64), <code>dumpbin</code>, <code>cdb</code>, y un <code>pe_hello.exe</code> de prueba que devuelve 7. Nada de dependencias raras.</p>
+<p><strong>La versión de verdad:</strong> este tutorial sigue la lógica de <code>KageMapPe</code>, el loader de <strong>Kagemusha</strong> (<code>src/core/pemap.c</code>). El proyecto añade cosas que aquí solo mencionaremos (imports por hash, manual load, IAT spoofing, entryspoof, contenedor polimórfico, tests T69–T81). El objetivo de hoy es entender el esqueleto, no memorizar el músculo.</p>
+<h2>El mapa antes de andar</h2>
+<p><img src="../assets/diag-loader-15.svg" alt="Diagrama: las cinco fases del mini-loader" loading="lazy"></p>
+<p>Un PE (Portable Executable) es el formato de los <code>.exe</code> y <code>.dll</code> de Windows. Por dentro es un fichero <strong>con instrucciones para un cargador</strong>: "copia esta parte aquí, arregla estas direcciones, importa estas funciones, empieza a ejecutar en esta otra". El loader de Windows (<code>Ldr</code>) sigue ese manual al pie de la letra.</p>
+<p>Nosotros vamos a seguir el mismo manual, pero en pequeño.</p>
+<h3>Glosario mínimo (lo que se asume cero)</h3>
+<table><thead><tr><th>Término</th><th>Qué es, en una frase</th></tr></thead><tbody><tr><td><strong>PE</strong></td><td>El formato de ejecutable de Windows: cabeceras + secciones.</td></tr><tr><td><strong>Sección</strong></td><td>Un bloque del fichero con un propósito: código (<code>.text</code>), datos de solo lectura (<code>.rdata</code>), datos (<code>.data</code>).</td></tr><tr><td><strong>RVA</strong></td><td><em>Relative Virtual Address</em>: una dirección <strong>relativa</strong> a la base donde se carga el PE.</td></tr><tr><td><strong>VA</strong></td><td>Dirección virtual absoluta: <code>Base + RVA</code>.</td></tr><tr><td><strong>Offset de fichero</strong></td><td>Posición en el <code>.exe</code> en disco. No coincide con el RVA.</td></tr><tr><td><strong>Import</strong></td><td>Función de otra DLL que el PE usa (<code>CloseHandle</code>, <code>MessageBoxA</code>…).</td></tr><tr><td><strong>IAT</strong></td><td><em>Import Address Table</em>: la tabla donde el loader escribe las direcciones reales de esas funciones.</td></tr><tr><td><strong>Relocation</strong></td><td>Ajuste de una dirección absoluta cuando el PE no se carga en su base preferida.</td></tr><tr><td><strong>Entry point</strong></td><td>El RVA de la primera instrucción que ejecuta el PE.</td></tr><tr><td><strong>Unwind / <code>.pdata</code></strong></td><td>Información para deshacer la pila cuando hay excepciones (SEH, C++).</td></tr><tr><td><strong>TLS</strong></td><td><em>Thread Local Storage</em>: datos y callbacks por hilo; algunos PEs los necesitan al arrancar.</td></tr><tr><td><strong>Ldr</strong></td><td>El cargador de Windows (<code>ntdll!Ldr*</code>). Es quien hace todo esto de verdad, y a quien mira un EDR.</td></tr><tr><td><strong>EDR</strong></td><td>Antivirus/EDR moderno: observa procesos, cargas de imagen, memoria y syscalls.</td></tr></tbody></table>
+<p>La idea central del artículo cabe en una frase: <strong>en disco manda el offset; en memoria manda el RVA</strong>. Todo lo demás es traducir entre esos dos mundos y rellenar las tablas que el PE espera encontrar ya resueltas.</p>
+<p><img src="../assets/diag-pe-file-vs-mem.svg" alt="Diagrama: el mismo PE en disco y en memoria" loading="lazy"></p>
+<h2>Paso 1 — El objetivo y la regla del juego</h2>
+<p><strong>Qué buscamos:</strong> ejecutar un PE sin usar <code>LoadLibrary</code> sobre él.</p>
+<p>Un matiz importante desde el principio: <strong>no</strong> vamos a reimplementar Windows. Nuestro loader usará <code>VirtualAlloc</code>, <code>LoadLibraryA</code> y <code>GetProcAddress</code> para las <strong>DLLs que el payload importa</strong> (kernel32, user32…). Lo que evitamos es que el <strong>payload</strong> pase por el cargador: lo leemos nosotros, lo mapeamos nosotros y saltamos a su entrada nosotros.</p>
+<p>¿Por qué alguien querría hacer esto? Porque el cargador de Windows es exactamente lo que observan los EDR: una carga de imagen (<code>LoadLibrary</code>) genera eventos (ImageLoad, EID 7), y un PE que aparece en memoria sin esa carga es un artefacto distinto. Este tutorial <strong>no</strong> promete invisibilidad; promete entender el mecanismo. La medición de qué se ve viene al final (Paso 15) y es la parte más importante.</p>
+<p>La regla de oro del proyecto que inspira esto: <strong>cada paso tiene que poder verificarse con un oráculo independiente</strong> (la API de Windows, <code>dumpbin</code>, <code>cdb</code>, <code>pe-sieve</code>). Si no puedes comprobar que el paso anterior funcionó, no avances.</p>
+<h2>Paso 2 — El taller y el paciente</h2>
+<p><strong>Qué buscamos:</strong> un programa que lea el <code>.exe</code> entero en memoria y confirme que empieza por <code>MZ</code>.</p>
+<p>Herramientas:</p>
+<ul><li><strong>MSVC x64 Native Tools</strong> (<code>cl</code>). Compilamos sin CRT pesado si luego queremos minimalismo, pero para el tutorial vale el CRT normal.</li><li><strong>dumpbin</strong> (viene con Visual Studio): <code>dumpbin /headers pe_hello.exe</code>.</li><li><strong>cdb</strong> (Debugging Tools for Windows): el depurador que usaremos como oráculo.</li><li><strong>PE-bear</strong> o <strong>PEview</strong> (opcional): para ver las secciones a ojo.</li><li><strong>Python</strong> (opcional): para escribir oráculos de cifrado (lo usaremos en el Paso 14).</li></ul>
+<p>El paciente: compila un <code>pe_hello.exe</code> que haga algo mínimo y termine con un código conocido:</p>
+<pre><code class="lang-c">// pe_hello.c
+#include &lt;windows.h&gt;
+
+int main(void)
+{
+    MessageBoxA(NULL, &quot;hola desde un PE mapeado&quot;, &quot;mini-loader&quot;, MB_OK);
+    return 7;   // ExitProcess(7) al salir del CRT
+}</code></pre>
+<p>Compílalo en x64 y guarda también su tamaño: lo usaremos para comparar.</p>
+<p>El esqueleto del loader:</p>
+<pre><code class="lang-c">// mini_loader.c
+#include &lt;windows.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+typedef struct {
+    BYTE  *data;
+    SIZE_T size;
+} FILEBUF;
+
+static int ReadFileAll(const char *path, FILEBUF *out)
+{
+    FILE *f = fopen(path, &quot;rb&quot;);          // &quot;rb&quot;: binario, sin traducir CRLF
+    long  n;
+
+    if (f == NULL) return 0;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return 0; }
+    n = ftell(f);
+    if (n &lt;= 0) { fclose(f); return 0; }
+    rewind(f);
+    out-&gt;data = (BYTE *)malloc((size_t)n);
+    out-&gt;size = (SIZE_T)n;
+    if (out-&gt;data == NULL) { fclose(f); return 0; }
+    if (fread(out-&gt;data, 1, out-&gt;size, f) != out-&gt;size) {
+        free(out-&gt;data);
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    return 1;
+}
+
+int main(int argc, char **argv)
+{
+    FILEBUF f;
+    if (argc &lt; 2 || !ReadFileAll(argv[1], &amp;f)) return 1;
+    printf(&quot;leidos %zu bytes; primeros dos: %c%c\n&quot;, f.size, f.data[0], f.data[1]);
+    free(f.data);
+    return 0;
+}</code></pre>
+<p><strong>Compruébalo:</strong></p>
+<pre><code class="lang-text">&gt; mini_loader.exe pe_hello.exe
+leidos 20480 bytes; primeros dos: MZ</code></pre>
+<p><strong>Si falla:</strong> el error clásico es abrir en modo texto (<code>"r"</code>), que en Windows traduce <code>\r\n</code> y te cambia el tamaño; o no comprobar <code>ftell</code> con ficheros grandes (usa <code>_fseeki64</code>/<code>_ftelli64</code> si vas a jugar con PEs de más de 2 GB, cosa que no harás aquí).</p>
+<h2>Paso 3 — El DOS header: la puerta que sigue existiendo</h2>
+<p><strong>Qué buscamos:</strong> localizar el header moderno (NT) a partir del antiguo (DOS).</p>
+<p>Todo PE empieza con la firma <strong><code>MZ</code></strong> (0x5A4D), herencia de MS-DOS. El campo <code>e_lfanew</code>, en el offset 0x3C, dice a qué distancia está el header de verdad:</p>
+<pre><code class="lang-c">#include &lt;winnt.h&gt;   // IMAGE_DOS_HEADER, IMAGE_NT_HEADERS64
+
+PIMAGE_DOS_HEADER dos = (PIMAGE_DOS_HEADER)f.data;
+
+if (dos-&gt;e_magic != IMAGE_DOS_SIGNATURE) {        // &#x27;MZ&#x27;
+    printf(&quot;no es un PE: falta MZ\n&quot;);
+    return 1;
+}
+printf(&quot;e_lfanew = 0x%lX\n&quot;, (unsigned long)dos-&gt;e_lfanew);</code></pre>
+<p><strong>Por qué existe <code>e_lfanew</code>:</strong> en los años 80, el header DOS ocupaba espacio y el PE se colocó detrás, en una posición variable. <code>e_lfanew</code> es el puntero que permite que un <code>.exe</code> siga siendo, a la vez, un programa DOS que imprime "This program cannot be run in DOS mode". Windows lee ese offset y salta.</p>
+<p><strong>Compruébalo:</strong> abre <code>pe_hello.exe</code> con PE-bear o ejecuta <code>dumpbin /headers</code>; el valor de <code>e_lfanew</code> (normalmente 0xE8, 0xF8 o 0x100) debe coincidir con el que imprime tu loader.</p>
+<p><strong>Si falla:</strong> leer <code>e_lfanew</code> como <code>WORD</code> en vez de <code>DWORD/LONG</code>; o no comprobar que <code>e_lfanew</code> cae dentro del fichero (un PE malformado puede apuntar fuera y hacerte un <em>out-of-bounds</em> de manual).</p>
+<h2>Paso 4 — El NT header: el manual de instrucciones</h2>
+<p><strong>Qué buscamos:</strong> leer la cabecera que dice qué arquitectura es, cuántas secciones hay, dónde está la entrada y cuánto mide la imagen en memoria.</p>
+<pre><code class="lang-c">PIMAGE_NT_HEADERS64 nt = (PIMAGE_NT_HEADERS64)(f.data + dos-&gt;e_lfanew);
+
+if (nt-&gt;Signature != IMAGE_NT_SIGNATURE) {        // &#x27;PE\0\0&#x27;
+    printf(&quot;firma PE incorrecta\n&quot;);
+    return 1;
+}
+if (nt-&gt;OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {  // 0x20B
+    printf(&quot;no es PE32+ (x64)\n&quot;);
+    return 1;
+}
+
+printf(&quot;Machine       = 0x%04X\n&quot;, nt-&gt;FileHeader.Machine);
+printf(&quot;Secciones     = %u\n&quot;, nt-&gt;FileHeader.NumberOfSections);
+printf(&quot;ImageBase     = 0x%llX\n&quot;, (unsigned long long)nt-&gt;OptionalHeader.ImageBase);
+printf(&quot;SizeOfImage   = 0x%lX\n&quot;, (unsigned long)nt-&gt;OptionalHeader.SizeOfImage);
+printf(&quot;EntryPoint RVA= 0x%lX\n&quot;, (unsigned long)nt-&gt;OptionalHeader.AddressOfEntryPoint);</code></pre>
+<p>Tres campos gobiernan todo lo que viene después:</p>
+<ul><li><strong><code>ImageBase</code></strong>: dónde <em>preferiría</em> cargarse el PE (por ejemplo, <code>0x140000000</code>). Si el loader lo coloca en otro sitio, habrá que aplicar <em>relocations</em> (Paso 8).</li><li><strong><code>SizeOfImage</code></strong>: cuánto ocupa la imagen <strong>en memoria</strong>, ya alineada. Es el tamaño que hay que reservar, no el tamaño del fichero.</li><li><strong><code>AddressOfEntryPoint</code></strong>: un <strong>RVA</strong>, no un offset de fichero. La dirección a la que saltaremos es <code>Base + este RVA</code>.</li></ul>
+<p>Además, el <code>OptionalHeader</code> contiene <strong>16 data directories</strong> (pares RVA+tamaño). Los que usaremos:</p>
+<table><thead><tr><th>Índice</th><th>Nombre</th><th>Para qué</th></tr></thead><tbody><tr><td>0</td><td>Export</td><td>Lo que el PE exporta (DLLs)</td></tr><tr><td>1</td><td><strong>Import</strong></td><td>Las DLLs y funciones que necesita</td></tr><tr><td>2</td><td>Resource</td><td>Iconos, diálogos, versiones</td></tr><tr><td>3</td><td><strong>Exception</strong></td><td><code>.pdata</code>: unwind/SEH</td></tr><tr><td>4</td><td>Security</td><td>Firma Authenticode (no es un RVA)</td></tr><tr><td>5</td><td><strong>BaseReloc</strong></td><td>Relocations</td></tr><tr><td>9</td><td>TLS</td><td>Callbacks de Thread Local Storage</td></tr><tr><td>12</td><td>IAT</td><td>Import Address Table (a veces separada)</td></tr><tr><td>13</td><td>DelayImport</td><td>Imports que se resuelven al usarse</td></tr></tbody></table>
+<p><strong>Compruébalo:</strong> <code>dumpbin /headers pe_hello.exe</code> imprime los mismos valores. Si tu <code>SizeOfImage</code> no coincide, estás leyendo el header de 32 bits (magic <code>0x10B</code>) con la estructura de 64.</p>
+<p><strong>Si falla:</strong> no validar <code>NumberOfSections</code> (un PE hostil puede declarar 60 000 y desbordar tu bucle); o asumir que <code>e_lfanew</code> es fijo. No lo es.</p>
+<h2>Paso 5 — Las secciones: el mapa del contenido</h2>
+<p><strong>Qué buscamos:</strong> saber qué trozos hay que copiar, desde dónde y a qué RVA.</p>
+<p>Cada sección tiene un <strong>nombre</strong> (8 bytes), un <strong>RVA</strong> (dónde vive en memoria), un <strong>tamaño virtual</strong> (cuánto ocupa allí), un <strong>offset raw</strong> (dónde está en el fichero), un <strong>tamaño raw</strong> (cuánto ocupa en disco) y unos <strong>flags</strong> (ejecutable, escribible, etc.).</p>
+<pre><code class="lang-c">static void PrintSections(PIMAGE_NT_HEADERS64 nt)
+{
+    PIMAGE_SECTION_HEADER s = IMAGE_FIRST_SECTION(nt);
+
+    for (WORD i = 0; i &lt; nt-&gt;FileHeader.NumberOfSections; i++) {
+        char name[9] = {0};
+        memcpy(name, s[i].Name, 8);
+        printf(&quot;%-8s RVA=%08lX  VSize=%08lX  Raw=%08lX  RawSize=%08lX  Flags=%08lX\n&quot;,
+               name,
+               (unsigned long)s[i].VirtualAddress,
+               (unsigned long)s[i].Misc.VirtualSize,
+               (unsigned long)s[i].PointerToRawData,
+               (unsigned long)s[i].SizeOfRawData,
+               (unsigned long)s[i].Characteristics);
+    }
+}</code></pre>
+<p>Salida típica de un PE pequeño:</p>
+<pre><code class="lang-text">.text    RVA=00001000  VSize=00000600  Raw=00000400  RawSize=00000600  Flags=60000020
+.rdata   RVA=00002000  VSize=00000400  Raw=00000A00  RawSize=00000400  Flags=40000040
+.data    RVA=00003000  VSize=00000200  Raw=00000E00  RawSize=00000200  Flags=C0000040</code></pre>
+<p>Dos cosas que confunden al principio:</p>
+<ol><li><strong>RVA no es offset.</strong> El <code>.text</code> está en el fichero en <code>0x400</code>, pero en memoria en <code>Base + 0x1000</code>. La fórmula dentro de una sección es <code>offset = PointerToRawData + (rva - VirtualAddress)</code>.</li><li><strong><code>VirtualSize</code> puede ser mayor que <code>SizeOfRawData</code>.</strong> La diferencia es <strong>BSS</strong>: memoria que debe existir en cero y que no ocupa sitio en disco. Si copias solo lo raw, el resto queda basura (y si la memoria viene de <code>VirtualAlloc</code> sin <code>MEM_COMMIT</code> limpio, peor).</li></ol>
+<p>Una función auxiliar que usarás mucho:</p>
+<pre><code class="lang-c">static DWORD RvaToOffset(PIMAGE_NT_HEADERS64 nt, DWORD rva)
+{
+    PIMAGE_SECTION_HEADER s = IMAGE_FIRST_SECTION(nt);
+
+    for (WORD i = 0; i &lt; nt-&gt;FileHeader.NumberOfSections; i++) {
+        DWORD size = s[i].Misc.VirtualSize;
+        if (size == 0) size = s[i].SizeOfRawData;
+        if (rva &gt;= s[i].VirtualAddress &amp;&amp; rva &lt; s[i].VirtualAddress + size)
+            return s[i].PointerToRawData + (rva - s[i].VirtualAddress);
+    }
+    return rva;   // las cabeceras se mapean tal cual
+}</code></pre>
+<p><strong>Compruébalo:</strong> compara la tabla con <code>dumpbin /headers</code>. Si tu <code>.text</code> tiene <code>Raw=0</code>, mala señal: puedes estar leyendo otro PE (o un fichero que no es PE).</p>
+<p><strong>Si falla:</strong> usar <code>PointerToRawData</code> como si fuera un RVA (clásico); olvidar que <code>VirtualSize</code> puede ser 0 en algunos PEs y caer en un bucle inútil; no comprobar que <code>PointerToRawData + SizeOfRawData &amp;lt;= tamaño del fichero</code>.</p>
+<h2>Paso 6 — Reservar la imagen: el solar donde construir</h2>
+<p><strong>Qué buscamos:</strong> un bloque de memoria del tamaño <code>SizeOfImage</code>, escribible de momento.</p>
+<pre><code class="lang-c">PVOID base = VirtualAlloc(NULL, nt-&gt;OptionalHeader.SizeOfImage,
+                          MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+if (base == NULL) {
+    printf(&quot;VirtualAlloc fallo: %lu\n&quot;, GetLastError());
+    return 1;
+}
+printf(&quot;[map] base = %p (SizeOfImage = 0x%lX)\n&quot;,
+       base, (unsigned long)nt-&gt;OptionalHeader.SizeOfImage);</code></pre>
+<p>Tres decisiones:</p>
+<ul><li><strong>Pedimos <code>SizeOfImage</code>, no el tamaño del fichero.</strong> El PE espera un espacio contiguo donde todas las secciones caigan en sus RVAs. El tamaño de disco no sirve.</li><li><strong>Pedimos RW (lectura/escritura) al principio.</strong> Vamos a escribir secciones y parchear la IAT; la protección final (RX para código, R para datos) se pone al terminar (Paso 12/15). Nunca RWX si puedes evitarlo: es la señal más clásica de inyección.</li><li><strong>No forzamos <code>ImageBase</code>.</strong> Windows puede darnos otra dirección (ASLR); por eso existen las relocations. Si pidieras exactamente <code>ImageBase</code> con <code>MEM_RESERVE</code> en una dirección ocupada, fallarías. En Kagemusha se reserva con <code>NtAllocateVirtualMemory</code> indirecto, pero el concepto es idéntico.</li></ul>
+<p><strong>Compruébalo:</strong> en <code>cdb</code>, <code>!address &amp;lt;base&amp;gt;</code> debe mostrar una región reservada del tamaño pedido y protección <code>PAGE_READWRITE</code>.</p>
+<p><strong>Si falla:</strong> reservar <code>SizeOfHeaders + suma de secciones</code> (te quedarás corto con los RVAs alineados); usar <code>malloc</code> (no es ejecutable y no tiene granularidad de página); olvidar <code>MEM_COMMIT</code> (la memoria reservada no es accesible hasta commitear).</p>
+<h2>Paso 7 — Copiar cabeceras y secciones: mudar los muebles</h2>
+<p><strong>Qué buscamos:</strong> que <code>Base</code> contenga exactamente lo que el PE espera, con los huecos a cero.</p>
+<pre><code class="lang-c">// 1) Cabeceras completas (DOS + NT + tabla de secciones), tal cual.
+memcpy(base, f.data, nt-&gt;OptionalHeader.SizeOfHeaders);
+
+// 2) Secciones: cero el destino y copio lo que haya en disco.
+PIMAGE_SECTION_HEADER sec = IMAGE_FIRST_SECTION(nt);
+for (WORD i = 0; i &lt; nt-&gt;FileHeader.NumberOfSections; i++) {
+    SIZE_T vsize = sec[i].Misc.VirtualSize;
+    SIZE_T raw   = sec[i].SizeOfRawData;
+
+    if (vsize == 0) continue;
+    if ((SIZE_T)sec[i].VirtualAddress + vsize &gt; nt-&gt;OptionalHeader.SizeOfImage) {
+        printf(&quot;seccion fuera de la imagen\n&quot;);
+        return 1;
+    }
+
+    memset((BYTE *)base + sec[i].VirtualAddress, 0, vsize);   // BSS a cero
+
+    if (raw != 0 &amp;&amp; (SIZE_T)sec[i].PointerToRawData + raw &lt;= f.size) {
+        SIZE_T n = (raw &lt; vsize) ? raw : vsize;
+        memcpy((BYTE *)base + sec[i].VirtualAddress,
+               f.data + sec[i].PointerToRawData, n);
+    }
+}</code></pre>
+<p>Por qué el orden importa:</p>
+<ul><li><strong>Primero las cabeceras</strong>, porque el PE se va a encontrar a sí mismo en <code>Base</code> (muchos payloads leen su propio <code>OptionalHeader</code> para localizar la IAT, las relocations o el <code>.pdata</code>).</li><li><strong>Cero antes de copiar</strong> la sección, para que el relleno (BSS) quede limpio. Si la memoria viniera de otro sitio (una sección reutilizada), los huecos tendrían basura.</li><li><strong>Copia <code>min(raw, vsize)</code></strong>, no <code>raw</code> a secas: si <code>raw &amp;gt; vsize</code>, escribirías fuera de la sección y pisarías la siguiente.</li></ul>
+<p><strong>Compruébalo:</strong> compara 16 bytes de <code>Base + RVA(.text)</code> con el fichero en <code>PointerToRawData</code>; deben ser iguales. En <code>cdb</code>, <code>db &amp;lt;base&amp;gt;+0x1000</code> muestra los mismos bytes que <code>dumpbin /rawdata</code>.</p>
+<p><strong>Si falla:</strong> copiar las secciones <strong>antes</strong> que las cabeceras (te las machaca); usar <code>SizeOfRawData</code> como tamaño de <code>memset</code> (no limpia el BSS); no validar que la sección cae dentro de <code>SizeOfImage</code> (un PE hostil te hace escribir en cualquier parte).</p>
+<h2>Paso 8 — Relocations: arreglar las direcciones absolutas</h2>
+<p><strong>Qué buscamos:</strong> que el PE funcione aunque no se cargue en su <code>ImageBase</code> preferida.</p>
+<p>Imagina que el compilador genera una instrucción que dice "carga la dirección <code>0x140001234</code>". Esa dirección es absoluta: está calculada para la base preferida. Si cargas el PE en <code>0x00007FF6A0000000</code>, esa instrucción sigue apuntando a <code>0x140001234</code>, que ya no es tu imagen. Las <strong>relocations</strong> son una lista de sitios donde hay direcciones absolutas que hay que <strong>sumarles la diferencia</strong> entre la base real y la preferida.</p>
+<pre><code class="lang-c">ULONG64 delta = (ULONG64)(ULONG_PTR)base - nt-&gt;OptionalHeader.ImageBase;
+
+if (delta != 0) {
+    IMAGE_DATA_DIRECTORY *dir = &amp;nt-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+
+    if (dir-&gt;Size == 0) {
+        printf(&quot;PE sin relocations y base distinta: no se puede cargar aqui\n&quot;);
+        return 1;
+    }
+
+    BYTE  *p    = (BYTE *)base + dir-&gt;VirtualAddress;
+    DWORD  left = dir-&gt;Size;
+    DWORD  count = 0;
+
+    while (left &gt;= sizeof(IMAGE_BASE_RELOCATION)) {
+        IMAGE_BASE_RELOCATION *blk = (IMAGE_BASE_RELOCATION *)p;
+        DWORD n;
+
+        if (blk-&gt;SizeOfBlock &lt; sizeof(IMAGE_BASE_RELOCATION) ||
+            blk-&gt;SizeOfBlock &gt; left) break;
+
+        n = (blk-&gt;SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD);
+        WORD *ent = (WORD *)(blk + 1);
+
+        for (DWORD i = 0; i &lt; n; i++) {
+            WORD type = (WORD)(ent[i] &gt;&gt; 12);
+            WORD off  = (WORD)(ent[i] &amp; 0x0FFF);
+
+            if (type == IMAGE_REL_BASED_DIR64) {
+                ULONG64 *slot = (ULONG64 *)((BYTE *)base + blk-&gt;VirtualAddress + off);
+                *slot += delta;
+                count++;
+            } else if (type != IMAGE_REL_BASED_ABSOLUTE) {
+                printf(&quot;reloc no soportada: %u\n&quot;, type);
+                return 1;
+            }
+        }
+        left -= blk-&gt;SizeOfBlock;
+        p    += blk-&gt;SizeOfBlock;
+    }
+    printf(&quot;[map] relocations aplicadas: %lu (delta=0x%llX)\n&quot;,
+           (unsigned long)count, (unsigned long long)delta);
+}</code></pre>
+<p>Cómo leerlo:</p>
+<ul><li>Cada bloque <code>IMAGE_BASE_RELOCATION</code> cubre una página (<code>VirtualAddress</code>) y trae una lista de entradas de 16 bits.</li><li>Los 4 bits altos son el <strong>tipo</strong>: <code>DIR64</code> (10) es "aquí hay un puntero de 64 bits que hay que ajustar"; <code>ABSOLUTE</code> (0) es relleno y se ignora.</li><li>Los 12 bits bajos son el <strong>offset dentro de la página</strong>.</li><li><code>delta</code> puede ser positivo o negativo; se suma igual (aritmética de 64 bits).</li></ul>
+<p>Ejemplo mental: el fichero contiene <code>0x140001234</code> en un slot; <code>ImageBase = 0x140000000</code>; la base real es <code>0x7FF6A0000000</code>; <code>delta = 0x7FF5_5FFF_EDCC</code>; el slot pasa a <code>0x7FF6A0000000 + 0x1234</code>. Ahora sí apunta a tu copia.</p>
+<p><strong>Compruébalo:</strong> después de aplicar relocs, <code>Base + AddressOfEntryPoint</code> debe ser una dirección de tu región y el número de relocations debe ser &gt; 0 (si <code>delta != 0</code>). Con <code>cdb</code>, <code>!dh &amp;lt;base&amp;gt;</code> y <code>u &amp;lt;base&amp;gt;+entry</code> muestran el código ya parcheado.</p>
+<p><strong>Si falla:</strong> aplicar relocs <strong>antes</strong> de copiar las secciones (parcheas el fichero, no la imagen); olvidar el caso <code>delta == 0</code> (no pasa nada, pero el contador miente); no soportar tipos distintos de <code>DIR64</code> (en x64 casi todo es DIR64, pero un PE raro puede traer <code>HIGHLOW</code> de 32 bits); leer <code>SizeOfBlock</code> sin validarlo (blob hostil → bucle infinito).</p>
+<h2>Paso 9 — Imports (1/2): de nombres a direcciones</h2>
+<p><strong>Qué buscamos:</strong> que cada llamada del PE a <code>CloseHandle</code>, <code>VirtualAlloc</code>, <code>MessageBoxA</code>… apunte a la función real de la DLL correcta.</p>
+<p>Un PE no guarda "la dirección de <code>CloseHandle</code>" (cambia en cada arranque). Guarda <strong>el nombre</strong> y una tabla de huecos donde el loader debe escribir la dirección. Esa tabla es la <strong>IAT</strong> (<em>Import Address Table</em>). El proceso es:</p>
+<ol><li>Recorrer los <strong>descriptores de import</strong>: uno por DLL (<code>KERNEL32.dll</code>, <code>USER32.dll</code>…).</li><li>Para cada descriptor, cargar la DLL (<code>LoadLibraryA</code>) o localizarla si ya está cargada.</li><li>Recorrer la lista de nombres (<strong>INT</strong>, <em>Import Name Table</em>).</li><li>Para cada nombre, resolver su dirección (<code>GetProcAddress</code>).</li><li>Escribirla en el hueco correspondiente de la <strong>IAT</strong>.</li></ol>
+<p><img src="../assets/diag-imports.svg" alt="Diagrama: resolución de imports y relleno de la IAT" loading="lazy"></p>
+<pre><code class="lang-c">IMAGE_DATA_DIRECTORY *impdir = &amp;nt-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+if (impdir-&gt;Size != 0) {
+    PIMAGE_IMPORT_DESCRIPTOR imp =
+        (PIMAGE_IMPORT_DESCRIPTOR)((BYTE *)base + impdir-&gt;VirtualAddress);
+
+    for (; imp-&gt;Name != 0; imp++) {
+        const char *dll = (const char *)((BYTE *)base + imp-&gt;Name);
+        HMODULE mod = LoadLibraryA(dll);
+
+        if (mod == NULL) {
+            printf(&quot;no pude cargar %s\n&quot;, dll);
+            return 1;
+        }
+
+        // Si OriginalFirstThunk es 0 (bound imports), usamos FirstThunk como fuente.
+        ULONG64 *names = (ULONG64 *)((BYTE *)base +
+            (imp-&gt;OriginalFirstThunk ? imp-&gt;OriginalFirstThunk : imp-&gt;FirstThunk));
+        ULONG64 *iat = (ULONG64 *)((BYTE *)base + imp-&gt;FirstThunk);
+
+        for (; *names != 0; names++, iat++) {
+            FARPROC fn;
+
+            if (*names &amp; 0x8000000000000000ULL) {
+                // Import por ordinal: los 16 bits bajos son el numero.
+                fn = GetProcAddress(mod, (LPCSTR)(*names &amp; 0xFFFF));
+            } else {
+                // Import por nombre: RVA -&gt; IMAGE_IMPORT_BY_NAME { WORD Hint; char Name[]; }
+                const char *name = (const char *)((BYTE *)base + (*names &amp; 0x7FFFFFFF) + 2);
+                fn = GetProcAddress(mod, name);
+            }
+
+            if (fn == NULL) {
+                printf(&quot;import no resuelto en %s\n&quot;, dll);
+                return 1;
+            }
+            *iat = (ULONG64)(ULONG_PTR)fn;
+        }
+    }
+}</code></pre>
+<p>Los dos detalles que más se atascan:</p>
+<ul><li><strong><code>+ 2</code></strong>: cada nombre va precedido de un <code>WORD</code> de <em>hint</em> (una pista de índice de export). El string empieza dos bytes después.</li><li><strong><code>OriginalFirstThunk</code> vs <code>FirstThunk</code></strong>: el primero es la lista de nombres original (en disco); el segundo es la IAT que se rellena. Si el PE viene con <em>bound imports</em>, <code>OriginalFirstThunk</code> puede ser 0 y la lista de nombres vive en la IAT; el código lo contempla usando <code>FirstThunk</code> como fuente, aunque en ese caso los valores ya son direcciones y no nombres (para un loader casero, lo práctico es rechazar bound imports y volver a resolver por nombre si el PE trae la INT).</li></ul>
+<p><strong>Compruébalo:</strong> imprime cuántos imports resolviste y compara el total con <code>dumpbin /imports pe_hello.exe</code>. En <code>cdb</code>, <code>dps &amp;lt;base&amp;gt;+&amp;lt;FirstThunk&amp;gt;</code> debe mostrar direcciones dentro de <code>kernel32</code>/<code>kernelbase</code>/<code>user32</code>, no RVAs.</p>
+<p><strong>Si falla:</strong> usar <code>FirstThunk</code> como fuente de nombres sin comprobar el bit de ordinal; no validar <code>imp-&amp;gt;Name</code> dentro de la imagen; olvidar que la IAT es <strong>escribible</strong> en este momento (la memoria está RW, bien); cargar la DLL con <code>LoadLibraryW</code> pasando un <code>char*</code> (se interpreta como UTF-16 y falla).</p>
+<h2>Paso 10 — Imports (2/2): API sets, forwarders y delay-load</h2>
+<p><strong>Qué buscamos:</strong> que el loader no se rompa con los casos raros que sí aparecen en PEs reales.</p>
+<p>Cuando tu loader sea un poco más ambicioso que un "hola mundo", se encontrará con cuatro situaciones:</p>
+<h3>API sets</h3>
+<p>Windows moderno usa nombres virtuales como <code>api-ms-win-core-file-l1-1-0.dll</code>. No son ficheros: son <strong>conjuntos de APIs</strong> que el sistema resuelve contra la DLL real (<code>kernelbase.dll</code>, <code>kernel32.dll</code>…). <code>LoadLibraryA("api-ms-win-...")</code> funciona y devuelve un módulo pseudo-válido; <code>GetProcAddress</code> sobre él también. La regla práctica: <strong>no intentes abrir el fichero en <code>System32</code></strong>; deja que el sistema lo resuelva.</p>
+<h3>Forwarders</h3>
+<p>Una DLL puede exportar una función que en realidad vive en otra. Por ejemplo, <code>kernel32!HeapAlloc</code> puede reenviarse a <code>ntdll!RtlAllocateHeap</code>. <code>GetProcAddress</code> ya sigue la cadena por ti cuando el módulo es normal; si implementas tu propia resolución de exports (por hash, como Kagemusha), tienes que detectar el caso: la dirección de la función cae dentro del directorio de exports y <code>IMAGE_EXPORT_DIRECTORY</code> la marca como <em>forwarder string</em> (<code>OTRA_DLL.Funcion</code>). El loader real de Kagemusha lo resuelve en <code>KageManResolveProc</code> para los módulos que carga a mano.</p>
+<h3>Delay imports</h3>
+<p><code>DataDirectory[13]</code> apunta a una tabla de imports que <strong>no</strong> se resuelven al cargar, sino la primera vez que se llaman (el compilador genera un <em>thunk</em> que llama al helper de delay-load). Si tu loader quiere soportarlos, tiene dos opciones: (a) resolverlos todos al mapear, recorriendo <code>IMAGE_DELAYLOAD_DESCRIPTOR</code> y parcheando sus IAT; o (b) dejar que el helper del propio payload lo haga (requiere que el helper esté importado y que la DLL exista). Para un tutorial, lo honesto es <strong>detectarlos y decirlo</strong>: si el PE tiene delay imports y no los resuelves, puede fallar en la primera llamada, lejos del sitio donde está el problema.</p>
+<h3>Bound imports</h3>
+<p>Algunos PEs guardan en la IAT direcciones "precalculadas" para una build concreta de Windows (bound imports). Esas direcciones son inválidas en tu máquina. Si <code>OriginalFirstThunk == 0</code>, no hay lista de nombres: tienes que reconstruirla o rechazar el PE con un mensaje claro. <strong>Nunca escribas un puntero NULL en la IAT</strong> y sigas: el crash ocurrirá dentro del payload, sin contexto.</p>
+<h3>Cómo lo hace el loader de verdad</h3>
+<p>Kagemusha añade dos capas que aquí no implementamos, pero conviene conocer:</p>
+<ul><li><strong>Resolver por hash en módulos ya cargados:</strong> antes de llamar a <code>LoadLibrary</code>, busca la DLL en la lista de módulos del proceso (PEB) y resuelve el export por hash. Así evita una carga ruidosa (y el evento EID 7) cuando la DLL ya está presente.</li><li><strong>Manual load de dependencias:</strong> para una lista blanca de DLLs, las mapea él mismo (sin <code>LdrLoadDll</code>), resolviendo forwarders y API sets a mano. Es lo que en el proyecto se llama <code>manload</code>; oculta las cargas al Ldr, pero deja los módulos en memoria privada (medido: 8–9 frames privados de 400).</li></ul>
+<p><strong>La regla de oro:</strong> si un import no se resuelve, imprime <code>DLL!funcion</code> y <strong>aborta</strong>. Un loader que "sigue con la IAT a medias" produce crashes que parecen del payload y son tuyos.</p>
+<h2>Paso 11 — <code>.pdata</code>: que las excepciones no te maten</h2>
+<p><strong>Qué buscamos:</strong> que el PE pueda lanzar y capturar excepciones (SEH de C, <code>try/catch</code> de C++, fallos de acceso) sin que el <em>unwinder</em> de Windows se pierda.</p>
+<p>Cuando una función lanza una excepción, Windows necesita saber <strong>cómo deshacer la pila</strong>: qué registros restaurar, dónde está el <code>catch</code>, etc. Esa información vive en <code>.pdata</code>, un array de <code>RUNTIME_FUNCTION</code>:</p>
+<pre><code class="lang-c">typedef struct _RUNTIME_FUNCTION {
+    DWORD BeginAddress;       // RVA
+    DWORD EndAddress;         // RVA
+    DWORD UnwindInfoAddress;  // RVA
+} RUNTIME_FUNCTION;</code></pre>
+<p>El loader de Windows registra ese array automáticamente para las DLLs que carga. Nuestra copia mapeada <strong>no está en su lista</strong>: para el sistema es memoria anónima. La solución es registrar la tabla a mano:</p>
+<pre><code class="lang-c">typedef BOOLEAN (WINAPI *PFN_RtlAddFunctionTable)(
+    PRUNTIME_FUNCTION FunctionTable, DWORD EntryCount, DWORD64 BaseAddress);
+
+IMAGE_DATA_DIRECTORY *exc =
+    &amp;nt-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
+
+if (exc-&gt;Size != 0) {
+    HMODULE ntdll = GetModuleHandleA(&quot;ntdll.dll&quot;);
+    PFN_RtlAddFunctionTable add = (PFN_RtlAddFunctionTable)
+        GetProcAddress(ntdll, &quot;RtlAddFunctionTable&quot;);
+
+    if (add != NULL) {
+        DWORD count = exc-&gt;Size / sizeof(RUNTIME_FUNCTION);
+        BOOLEAN ok = add((PRUNTIME_FUNCTION)((BYTE *)base + exc-&gt;VirtualAddress),
+                         count, (DWORD64)(ULONG_PTR)base);
+        printf(&quot;[map] .pdata registrado: %s (%lu entradas)\n&quot;,
+               ok ? &quot;ok&quot; : &quot;fallo&quot;, (unsigned long)count);
+    }
+}</code></pre>
+<p>Detalles que importan:</p>
+<ul><li><strong><code>EntryCount</code> es número de entradas</strong>, no bytes. Pasar <code>exc-&amp;gt;Size</code> directamente es un error clásico que corrompe la tabla.</li><li><strong>La base</strong> es la dirección real de tu imagen; las entradas son RVAs relativas a ella.</li><li><strong>Si el PE no tiene <code>.pdata</code></strong>, puede seguir funcionando mientras no haya excepciones. Un payload con C++ o SEH sí lo necesita.</li><li><strong>En modo "imagen"</strong> (mapear sobre la <code>.text</code> de una DLL ya cargada) hay un problema extra: el <code>.pdata</code> del host ya está registrado para esa dirección. Kagemusha lo resuelve rebasando el <code>.pdata</code> del payload e insertándolo en la tabla del host (<code>KageMapPeSplicePdata</code>), con un oráculo que verifica que <code>RtlLookupFunctionEntry(entry)</code> devuelve la entrada correcta. Para <code>anon</code>/<code>mapped</code> (nuestra base propia), <code>RtlAddFunctionTable</code> basta.</li></ul>
+<p><strong>Compruébalo:</strong></p>
+<pre><code class="lang-c">PRUNTIME_FUNCTION rf = RtlLookupFunctionEntry((DWORD64)(ULONG_PTR)entry, NULL, NULL);
+printf(&quot;unwind para entry: %s\n&quot;, rf ? &quot;encontrado&quot; : &quot;NO&quot;);</code></pre>
+<p><strong>Si falla:</strong> registrar la tabla después de ejecutar (tarde); usar <code>sizeof(RUNTIME_FUNCTION)</code> mal; olvidar que un payload con excepciones y sin <code>.pdata</code> puede parecer que funciona hasta el primer <code>throw</code>.</p>
+<h2>Paso 12 — Ejecutar el entry point (sin matar al anfitrión)</h2>
+<p><strong>Qué buscamos:</strong> saltar a <code>Base + AddressOfEntryPoint</code> y que el PE haga su trabajo sin llevarse por delante nuestro loader.</p>
+<p>La firma del entry depende del tipo de PE:</p>
+<ul><li><strong>EXE:</strong> <code>int WINAPI Entry(void)</code> (el CRT de MSVC envuelve <code>main</code> y llama a <code>ExitProcess</code> al final).</li><li><strong>DLL:</strong> <code>BOOL WINAPI DllMain(HMODULE, DWORD, LPVOID)</code>, con <code>DLL_PROCESS_ATTACH</code> al cargar.</li></ul>
+<p>Para un EXE, lo más limpio es ejecutarlo en un hilo propio:</p>
+<pre><code class="lang-c">typedef int (WINAPI *PFN_ENTRY)(void);
+
+static DWORD WINAPI EntryThread(LPVOID param)
+{
+    PFN_ENTRY entry = (PFN_ENTRY)param;
+    return (DWORD)entry();     // el valor de retorno es el exit code
+}
+
+// ... despues de mapear, resolver imports y registrar .pdata:
+
+PFN_ENTRY entry = (PFN_ENTRY)((BYTE *)base + nt-&gt;OptionalHeader.AddressOfEntryPoint);
+
+HANDLE th = CreateThread(NULL, 0, EntryThread, (LPVOID)entry, 0, NULL);
+if (th == NULL) { /* error */ }
+WaitForSingleObject(th, INFINITE);
+
+DWORD code = 0;
+GetExitCodeThread(th, &amp;code);
+printf(&quot;[run] payload exit=%lu\n&quot;, (unsigned long)code);
+CloseHandle(th);</code></pre>
+<p>Por qué un hilo y no una llamada directa:</p>
+<ul><li>El hilo nuevo recibe una <strong>pila limpia y alineada</strong> (x64 exige 16 bytes antes de un <code>call</code>; el compilador y <code>CreateThread</code> lo garantizan, tú a mano no siempre).</li><li>El PE puede asumir que corre en un hilo "normal" con su TEB.</li><li>Si el payload llama a <code>ExitThread</code>, muere el hilo y tú sigues vivo.</li></ul>
+<h3>El problema de <code>ExitProcess</code></h3>
+<p>El CRT de un EXE normal termina llamando a <code>ExitProcess</code>, que <strong>mata todo el proceso</strong> — incluido tu loader. Si quieres seguir midiendo (o ejecutar varios payloads), tienes que interceptarlo. La forma más simple: en el Paso 9, cuando el nombre del import sea <code>ExitProcess</code>, escribe en la IAT la dirección de tu propio stub en vez de la real:</p>
+<pre><code class="lang-c">static volatile LONG g_payload_exit = -1;
+
+static VOID WINAPI ExitStub(UINT code)
+{
+    g_payload_exit = (LONG)code;
+    ExitThread(code);          // solo el hilo; el loader sigue vivo
+}
+
+// dentro del bucle de imports:
+if (strcmp(name, &quot;ExitProcess&quot;) == 0) {
+    fn = (FARPROC)ExitStub;
+}</code></pre>
+<p>En un loader de producción se usa <code>NtTerminateThread</code> (indirecto, como Kagemusha) para no depender del CRT, pero la idea es la misma. <strong>Limitación:</strong> si el payload resuelve <code>ExitProcess</code> dinámicamente (<code>GetProcAddress</code>), la interceptación de la IAT no lo cubre. Kagemusha lo resuelve con un hilo "hold" + <code>NtContinue</code>/entryspoof; aquí basta con saber que existe el agujero.</p>
+<p><strong>Compruébalo:</strong> ejecuta <code>mini_loader.exe pe_hello.exe</code>. Debe aparecer el MessageBox y luego:</p>
+<pre><code class="lang-text">[map] base = 00007FF6A1230000 (SizeOfImage = 0x5000)
+[map] relocations aplicadas: 12 (delta=0x...)
+[map] .pdata registrado: ok (4 entradas)
+[run] payload exit=7</code></pre>
+<p><strong>Si falla:</strong> saltar a <code>AddressOfEntryPoint</code> sin sumar <code>base</code> (crash en una dirección baja); llamar al entry con firma de DLL; olvidar interceptar <code>ExitProcess</code> (el loader muere con exit 7 y no imprime nada); no poner la página de código en RX antes de ejecutar (dependiendo de cómo reserve, el <code>VirtualAlloc</code> RW inicial puede provocar un fallo de ejecución — pon las protecciones en el Paso 13/15).</p>
+<h2>Paso 13 — Depurar y verificar: el depurador como oráculo</h2>
+<p><strong>Qué buscamos:</strong> poder decir, con evidencia, que el PE se mapeó y ejecutó de verdad (no que "parece que sí").</p>
+<p>La secuencia de verificación que usamos en Kagemusha:</p>
+<ol><li><strong>Estática:</strong> <code>dumpbin /headers pe_hello.exe</code> → compara <code>SizeOfImage</code>, <code>AddressOfEntryPoint</code>, número de secciones y <code>.pdata</code> con lo que imprime tu loader.</li><li><strong>Imports:</strong> <code>dumpbin /imports pe_hello.exe</code> → el total debe coincidir con tu contador; cada <code>dps</code> de la IAT debe apuntar a un módulo real.</li><li><strong>Dinámica:</strong> ejecuta bajo <code>cdb</code> y comprueba la pila y la memoria:</li></ol>
+<pre><code class="lang-text">cdb -o mini_loader.exe pe_hello.exe
+0:000&gt; bp &lt;base&gt;+&lt;entry&gt;        ; o pon un DebugBreak() en el loader
+0:000&gt; g
+0:000&gt; kb                        ; pila: EntryThread -&gt; payload
+0:000&gt; u &lt;base&gt;+&lt;entry&gt; L8       ; las instrucciones son las del PE?
+0:000&gt; !address &lt;base&gt;           ; region reservada, proteccion RX tras el protect
+0:000&gt; dps &lt;base&gt;+&lt;IAT_RVA&gt;      ; imports resueltos</code></pre>
+<ol><li><strong>Contra un sensor:</strong> <code>pe-sieve --pid &amp;lt;pid&amp;gt;</code> escanea el proceso y te dice si ve un PE implantado, secciones raras o IAT hooks. En el Paso 15 lo usamos como juez.</li></ol>
+<h3>Tabla de fallos típicos (y su causa real)</h3>
+<table><thead><tr><th>Síntoma</th><th>Causa probable</th><th>Dónde mirar</th></tr></thead><tbody><tr><td><code>0xC0000005</code> al entrar al entry</td><td>RVA tratado como offset, secciones mal copiadas o relocs ausentes</td><td>Pasos 5–8; <code>u</code> en cdb</td></tr><tr><td><code>0xC000001D</code> (instrucción ilegal)</td><td>PE de 32 bits ejecutado en x64</td><td><code>FileHeader.Machine</code>, magic</td></tr><tr><td>El MessageBox no aparece y exit=0</td><td>Entry equivocado, o el hilo no se esperó</td><td>Imprime <code>entry</code>, espera el hilo</td></tr><tr><td>Crash dentro de la primera API importada</td><td>IAT con NULL o con un RVA</td><td><code>dps</code> de la IAT</td></tr><tr><td><code>0xC0000135</code> (DLL no encontrada)</td><td><code>LoadLibrary</code> falló (API set, ruta)</td><td>Imprime el nombre de la DLL</td></tr><tr><td><code>0xC0000409</code> (stack buffer overrun)</td><td>Pila desalineada o CET</td><td>Usa <code>CreateThread</code>, no llames a pelo</td></tr><tr><td>Funciona sin excepciones y falla con <code>try/catch</code></td><td><code>.pdata</code> sin registrar</td><td>Paso 11; <code>RtlLookupFunctionEntry</code></td></tr><tr><td>NX fault tras borrar cabeceras</td><td>Borraste headers que el loader aún leía</td><td>Paso 15: borra <strong>después</strong> de proteger</td></tr></tbody></table>
+<p>La lección de método: <strong>no adivines</strong>. Cada fila de esa tabla se responde con una consulta al depurador o a <code>dumpbin</code>. Si un paso no tiene oráculo, invéntalo: imprime el valor, compáralo con <code>dumpbin</code>, o detén el proceso y mira la memoria.</p>
+<h2>Paso 14 — Cifrar en reposo: que el PE no viaje en claro</h2>
+<p><strong>Qué buscamos:</strong> que el fichero que llevas de un sitio a otro no contenga un PE reconocible, y que el loader lo descifre <strong>solo en memoria</strong>.</p>
+<p>Motivación medida en el proyecto: Defender caza el PE en claro en disco por contenido (<code>HackTool:Win32/Mimikatz!pz</code>, con veredicto diferido en la nube). El mismo PE dentro de un blob cifrado no dispara esa firma estática. Eso <strong>no</strong> es invisibilidad: es una capa de transporte. El PE acaba en claro en memoria al ejecutar (y ahí lo verán otros sensores).</p>
+<h3>Qué cifrado usar (y cuál no)</h3>
+<p>No inventes criptografía. Usa un esquema <strong>AEAD</strong> (<em>Authenticated Encryption with Associated Data</em>): cifra y autentica en una sola operación. En Windows, la vía nativa es <strong>CNG/BCrypt</strong> con <strong>AES-256-GCM</strong>.</p>
+<ul><li><strong>Clave:</strong> 32 bytes para AES-256. El usuario aporta un secreto de 16 bytes (32 hex) y se deriva la clave con HMAC-SHA256: <code>AesKey = HMAC-SHA256(UserKey, "KAGE-AEAD-v3" || Salt[8])</code>. La KDF <strong>no</strong> añade fuerza (sigue mandando el secreto del usuario); solo adapta longitud y diversifica por artefacto.</li><li><strong>Nonce:</strong> 12 bytes <strong>únicos por blob</strong>. Reutilizar nonce con la misma clave rompe GCM por completo.</li><li><strong>Tag:</strong> 16 bytes. Se verifica <strong>antes</strong> de usar el plaintext; si no coincide, abortas (no hay "descifrado a medias").</li><li><strong>AAD:</strong> la cabecera del contenedor (magic, longitudes, salt, nonce). Así un atacante no puede cambiar metadatos sin invalidar el tag.</li></ul>
+<p>El contenedor de Kagemusha, a grandes rasgos:</p>
+<pre><code class="lang-text">KGC3 = [magic derivado por HMAC] [salt 8] [nonce 12] [longitudes] [CRC]
+       [payload cifrado (LZNT1 opcional)] [tag 16] [padding variable]</code></pre>
+<p>La versión 3 deriva el <strong>magic</strong> con HMAC (no hay una constante <code>"KGC3"</code> en el binario), usa padding variable y no lleva trailer. La versión 2 (<code>KGC2</code>) usa AES-256-GCM + LZNT1 + CRC y un magic fijo; ambas se despachan por magic.</p>
+<h3>El flujo del loader</h3>
+<pre><code class="lang-c">// 1) Leer el blob entero (nunca a un fichero temporal en claro).
+ReadFileAll(&quot;payload.kc3&quot;, &amp;blob);
+
+// 2) Derivar la clave (HMAC-SHA256) y descifrar en memoria.
+//    Pseudocodigo con CNG: la implementacion real esta en src/core/crypt2.c
+BCryptOpenAlgorithmProvider(&amp;hAes, BCRYPT_AES_ALGORITHM, NULL, 0);
+BCryptSetProperty(hAes, BCRYPT_CHAINING_MODE,
+                  BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM));
+BCryptGenerateSymmetricKey(hAes, &amp;hKey, NULL, 0, aesKey32, 32, 0);
+
+BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth;
+BCRYPT_INIT_AUTH_MODE_INFO(auth);
+auth.pbNonce = nonce;   auth.cbNonce = 12;
+auth.pbTag   = tag;     auth.cbTag   = 16;
+auth.pbAuthData = aad;  auth.cbAuthData = aadLen;
+
+BCryptDecrypt(hKey, ciphertext, ctLen, &amp;auth, NULL, 0, plain, plainCap, &amp;plainLen, 0);
+// Si BCryptDecrypt falla (tag invalido), ABORTAR. No mapear nada.
+
+// 3) Mapear el PE desde `plain`, como en los pasos 3-12.
+// 4) Borrar clave y buffer fuente.
+SecureZeroMemory(aesKey32, sizeof(aesKey32));
+SecureZeroMemory(plain, plainLen);</code></pre>
+<h3>La higiene que casi nadie hace</h3>
+<p>Un detalle que el proyecto descubrió con un oráculo de <em>carving</em> (buscar restos de PE en memoria): <strong>el PE completo seguía en el heap</strong> después de mapearlo, porque el buffer descifrado no se borraba. El fix fue limpiar el buffer fuente (con la longitud real de cada ruta) y el blob tras abrirlo. Medido después: <code>MZ_header privado 0</code> (antes 1).</p>
+<p>Reglas:</p>
+<ul><li><strong>Borra la clave y el plaintext</strong> en cuanto dejes de necesitarlos (<code>SecureZeroMemory</code>, no <code>memset</code> normal: el compilador puede eliminar un memset "inútil").</li><li><strong>No pases la clave por <code>argv</code></strong> (visible en Sysmon EID 1 / WMI). Usa <code>@fichero</code> o una llamada que la lea de otro sitio.</li><li><strong>No comprimas después de cifrar</strong> (no comprime) ni cifres con RC4 "porque es más simple": RC4 es un cifrado de flujo obsoleto y sin autenticación.</li><li><strong>Nonce único</strong>: si empaquetas dos veces el mismo payload, genera nonce nuevo.</li></ul>
+<p><strong>Compruébalo:</strong> <code>strings payload.kc3</code> no debe mostrar <code>MZ</code>, nombres de DLL ni strings del payload. El loader debe imprimir el mismo <code>exit=7</code> que con el PE en claro. Y si cambias un byte del blob, debe <strong>fallar ruidosamente</strong> (tag inválido), no ejecutar basura.</p>
+<h2>Paso 15 — Borrar cabeceras y medir lo que queda</h2>
+<p><strong>Qué buscamos:</strong> quitar la firma "esto es un PE" de la memoria y, sobre todo, <strong>medir</strong> qué ve un escáner externo.</p>
+<p>Un escáner tipo <code>pe-sieve</code> busca PEs implantados en memoria: cabeceras <code>MZ</code>, secciones coherentes, IAT apuntando dentro de la imagen. Si el PE está mapeado en memoria privada con sus cabeceras intactas, lo marca. Una mitigación simple: <strong>cero la página de cabeceras</strong> y la dejo de solo lectura.</p>
+<pre><code class="lang-c">static void ZeroHeaders(PVOID base, SIZE_T headersSize)
+{
+    ULONG old = 0;
+    PVOID p = base;
+    SIZE_T s = headersSize;
+
+    if (VirtualProtect(p, s, PAGE_READWRITE, &amp;old)) {
+        SecureZeroMemory(p, s);                 // MZ, PE, secciones: todo a 0
+        VirtualProtect(p, s, PAGE_READONLY, &amp;old);
+    }
+}</code></pre>
+<p>Dos avisos que el proyecto aprendió a golpes:</p>
+<ol><li><strong>Borra después de proteger las secciones y de usar las cabeceras.</strong> <code>KageMapPeProtect</code> lee los <code>SectionHeader</code> para saber qué proteger; si los has zerado antes, lee ceros y el payload muere con un fallo de ejecución (NX fault). Orden correcto: mapear → resolver → proteger secciones → <strong>zerar cabeceras</strong>.</li><li><strong>Esto no borra el código ni los datos.</strong> El payload sigue ahí, ejecutable. Un escáner que no dependa de las cabeceras (firmas de código, strings, secciones) puede seguir viéndolo. La medición es la que manda: en Kagemusha, <code>anon + zerohdr</code> bajó pe-sieve de <strong>1 señal (Implanted PE) a 0</strong>, pero la pila seguía mostrando frames privados.</li></ol>
+<h3>Tres formas de vivir en memoria (y su trade-off)</h3>
+<table><thead><tr><th>Modo</th><th>Qué hace</th><th>Ventaja</th><th>Señal que deja</th></tr></thead><tbody><tr><td><strong>anon</strong></td><td><code>VirtualAlloc</code> privado RW→RX</td><td>Simple; no toca ninguna DLL</td><td>Frames de pila privados (medido: <strong>24.5 %</strong> de syscalls en el sensor de pila); pe-sieve con zerohdr: 0</td></tr><tr><td><strong>mapped</strong></td><td>PE en una sección pagefile, <code>MEM_MAPPED</code>, headers a cero</td><td><code>Type=MEM_MAPPED</code> en vez de privado; con <code>entryspoof</code>+<code>stackwatch</code> bajó a <strong>0/400 frames privados</strong></td><td>La sección en sí; el contenido sigue siendo tuyo</td></tr><tr><td><strong>image</strong></td><td>Sobrescribe la <code>.text</code> de una DLL firmada (module stomping)</td><td><code>MEM_IMAGE</code>, pila 100 % con nombre</td><td>Imagen modificada: pe-sieve ve <strong>46 183 patches</strong> en <code>msi.dll</code>; 2 protects</td></tr></tbody></table>
+<p>No hay un "mejor" universal: hay que elegir según el sensor que te importe. Esa frase, que suena a excusa, es en realidad el resultado central de la fase F19 del proyecto: <strong>el artefacto se mueve, no desaparece</strong>.</p>
+<h3>La medición final</h3>
+<p>Con el loader funcionando:</p>
+<pre><code class="lang-text">pe-sieve.exe --pid &lt;pid&gt; --shellcode --data 3</code></pre>
+<ul><li><strong>anon sin zerohdr:</strong> 1 señal (<code>Implanted PE</code>) por las cabeceras.</li><li><strong>anon + zerohdr:</strong> 0 señales de PE implantado; la pila sigue teniendo frames privados.</li><li><strong>mapped + zerohdr + entryspoof + stackwatch:</strong> 0 implantados y 0 frames privados (medido con un payload KGC3).</li><li><strong>image (stomp):</strong> 0 frames privados, pero la imagen queda modificada mientras corre (el modo efímero la restaura al terminar).</li></ul>
+<p>Y lo que <strong>ningún</strong> modo de esta lista resuelve:</p>
+<ul><li><strong>TLS callbacks:</strong> si el PE los necesita y no los llamas, puede fallar. Kagemusha elige candidatas sin TLS (<code>HasTls == 0</code>) o ejecuta en un worker preexistente.</li><li><strong>CFG (Control Flow Guard):</strong> las llamadas indirectas a funciones no registradas pueden fallar; un loader casero no registra el payload como destino válido.</li><li><strong>CET/IBT:</strong> si el sistema exige <code>endbr64</code> en los destinos de llamada indirecta, el código compilado sin esa instrucción puede fallar. Kagemusha lo trata como gate (rechazo ruidoso) en los modos cubiertos.</li><li><strong>ETW-TI y sensores de kernel:</strong> ven los mapeos/allocaciones ejecutables aunque las cabeceras estén a cero. El proyecto lo midió: el staging deja <strong>2 eventos TI por run</strong>; el stomp desde imagen, <strong>0</strong>; pero el sensor existe.</li><li><strong>Conducta:</strong> qué hace el payload después (tocar LSASS, lanzar procesos, escribir ficheros) es otra capa, y la más decisiva.</li></ul>
+<h3>Checklist final del mini-loader</h3>
+<ol><li>¿Validé <code>MZ</code>, <code>e_lfanew</code>, firma <code>PE\0\0</code>, magic <code>0x20B</code> y número de secciones?</li><li>¿Reservé <code>SizeOfImage</code> (no el tamaño del fichero) y con la alineación correcta?</li><li>¿Copié cabeceras y secciones, con BSS a cero y límites comprobados?</li><li>¿Apliqué <code>DIR64</code> cuando <code>delta != 0</code> y rechacé tipos desconocidos?</li><li>¿Resolví todos los imports y verifico <code>DLL!funcion</code> antes de escribir la IAT?</li><li>¿Contemplé API sets/forwarders/delay-load (o los detecto y aviso)?</li><li>¿Registré <code>.pdata</code> y comprobé <code>RtlLookupFunctionEntry(entry)</code>?</li><li>¿Ejecuté en un hilo con pila alineada e intercepté <code>ExitProcess</code>?</li><li>¿Cifré el blob con AEAD, nonce único y borré clave/plaintext?</li><li>¿Medí con <code>pe-sieve</code>/ETW y sé qué señal deja mi modo elegido?</li></ol>
+<h2>Cinco ideas que conviene desmontar</h2>
+<p>Antes de cerrar, cinco frases que se leen mucho y que este tutorial debería haber dejado claras:</p>
+<p><strong>1. "Un PE es un <code>.exe</code>."</strong> No: una <code>.dll</code>, un <code>.ocx</code> y muchos drivers usan el mismo formato. Cambia el punto de entrada (en una DLL es <code>DllMain(HMODULE, DWORD, LPVOID)</code>) y cambia lo que el fichero exporta, pero el esqueleto —cabeceras, secciones, imports, relocs— es el mismo. Si entiendes el tutorial, entiendes ambos.</p>
+<p><strong>2. "Mapear es copiar el fichero a memoria."</strong> Es el error número uno. En disco las secciones están alineadas a <code>FileAlignment</code> (0x200); en memoria, a <code>SectionAlignment</code> (0x1000). Además hay BSS que no existe en disco, cabeceras que deben quedar accesibles, relocations que ajustar e imports que rellenar. Copiar el fichero tal cual y saltar al entry funciona en casos triviales y falla en cuanto el PE hace algo serio.</p>
+<p><strong>3. "Si ejecuta, el loader está bien."</strong> Ejecutar solo demuestra que el <em>happy path</em> de un payload concreto funciona. No demuestra que las páginas tengan la protección correcta (RWX es una señal), que la pila esté limpia, que las excepciones se puedan desenvolver, que TLS esté atendido, que CFG no bloquee una llamada indirecta o que el payload no se lleve el proceso por delante con <code>ExitProcess</code>. La mitad de los bugs de un loader aparecen en la segunda ejecución, con otro payload, o bajo un depurador.</p>
+<p><strong>4. "Evitar <code>LoadLibrary</code> es evadir."</strong> No exactamente. Al evitar el cargador cambias <strong>qué señal</strong> dejas: desaparece el evento de carga de imagen (EID 7) y aparecen mapeos de sección, protects, páginas privadas y un entry que no pertenece a ningún módulo. La invisibilidad no existe; existe un <strong>presupuesto de señales</strong> y cada técnica mueve el gasto de un sensor a otro. Ese es el hilo conductor de toda la serie de Kagemusha.</p>
+<p><strong>5. "Cifrar el PE lo hace indetectable."</strong> Cifrar protege el <strong>transporte y el almacenamiento</strong>: en disco no hay <code>MZ</code> ni strings reconocibles. Pero al ejecutar, el PE está en claro en memoria, y los sensores de memoria, pila y kernel siguen ahí. Además, si no borras la clave y el buffer descifrado, el "cifrado" deja el payload entero en el heap. La capa criptográfica es necesaria, no suficiente.</p>
+<p>Y una sexta, que resume el método: <strong>"pe-sieve no encontró nada, luego soy invisible."</strong> <code>pe-sieve</code> es <strong>un</strong> oráculo, no el veredicto final. ETW-TI ve los mapeos; un stack walk ve los frames; un EDR comercial puede ver más. La única afirmación honesta es la que se midió: "con este payload, en esta build, contra este sensor, la señal fue X". Todo lo demás es fe.</p>
+<h2>Lo que acabas de construir (y lo que le falta para ser Kagemusha)</h2>
+<p>El mini-loader de este tutorial ejecuta un PE real sin <code>LoadLibrary</code>, con imports, relocations y excepciones. Es el esqueleto exacto de <code>KageMapPe</code>. La diferencia con el proyecto completo es de <strong>profundidad y medición</strong>, no de magia:</p>
+<table><thead><tr><th>Tutorial</th><th>Kagemusha (F16–F19)</th></tr></thead><tbody><tr><td><code>LoadLibrary</code> para dependencias</td><td>Imports por hash en módulos ya cargados (F19.3) y <strong>manual load</strong> de 10 DLLs sin Ldr/EID 7 (F19.6)</td></tr><tr><td>IAT normal</td><td><code>iatspoof</code>: trampolines de 112 B con guarda anti-recursión (F19.5)</td></tr><tr><td>Entry por hilo</td><td><code>entryspoof</code>: <code>NtContinue</code> + pila sintética, walk limpio (F19.1)</td></tr><tr><td>AES-GCM + wipe</td><td>KGC2/KGC3 con KDF, LZNT1, magic derivado y padding (F16/F19.4)</td></tr><tr><td><code>zerohdr</code></td><td><code>mapped</code>, <code>stackwatch</code>, 5 flags combinables y gates fail-loud (F19.2)</td></tr><tr><td>"Funciona en mi máquina"</td><td><strong>687/624 checks</strong>, pe-sieve, ETW-TI, cdb y Ghidra como oráculos</td></tr></tbody></table>
+<h3>Tres ejercicios para seguir</h3>
+<ol><li><strong>TLS:</strong> localiza <code>DataDirectory[9]</code>, recorre los callbacks y llámalos con <code>DLL_PROCESS_ATTACH</code> antes del entry. Prueba con una DLL que los use (<code>dbghelp</code>) y verás por qué Kagemusha las evita.</li><li><strong>Delay imports:</strong> implementa la resolución de <code>DataDirectory[13]</code> y compárala con dejar que el helper del payload lo haga.</li><li><strong>CFG/IBT:</strong> compila el payload con <code>/guard:cf</code> y <code>/CETCOMPAT</code>, ejecútalo en los tres modos y mide qué falla. Es el tipo de límite que no se arregla con un <code>memset</code>.</li></ol>
+<h2>Referencias</h2>
+<ul><li>Código real del loader: <code>Kagemusha/src/core/pemap.c</code> (<code>KageMapPe</code>, relocs, imports, <code>.pdata</code>, zerohdr), <code>src/core/crypt2.c</code> y <code>src/core/crypt3.c</code> (contenedores), <code>tests/run_tests.c</code> (T69–T81).</li><li>Documentación del proyecto: <code>docs/research/e16-crypter-diseno.md</code>, <code>docs/research/f19.2-option-matrix.md</code>, <code>docs/research/f19-refuerzo-debilidades.md</code>.</li><li>Microsoft Learn — <em>PE Format</em>, <em>Import Table</em>, <em>Base Relocations</em>, <em>RtlAddFunctionTable</em>, <em>BCrypt AES-GCM</em>, <em>Thread Local Storage</em>.</li><li><code>pe-sieve</code> (hasherezade) como oráculo de artefactos en memoria; <code>dumpbin</code> y <code>cdb</code> como oráculos estático y dinámico.</li><li>Entradas relacionadas de la serie: <a href="/blog/kagemusha-fase-10-contrainstrumentacion-callback.html">F10 — Contra-instrumentación</a>, <a href="/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html">F11–F13 — Del staging al full-stack</a>, <a href="/blog/kagemusha-f14-f15-modulo-prestado-etwti.html">F14–F15 — El módulo prestado</a> y <a href="/blog/kagemusha-articulo-por-que-evasion-capas.html">Por qué la evasión es en capas</a>.</li></ul></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>

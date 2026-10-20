@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400" role="img" aria-label="Flujo de un crypter AEAD y borrado de cabeceras">
+  <rect width="900" height="400" fill="#0b0f1c"/>
+  <text x="24" y="32" font-family="Consolas,monospace" font-size="16" fill="#00e5ff">Cifrar en reposo, descifrar en memoria, borrar cabeceras</text>
+
+  <text x="24" y="64" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">EN DISCO (lo que viaja)</text>
+  <rect x="24" y="76" width="180" height="64" rx="8" fill="#101a22" stroke="#ef4444"/>
+  <text x="38" y="102" font-family="Consolas,monospace" font-size="12" fill="#ef4444">PE en claro</text>
+  <text x="38" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">MZ ... (firma conocida)</text>
+
+  <rect x="244" y="76" width="210" height="64" rx="8" fill="#101a22" stroke="#f59e0b"/>
+  <text x="258" y="102" font-family="Consolas,monospace" font-size="12" fill="#f59e0b">AES-256-GCM</text>
+  <text x="258" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">salt + nonce + tag (AAD)</text>
+
+  <rect x="494" y="76" width="382" height="64" rx="8" fill="#101a22" stroke="#a855f7"/>
+  <text x="508" y="102" font-family="Consolas,monospace" font-size="12" fill="#a855f7">blob KGC3 (.kc3)</text>
+  <text x="508" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">magic derivado por HMAC + padding variable + sin trailer</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M204 108 H244"/><path d="M236 102 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M454 108 H494"/><path d="M486 102 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <text x="24" y="184" font-family="Consolas,monospace" font-size="12" fill="#8b93b8">EN MEMORIA (el loader)</text>
+  <rect x="24" y="196" width="150" height="60" rx="8" fill="#101a22" stroke="#a855f7"/>
+  <text x="38" y="220" font-family="Consolas,monospace" font-size="11" fill="#a855f7">leer blob</text>
+  <text x="38" y="240" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">sin tocar disco</text>
+
+  <rect x="204" y="196" width="170" height="60" rx="8" fill="#101a22" stroke="#f59e0b"/>
+  <text x="218" y="220" font-family="Consolas,monospace" font-size="11" fill="#f59e0b">KDF + decrypt</text>
+  <text x="218" y="240" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">tag inválido = abortar</text>
+
+  <rect x="404" y="196" width="150" height="60" rx="8" fill="#101a22" stroke="#39ff14"/>
+  <text x="418" y="220" font-family="Consolas,monospace" font-size="11" fill="#39ff14">mapear PE</text>
+  <text x="418" y="240" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">secciones + relocs + IAT</text>
+
+  <rect x="584" y="196" width="150" height="60" rx="8" fill="#101a22" stroke="#00e5ff"/>
+  <text x="598" y="220" font-family="Consolas,monospace" font-size="11" fill="#00e5ff">zerohdr</text>
+  <text x="598" y="240" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">headers a 0 + RO</text>
+
+  <rect x="764" y="196" width="112" height="60" rx="8" fill="#101a22" stroke="#ef4444"/>
+  <text x="778" y="220" font-family="Consolas,monospace" font-size="11" fill="#ef4444">ejecutar</text>
+  <text x="778" y="240" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">entry del PE</text>
+
+  <g stroke="#3b82f6" stroke-width="2" fill="none">
+    <path d="M174 226 H204"/><path d="M196 220 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M374 226 H404"/><path d="M396 220 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M554 226 H584"/><path d="M576 220 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+    <path d="M734 226 H764"/><path d="M756 220 l8 6 -8 6" fill="#3b82f6" stroke="none"/>
+  </g>
+
+  <rect x="24" y="292" width="852" height="84" rx="8" fill="#0d1424" stroke="#1c2440"/>
+  <text x="40" y="316" font-family="Consolas,monospace" font-size="12" fill="#c9e0d0">Higiene obligatoria: key y plaintext se borran (SecureZeroMemory/volatile) tras usarlos.</text>
+  <text x="40" y="338" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">El PE en claro existe en memoria solo el tiempo necesario; el blob en disco no tiene MZ ni strings del payload.</text>
+  <text x="40" y="358" font-family="Consolas,monospace" font-size="11" fill="#8b93b8">zerohdr no oculta el contenido: quita la firma "esto es un PE" de la página de cabeceras (medido con pe-sieve).</text>
+</svg>
