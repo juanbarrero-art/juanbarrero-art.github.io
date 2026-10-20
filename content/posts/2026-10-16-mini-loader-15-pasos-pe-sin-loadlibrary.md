@@ -700,7 +700,7 @@ No inventes criptografía. Usa un esquema **AEAD** (*Authenticated Encryption wi
 Un contenedor AEAD de ejemplo:
 
 ```text
-TUT1 = [magic derivado por HMAC] [salt 8] [nonce 12] [longitudes] [CRC]
+TUT1 = [magic] [salt 8] [nonce 12] [longitudes] [CRC]
        [payload cifrado (LZNT1 opcional)] [tag 16] [padding variable]
 ```
 
@@ -745,7 +745,7 @@ Reglas:
 - **No comprimas después de cifrar** (no comprime) ni cifres con RC4 "porque es más simple": RC4 es un cifrado de flujo obsoleto y sin autenticación.
 - **Nonce único**: si empaquetas dos veces el mismo payload, genera nonce nuevo.
 
-**Compruébalo:** `strings payload.kc3` no debe mostrar `MZ`, nombres de DLL ni strings del payload. El loader debe imprimir el mismo `exit=7` que con el PE en claro. Y si cambias un byte del blob, debe **fallar ruidosamente** (tag inválido), no ejecutar basura.
+**Compruébalo:** `strings payload.tut` no debe mostrar `MZ`, nombres de DLL ni strings del payload. El loader debe imprimir el mismo `exit=7` que con el PE en claro. Y si cambias un byte del blob, debe **fallar ruidosamente** (tag inválido), no ejecutar basura.
 
 ## Paso 15 — Borrar cabeceras y medir lo que queda (extensión)
 
