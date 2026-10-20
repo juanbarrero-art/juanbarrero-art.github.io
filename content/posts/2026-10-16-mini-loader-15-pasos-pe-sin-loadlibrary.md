@@ -32,7 +32,7 @@ Y después veremos **dos extensiones**: cifrarlo con AES-256-GCM y borrar sus ca
 
 **Código de apoyo:** el repositorio [mini-pe-loader](https://github.com/juanbarrero-art/mini-pe-loader) implementa el núcleo de este tutorial (pasos 1–13) en C, sin dependencias raras. Los pasos 14 y 15 se explican como **extensiones** y no están incluidos en esa versión mínima.
 
-Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (`ReadFileAll`/`ReadWholeFile`, `MapPe`/`MapImage`) y en helpers de enseñanza (`PrintSections`, `RvaToOffset`), pero la lógica de los pasos 1–13 es la misma.
+Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (`ReadFileAll` → `ReadWholeFile`, el mapeo vive en `MapImage`) y en helpers de enseñanza (`PrintSections`, `RvaToOffset`), pero la lógica de los pasos 1–13 es la misma. En los comandos, `pe_hello.exe` y `mini_loader.exe` son nombres ilustrativos; en el repo son `silent.exe`, `seh.exe`, `hello.exe` y `miniload.exe`.
 
 ## El mapa antes de andar
 
@@ -192,6 +192,20 @@ if (nt->Signature != IMAGE_NT_SIGNATURE) {        // 'PE\0\0'
 }
 if (nt->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {  // 0x20B
     printf("no es PE32+ (x64)\n");
+    return 1;
+}
+if (nt->FileHeader.NumberOfSections == 0 ||
+    nt->FileHeader.NumberOfSections > 96) {
+    printf("numero de secciones invalido\n");
+    return 1;
+}
+if (nt->OptionalHeader.SizeOfImage == 0 ||
+    nt->OptionalHeader.SizeOfImage > 0x4000000 ||
+    nt->OptionalHeader.SizeOfHeaders > f.size ||
+    nt->OptionalHeader.SizeOfHeaders > nt->OptionalHeader.SizeOfImage ||
+    nt->OptionalHeader.AddressOfEntryPoint == 0 ||
+    nt->OptionalHeader.AddressOfEntryPoint >= nt->OptionalHeader.SizeOfImage) {
+    printf("tamano o entry invalidos\n");
     return 1;
 }
 

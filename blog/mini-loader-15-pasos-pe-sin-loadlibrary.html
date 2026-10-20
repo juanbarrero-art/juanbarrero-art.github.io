@@ -116,7 +116,7 @@
 <p><strong>Para quién es:</strong> sabes programar en C y entiendes punteros. No hace falta saber qué es un PE, un RVA, la IAT, el unwind ni ETW. Todo eso se explica aquí, con analogías, diagramas y código que puedes compilar.</p>
 <p><strong>Qué usamos:</strong> MSVC (x64), <code>dumpbin</code>, <code>cdb</code>, y payloads de prueba que devuelven 7 o capturan una excepción. En el repo: <code>silent.exe</code>, <code>seh.exe</code> y <code>hello.exe</code>.</p>
 <p><strong>Código de apoyo:</strong> el repositorio <a href="https://github.com/juanbarrero-art/mini-pe-loader">mini-pe-loader</a> implementa el núcleo de este tutorial (pasos 1–13) en C, sin dependencias raras. Los pasos 14 y 15 se explican como <strong>extensiones</strong> y no están incluidos en esa versión mínima.</p>
-<p>Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (<code>ReadFileAll</code>/<code>ReadWholeFile</code>, <code>MapPe</code>/<code>MapImage</code>) y en helpers de enseñanza (<code>PrintSections</code>, <code>RvaToOffset</code>), pero la lógica de los pasos 1–13 es la misma.</p>
+<p>Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (<code>ReadFileAll</code> → <code>ReadWholeFile</code>, el mapeo vive en <code>MapImage</code>) y en helpers de enseñanza (<code>PrintSections</code>, <code>RvaToOffset</code>), pero la lógica de los pasos 1–13 es la misma. En los comandos, <code>pe_hello.exe</code> y <code>mini_loader.exe</code> son nombres ilustrativos; en el repo son <code>silent.exe</code>, <code>seh.exe</code>, <code>hello.exe</code> y <code>miniload.exe</code>.</p>
 <h2>El mapa antes de andar</h2>
 <p><img src="../assets/diag-loader-15.svg" alt="Diagrama: las cinco fases del mini-loader" loading="lazy"></p>
 <p>Un PE (Portable Executable) es el formato de los <code>.exe</code> y <code>.dll</code> de Windows. Por dentro es un fichero <strong>con instrucciones para un cargador</strong>: "copia esta parte aquí, arregla estas direcciones, importa estas funciones, empieza a ejecutar en esta otra". El loader de Windows (<code>Ldr</code>) sigue ese manual al pie de la letra.</p>
@@ -214,6 +214,20 @@ if (nt-&gt;Signature != IMAGE_NT_SIGNATURE) {        // &#x27;PE\0\0&#x27;
 }
 if (nt-&gt;OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC) {  // 0x20B
     printf(&quot;no es PE32+ (x64)\n&quot;);
+    return 1;
+}
+if (nt-&gt;FileHeader.NumberOfSections == 0 ||
+    nt-&gt;FileHeader.NumberOfSections &gt; 96) {
+    printf(&quot;numero de secciones invalido\n&quot;);
+    return 1;
+}
+if (nt-&gt;OptionalHeader.SizeOfImage == 0 ||
+    nt-&gt;OptionalHeader.SizeOfImage &gt; 0x4000000 ||
+    nt-&gt;OptionalHeader.SizeOfHeaders &gt; f.size ||
+    nt-&gt;OptionalHeader.SizeOfHeaders &gt; nt-&gt;OptionalHeader.SizeOfImage ||
+    nt-&gt;OptionalHeader.AddressOfEntryPoint == 0 ||
+    nt-&gt;OptionalHeader.AddressOfEntryPoint &gt;= nt-&gt;OptionalHeader.SizeOfImage) {
+    printf(&quot;tamano o entry invalidos\n&quot;);
     return 1;
 }
 
