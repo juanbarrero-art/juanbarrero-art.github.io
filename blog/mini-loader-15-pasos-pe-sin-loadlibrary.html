@@ -101,12 +101,14 @@
     <article class="post contenedor">
       <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
       <header class="post__cabecera">
-        <p class="post__meta">16 oct 2026 &middot; 37 min de lectura</p>
+        <p class="post__meta">16 oct 2026 &middot; 38 min de lectura</p>
         <p class="post__serie">Serie: <a href="serie/kagemusha.html">Kagemusha</a></p>
         <h1 class="post__titulo">Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</h1>
         <p class="post__tags"><span class="tag">#windows internals</span> <span class="tag">#pe format</span> <span class="tag">#loader</span> <span class="tag">#tutorial</span> <span class="tag">#c</span> <span class="tag">#kagemusha</span></p>
       </header>
       <div class="post__cuerpo"><h1>Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</h1>
+<p><img src="../assets/repo-mini-loader.svg" alt="Código de apoyo: mini-pe-loader" loading="lazy"></p>
+<p><strong><a href="https://github.com/juanbarrero-art/mini-pe-loader">→ Abrir el repositorio de apoyo: github.com/juanbarrero-art/mini-pe-loader</a></strong> — código compilado y probado del núcleo (pasos 1–13).</p>
 <p>Cuando llamas a <code>LoadLibrary</code> y a <code>GetProcAddress</code>, Windows hace una cantidad enorme de trabajo por ti: lee el fichero, reserva memoria, copia secciones, arregla direcciones, carga dependencias, registra tablas de excepciones y llama al punto de entrada. Es una caja negra tan cómoda que casi nadie la abre.</p>
 <p>Este artículo la abre. En <strong>15 pasos</strong> vamos a construir un <em>mini-loader</em> en C que:</p>
 <ol><li>Lee un <code>.exe</code> de disco.</li><li>Lo mapea en memoria como lo haría Windows.</li><li>Aplica sus <em>relocations</em>.</li><li>Resuelve sus <em>imports</em>.</li><li>Registra sus tablas de excepciones.</li><li>Ejecuta su punto de entrada.</li></ol>
@@ -114,6 +116,7 @@
 <p><strong>Para quién es:</strong> sabes programar en C y entiendes punteros. No hace falta saber qué es un PE, un RVA, la IAT, el unwind ni ETW. Todo eso se explica aquí, con analogías, diagramas y código que puedes compilar.</p>
 <p><strong>Qué usamos:</strong> MSVC (x64), <code>dumpbin</code>, <code>cdb</code>, y payloads de prueba que devuelven 7 o capturan una excepción. En el repo: <code>silent.exe</code>, <code>seh.exe</code> y <code>hello.exe</code>.</p>
 <p><strong>Código de apoyo:</strong> el repositorio <a href="https://github.com/juanbarrero-art/mini-pe-loader">mini-pe-loader</a> implementa el núcleo de este tutorial (pasos 1–13) en C, sin dependencias raras. Los pasos 14 y 15 se explican como <strong>extensiones</strong> y no están incluidos en esa versión mínima.</p>
+<p>Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (<code>ReadFileAll</code>/<code>ReadWholeFile</code>, <code>MapPe</code>/<code>MapImage</code>) y en helpers de enseñanza (<code>PrintSections</code>, <code>RvaToOffset</code>), pero la lógica de los pasos 1–13 es la misma.</p>
 <h2>El mapa antes de andar</h2>
 <p><img src="../assets/diag-loader-15.svg" alt="Diagrama: las cinco fases del mini-loader" loading="lazy"></p>
 <p>Un PE (Portable Executable) es el formato de los <code>.exe</code> y <code>.dll</code> de Windows. Por dentro es un fichero <strong>con instrucciones para un cargador</strong>: "copia esta parte aquí, arregla estas direcciones, importa estas funciones, empieza a ejecutar en esta otra". El loader de Windows (<code>Ldr</code>) sigue ese manual al pie de la letra.</p>
@@ -160,7 +163,7 @@ static int ReadFileAll(const char *path, FILEBUF *out)
     if (f == NULL) return 0;
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return 0; }
     n = ftell(f);
-    if (n &lt;= 0) { fclose(f); return 0; }
+    if (n &lt;= 0 || n &gt; 0x4000000) { fclose(f); return 0; }
     rewind(f);
     out-&gt;data = (BYTE *)malloc((size_t)n);
     out-&gt;size = (SIZE_T)n;
@@ -500,7 +503,7 @@ CloseHandle(th);</code></pre>
 
 static VOID WINAPI ExitStub(UINT code)
 {
-    g_payload_exit = (LONG)code;
+    InterlockedExchange(&amp;g_payload_exit, (LONG)code);
     ExitThread(code);          // solo el hilo; el loader sigue vivo
 }
 
@@ -530,7 +533,7 @@ if (strcmp(name, &quot;ExitProcess&quot;) == 0) {
 0:000&gt; u &lt;base&gt;+&lt;entry&gt; L8       ; las instrucciones son las del PE?
 0:000&gt; !address &lt;base&gt;           ; region reservada, proteccion RX tras el protect
 0:000&gt; dps &lt;base&gt;+&lt;IAT_RVA&gt;      ; imports resueltos</code></pre>
-<ol><li><strong>Contra un sensor:</strong> <code>pe-sieve --pid &amp;lt;pid&amp;gt;</code> escanea el proceso y te dice si ve un PE implantado, secciones raras o IAT hooks. En el Paso 15 lo usamos como juez.</li></ol>
+<ol><li><strong>Contra un sensor:</strong> <code>pe-sieve /pid &amp;lt;pid&amp;gt; /shellc 3 /data 3</code> escanea el proceso y te dice si ve un PE implantado, secciones raras o IAT hooks. En el Paso 15 lo usamos como juez.</li></ol>
 <h3>Tabla de fallos típicos (y su causa real)</h3>
 <table><thead><tr><th>Síntoma</th><th>Causa probable</th><th>Dónde mirar</th></tr></thead><tbody><tr><td><code>0xC0000005</code> al entrar al entry</td><td>RVA tratado como offset, secciones mal copiadas o relocs ausentes</td><td>Pasos 5–8; <code>u</code> en cdb</td></tr><tr><td><code>0xC000001D</code> (instrucción ilegal)</td><td>PE de 32 bits ejecutado en x64</td><td><code>FileHeader.Machine</code>, magic</td></tr><tr><td>El MessageBox no aparece y exit=0</td><td>Entry equivocado, o el hilo no se esperó</td><td>Imprime <code>entry</code>, espera el hilo</td></tr><tr><td>Crash dentro de la primera API importada</td><td>IAT con NULL o con un RVA</td><td><code>dps</code> de la IAT</td></tr><tr><td><code>0xC0000135</code> (DLL no encontrada)</td><td><code>LoadLibrary</code> falló (API set, ruta)</td><td>Imprime el nombre de la DLL</td></tr><tr><td><code>0xC0000409</code> (stack buffer overrun)</td><td>Pila desalineada o CET</td><td>Usa <code>CreateThread</code>, no llames a pelo</td></tr><tr><td>Funciona sin excepciones y falla con <code>try/catch</code></td><td><code>.pdata</code> sin registrar</td><td>Paso 11; <code>RtlLookupFunctionEntry</code></td></tr><tr><td>NX fault tras borrar cabeceras</td><td>Borraste headers que el loader aún leía</td><td>Paso 15: borra <strong>después</strong> de proteger</td></tr></tbody></table>
 <p>La lección de método: <strong>no adivines</strong>. Cada fila de esa tabla se responde con una consulta al depurador o a <code>dumpbin</code>. Si un paso no tiene oráculo, invéntalo: imprime el valor, compáralo con <code>dumpbin</code>, o detén el proceso y mira la memoria.</p>

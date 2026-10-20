@@ -9,6 +9,10 @@ summary: Tutorial desde cero para programadores sin Windows internals. Quince pa
 
 # Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)
 
+![Código de apoyo: mini-pe-loader](../assets/repo-mini-loader.svg)
+
+**[→ Abrir el repositorio de apoyo: github.com/juanbarrero-art/mini-pe-loader](https://github.com/juanbarrero-art/mini-pe-loader)** — código compilado y probado del núcleo (pasos 1–13).
+
 Cuando llamas a `LoadLibrary` y a `GetProcAddress`, Windows hace una cantidad enorme de trabajo por ti: lee el fichero, reserva memoria, copia secciones, arregla direcciones, carga dependencias, registra tablas de excepciones y llama al punto de entrada. Es una caja negra tan cómoda que casi nadie la abre.
 
 Este artículo la abre. En **15 pasos** vamos a construir un *mini-loader* en C que:
@@ -27,6 +31,8 @@ Y después veremos **dos extensiones**: cifrarlo con AES-256-GCM y borrar sus ca
 **Qué usamos:** MSVC (x64), `dumpbin`, `cdb`, y payloads de prueba que devuelven 7 o capturan una excepción. En el repo: `silent.exe`, `seh.exe` y `hello.exe`.
 
 **Código de apoyo:** el repositorio [mini-pe-loader](https://github.com/juanbarrero-art/mini-pe-loader) implementa el núcleo de este tutorial (pasos 1–13) en C, sin dependencias raras. Los pasos 14 y 15 se explican como **extensiones** y no están incluidos en esa versión mínima.
+
+Los bloques de código del artículo son versiones didácticas y compactas. El repo compilado puede diferir en nombres (`ReadFileAll`/`ReadWholeFile`, `MapPe`/`MapImage`) y en helpers de enseñanza (`PrintSections`, `RvaToOffset`), pero la lógica de los pasos 1–13 es la misma.
 
 ## El mapa antes de andar
 
@@ -116,7 +122,7 @@ static int ReadFileAll(const char *path, FILEBUF *out)
     if (f == NULL) return 0;
     if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return 0; }
     n = ftell(f);
-    if (n <= 0) { fclose(f); return 0; }
+    if (n <= 0 || n > 0x4000000) { fclose(f); return 0; }
     rewind(f);
     out->data = (BYTE *)malloc((size_t)n);
     out->size = (SIZE_T)n;
@@ -618,7 +624,7 @@ static volatile LONG g_payload_exit = -1;
 
 static VOID WINAPI ExitStub(UINT code)
 {
-    g_payload_exit = (LONG)code;
+    InterlockedExchange(&g_payload_exit, (LONG)code);
     ExitThread(code);          // solo el hilo; el loader sigue vivo
 }
 
@@ -665,7 +671,7 @@ cdb -o mini_loader.exe pe_hello.exe
 0:000> dps <base>+<IAT_RVA>      ; imports resueltos
 ```
 
-4. **Contra un sensor:** `pe-sieve --pid <pid>` escanea el proceso y te dice si ve un PE implantado, secciones raras o IAT hooks. En el Paso 15 lo usamos como juez.
+4. **Contra un sensor:** `pe-sieve /pid <pid> /shellc 3 /data 3` escanea el proceso y te dice si ve un PE implantado, secciones raras o IAT hooks. En el Paso 15 lo usamos como juez.
 
 ### Tabla de fallos típicos (y su causa real)
 
