@@ -554,9 +554,18 @@ Detalles que importan:
 **Compruébalo:**
 
 ```c
-PRUNTIME_FUNCTION rf = RtlLookupFunctionEntry((DWORD64)(ULONG_PTR)entry, NULL, NULL);
+// OJO: el tercer argumento NO puede ser NULL. En nuestra replica, pasarlo NULL
+// compilaba bien pero el proceso moria con 0xC0000005. Usa una tabla de
+// historial a cero (UNWIND_HISTORY_TABLE, 12 entradas; ~216 bytes).
+BYTE hist[0x200] = {0};
+DWORD64 imageBaseOut = 0;
+
+PRUNTIME_FUNCTION rf = RtlLookupFunctionEntry(
+    (DWORD64)(ULONG_PTR)entry, &imageBaseOut, (PVOID)hist);
 printf("unwind para entry: %s\n", rf ? "encontrado" : "NO");
 ```
+
+Esa errata la encontramos replicando el tutorial: la firma con `NULL` parece inofensiva y el compilador no protesta, pero `RtlLookupFunctionEntry` toca la tabla de historial. Si tu cabecera de user-mode no define `UNWIND_HISTORY_TABLE`, replica su estructura (contador + límites + 12 entradas) o pasa un buffer a cero del tamaño suficiente.
 
 **Si falla:** registrar la tabla después de ejecutar (tarde); usar `sizeof(RUNTIME_FUNCTION)` mal; olvidar que un payload con excepciones y sin `.pdata` puede parecer que funciona hasta el primer `throw`.
 
@@ -774,12 +783,14 @@ No hay un "mejor" universal: hay que elegir según el sensor que te importe. Esa
 Con el loader funcionando:
 
 ```text
-pe-sieve.exe --pid <pid> --shellcode --data 3
+pe-sieve.exe /pid <pid> /shellc 3 /data 3 /threads
 ```
 
-- **anon sin zerohdr:** 1 señal (`Implanted PE`) por las cabeceras.
-- **anon + zerohdr:** 0 señales de PE implantado; la pila sigue teniendo frames privados.
-- **mapped + zerohdr + entryspoof + stackwatch:** 0 implantados y 0 frames privados (medido con un payload KGC3).
+Ojo con la sintaxis: pe-sieve usa `/shellc` (no `/shellcode`) y admite `/pid`, `/data`, `/threads`. En la réplica, `--shellcode` devolvía "Invalid parameter".
+
+- **anon sin zerohdr:** **1 `Implanted PE` + 1 shc**. Las cabeceras intactas delatan un PE; el código mapeado también parece shellcode por estadística.
+- **anon + zerohdr:** **0 `Implanted PE` + 2 shc**. Has quitado la firma de PE, pero no la señal de "código ejecutable no respaldado por módulo": la pila sigue teniendo frames privados.
+- **mapped + zerohdr + entryspoof + stackwatch:** 0 implantados y 0 frames privados (medido en Kagemusha con un payload KGC3).
 - **image (stomp):** 0 frames privados, pero la imagen queda modificada mientras corre (el modo efímero la restaura al terminar).
 
 Y lo que **ningún** modo de esta lista resuelve:
@@ -802,6 +813,25 @@ Y lo que **ningún** modo de esta lista resuelve:
 8. ¿Ejecuté en un hilo con pila alineada e intercepté `ExitProcess`?
 9. ¿Cifré el blob con AEAD, nonce único y borré clave/plaintext?
 10. ¿Medí con `pe-sieve`/ETW y sé qué señal deja mi modo elegido?
+
+## Réplica verificada: qué se probó (y qué falló de verdad)
+
+Este tutorial no se publicó sin ejecutarlo. Se compiló con MSVC x64 (`/W4 /O2 /MT`) y se probó con cuatro payloads: `pe_silent` (devuelve 7), `pe_sleep` (duerme 20 s), `pe_seh` (excepción capturada) y el mismo PE empaquetado. Resultados reales:
+
+| Prueba | Resultado |
+|---|---|
+| `mini_loader.exe pe_silent.exe` | **exit 7**; 775 relocations; 70 imports; 339 entradas `.pdata`; lookup del entry encontrado |
+| `mini_loader.exe pe_silent.exe zerohdr` | **exit 7**; 1 024 bytes de cabeceras a cero y en RO |
+| `mini_loader.exe pe_seh.exe` | **exit 7**: la excepción se captura (el `.pdata` registrado funciona) |
+| `mini_loader.exe pe_seh.exe nopdata` | **0xE0000001**: sin `.pdata`, el unwind no encuentra el `__except` y el proceso muere |
+| `--pack` / `--run` (MGT1 + AES-GCM) | **exit 7**; el blob empieza por `MGT1`, no contiene el patrón del PE; clave mala o byte alterado → **tag inválido** (exit 1); clave en `@fichero` OK |
+| `pe-sieve /pid ... /shellc 3 /data 3` sin zerohdr | **Implanted PE 1 · shc 1** |
+| `pe-sieve ...` con zerohdr | **Implanted PE 0 · shc 2** |
+| `pe-sieve ...` con blob cifrado + zerohdr | **Implanted PE 0 · shc 2** (el PE no quedó en el heap) |
+
+**Dos erratas encontradas al replicar** (ya corregidas arriba): (1) `RtlLookupFunctionEntry` con `NULL` en el tercer argumento **revienta** en esta build; hay que pasar una tabla de historial a cero. (2) La opción de pe-sieve es **`/shellc`**, no `/shellcode`.
+
+**Y una precisión importante:** `zerohdr` elimina la señal de **PE implantado**, pero **no** la de *shellcode*: el código mapeado sigue pareciendo código ejecutable sin módulo (2 shc en la réplica). Cuando en Kagemusha se habla de "0 señales" con `mapped + zerohdr + entryspoof + stackwatch`, significa **0 PE + 0 frames privados en el sensor de pila**, no "0 señales de cualquier tipo". La distinción es la diferencia entre una medida y un eslogan.
 
 ## Cinco ideas que conviene desmontar
 
