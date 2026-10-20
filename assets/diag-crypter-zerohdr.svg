@@ -12,8 +12,8 @@
   <text x="258" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">salt + nonce + tag (AAD)</text>
 
   <rect x="494" y="76" width="382" height="64" rx="8" fill="#101a22" stroke="#a855f7"/>
-  <text x="508" y="102" font-family="Consolas,monospace" font-size="12" fill="#a855f7">blob KGC3 (.kc3)</text>
-  <text x="508" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">magic derivado por HMAC + padding variable + sin trailer</text>
+  <text x="508" y="102" font-family="Consolas,monospace" font-size="12" fill="#a855f7">blob TUT1 (.tut)</text>
+  <text x="508" y="122" font-family="Consolas,monospace" font-size="10" fill="#8b93b8">magic + salt + nonce + tag (AAD)</text>
 
   <g stroke="#3b82f6" stroke-width="2" fill="none">
     <path d="M204 108 H244"/><path d="M236 102 l8 6 -8 6" fill="#3b82f6" stroke="none"/>

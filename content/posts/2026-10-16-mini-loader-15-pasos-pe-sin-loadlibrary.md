@@ -20,13 +20,13 @@ Este artículo la abre. En **15 pasos** vamos a construir un *mini-loader* en C 
 5. Registra sus tablas de excepciones.
 6. Ejecuta su punto de entrada.
 
-Y después lo endurecemos: lo ciframos con AES-256-GCM, lo desciframos en memoria, le borramos las cabeceras y **medimos** qué queda visible. Al final tendrás un loader de unas 300 líneas y, sobre todo, un modelo mental de qué pasa dentro de Windows cada vez que un programa arranca.
+Y después veremos **dos extensiones**: cifrarlo con AES-256-GCM y borrar sus cabeceras para medir qué queda visible. El núcleo del tutorial te deja un loader de ~400 líneas y, sobre todo, un modelo mental de qué pasa dentro de Windows cada vez que un programa arranca.
 
 **Para quién es:** sabes programar en C y entiendes punteros. No hace falta saber qué es un PE, un RVA, la IAT, el unwind ni ETW. Todo eso se explica aquí, con analogías, diagramas y código que puedes compilar.
 
-**Qué usamos:** MSVC (x64), `dumpbin`, `cdb`, y un `pe_hello.exe` de prueba que devuelve 7. Nada de dependencias raras.
+**Qué usamos:** MSVC (x64), `dumpbin`, `cdb`, y payloads de prueba que devuelven 7 o capturan una excepción. En el repo: `silent.exe`, `seh.exe` y `hello.exe`.
 
-**La versión de verdad:** este tutorial sigue la lógica de `KageMapPe`, el loader de **Kagemusha** (`src/core/pemap.c`). El proyecto añade cosas que aquí solo mencionaremos (imports por hash, manual load, IAT spoofing, entryspoof, contenedor polimórfico, tests T69–T81). El objetivo de hoy es entender el esqueleto, no memorizar el músculo.
+**Código de apoyo:** el repositorio [mini-pe-loader](https://github.com/juanbarrero-art/mini-pe-loader) implementa el núcleo de este tutorial (pasos 1–13) en C, sin dependencias raras. Los pasos 14 y 15 se explican como **extensiones** y no están incluidos en esa versión mínima.
 
 ## El mapa antes de andar
 
@@ -298,7 +298,7 @@ Tres decisiones:
 
 - **Pedimos `SizeOfImage`, no el tamaño del fichero.** El PE espera un espacio contiguo donde todas las secciones caigan en sus RVAs. El tamaño de disco no sirve.
 - **Pedimos RW (lectura/escritura) al principio.** Vamos a escribir secciones y parchear la IAT; la protección final (RX para código, R para datos) se pone al terminar (Paso 12/15). Nunca RWX si puedes evitarlo: es la señal más clásica de inyección.
-- **No forzamos `ImageBase`.** Windows puede darnos otra dirección (ASLR); por eso existen las relocations. Si pidieras exactamente `ImageBase` con `MEM_RESERVE` en una dirección ocupada, fallarías. En Kagemusha se reserva con `NtAllocateVirtualMemory` indirecto, pero el concepto es idéntico.
+- **No forzamos `ImageBase`.** Windows puede darnos otra dirección (ASLR); por eso existen las relocations. Si pidieras exactamente `ImageBase` con `MEM_RESERVE` en una dirección ocupada, fallarías. En un loader real se reserva con `NtAllocateVirtualMemory`; el concepto es idéntico.
 
 **Compruébalo:** en `cdb`, `!address <base>` debe mostrar una región reservada del tamaño pedido y protección `PAGE_READWRITE`.
 
@@ -439,9 +439,12 @@ if (impdir->Size != 0) {
             return 1;
         }
 
-        // Si OriginalFirstThunk es 0 (bound imports), usamos FirstThunk como fuente.
-        ULONG64 *names = (ULONG64 *)((BYTE *)base +
-            (imp->OriginalFirstThunk ? imp->OriginalFirstThunk : imp->FirstThunk));
+        // Los bound imports no tienen lista de nombres: se rechazan.
+        if (imp->OriginalFirstThunk == 0) {
+            printf("bound imports no soportados\n");
+            return 1;
+        }
+        ULONG64 *names = (ULONG64 *)((BYTE *)base + imp->OriginalFirstThunk);
         ULONG64 *iat = (ULONG64 *)((BYTE *)base + imp->FirstThunk);
 
         for (; *names != 0; names++, iat++) {
@@ -469,7 +472,7 @@ if (impdir->Size != 0) {
 Los dos detalles que más se atascan:
 
 - **`+ 2`**: cada nombre va precedido de un `WORD` de *hint* (una pista de índice de export). El string empieza dos bytes después.
-- **`OriginalFirstThunk` vs `FirstThunk`**: el primero es la lista de nombres original (en disco); el segundo es la IAT que se rellena. Si el PE viene con *bound imports*, `OriginalFirstThunk` puede ser 0 y la lista de nombres vive en la IAT; el código lo contempla usando `FirstThunk` como fuente, aunque en ese caso los valores ya son direcciones y no nombres (para un loader casero, lo práctico es rechazar bound imports y volver a resolver por nombre si el PE trae la INT).
+- **`OriginalFirstThunk` vs `FirstThunk`**: el primero es la lista de nombres original (en disco); el segundo es la IAT que se rellena. Si el PE viene con *bound imports*, `OriginalFirstThunk` puede ser 0 y no hay lista de nombres útil; el repo los rechaza con un mensaje claro en vez de intentar adivinar.
 
 **Compruébalo:** imprime cuántos imports resolviste y compara el total con `dumpbin /imports pe_hello.exe`. En `cdb`, `dps <base>+<FirstThunk>` debe mostrar direcciones dentro de `kernel32`/`kernelbase`/`user32`, no RVAs.
 
@@ -487,7 +490,7 @@ Windows moderno usa nombres virtuales como `api-ms-win-core-file-l1-1-0.dll`. No
 
 ### Forwarders
 
-Una DLL puede exportar una función que en realidad vive en otra. Por ejemplo, `kernel32!HeapAlloc` puede reenviarse a `ntdll!RtlAllocateHeap`. `GetProcAddress` ya sigue la cadena por ti cuando el módulo es normal; si implementas tu propia resolución de exports (por hash, como Kagemusha), tienes que detectar el caso: la dirección de la función cae dentro del directorio de exports y `IMAGE_EXPORT_DIRECTORY` la marca como *forwarder string* (`OTRA_DLL.Funcion`). El loader real de Kagemusha lo resuelve en `KageManResolveProc` para los módulos que carga a mano.
+Una DLL puede exportar una función que en realidad vive en otra. Por ejemplo, `kernel32!HeapAlloc` puede reenviarse a `ntdll!RtlAllocateHeap`. `GetProcAddress` sigue la cadena por ti cuando el módulo es normal; si algún día implementas tu propia resolución de exports, tendrás que detectar ese caso: la dirección cae dentro del directorio de exports y `IMAGE_EXPORT_DIRECTORY` la marca como *forwarder string* (`OTRA_DLL.Funcion`).
 
 ### Delay imports
 
@@ -497,12 +500,9 @@ Una DLL puede exportar una función que en realidad vive en otra. Por ejemplo, `
 
 Algunos PEs guardan en la IAT direcciones "precalculadas" para una build concreta de Windows (bound imports). Esas direcciones son inválidas en tu máquina. Si `OriginalFirstThunk == 0`, no hay lista de nombres: tienes que reconstruirla o rechazar el PE con un mensaje claro. **Nunca escribas un puntero NULL en la IAT** y sigas: el crash ocurrirá dentro del payload, sin contexto.
 
-### Cómo lo hace el loader de verdad
+### Lo que el repo mínimo no implementa
 
-Kagemusha añade dos capas que aquí no implementamos, pero conviene conocer:
-
-- **Resolver por hash en módulos ya cargados:** antes de llamar a `LoadLibrary`, busca la DLL en la lista de módulos del proceso (PEB) y resuelve el export por hash. Así evita una carga ruidosa (y el evento EID 7) cuando la DLL ya está presente.
-- **Manual load de dependencias:** para una lista blanca de DLLs, las mapea él mismo (sin `LdrLoadDll`), resolviendo forwarders y API sets a mano. Es lo que en el proyecto se llama `manload`; oculta las cargas al Ldr, pero deja los módulos en memoria privada (medido: 8–9 frames privados de 400).
+El repositorio de apoyo no hace imports por hash ni carga dependencias a mano: usa `LoadLibraryA` y `GetProcAddress` para cada DLL. Tampoco resuelve delay imports; si el PE los trae, el loader lo avisa y continúa.
 
 **La regla de oro:** si un import no se resuelve, imprime `DLL!funcion` y **aborta**. Un loader que "sigue con la IAT a medias" produce crashes que parecen del payload y son tuyos.
 
@@ -538,7 +538,7 @@ if (exc->Size != 0) {
         DWORD count = exc->Size / sizeof(RUNTIME_FUNCTION);
         BOOLEAN ok = add((PRUNTIME_FUNCTION)((BYTE *)base + exc->VirtualAddress),
                          count, (DWORD64)(ULONG_PTR)base);
-        printf("[map] .pdata registrado: %s (%lu entradas)\n",
+        printf("[pdata] RtlAddFunctionTable: %s (%lu entradas)\n",
                ok ? "ok" : "fallo", (unsigned long)count);
     }
 }
@@ -549,7 +549,7 @@ Detalles que importan:
 - **`EntryCount` es número de entradas**, no bytes. Pasar `exc->Size` directamente es un error clásico que corrompe la tabla.
 - **La base** es la dirección real de tu imagen; las entradas son RVAs relativas a ella.
 - **Si el PE no tiene `.pdata`**, puede seguir funcionando mientras no haya excepciones. Un payload con C++ o SEH sí lo necesita.
-- **En modo "imagen"** (mapear sobre la `.text` de una DLL ya cargada) hay un problema extra: el `.pdata` del host ya está registrado para esa dirección. Kagemusha lo resuelve rebasando el `.pdata` del payload e insertándolo en la tabla del host (`KageMapPeSplicePdata`), con un oráculo que verifica que `RtlLookupFunctionEntry(entry)` devuelve la entrada correcta. Para `anon`/`mapped` (nuestra base propia), `RtlAddFunctionTable` basta.
+- **En el repo mínimo** se mapea en una base propia (`anon`), así que `RtlAddFunctionTable` es suficiente.
 
 **Compruébalo:**
 
@@ -628,14 +628,18 @@ if (strcmp(name, "ExitProcess") == 0) {
 }
 ```
 
-En un loader de producción se usa `NtTerminateThread` (indirecto, como Kagemusha) para no depender del CRT, pero la idea es la misma. **Limitación:** si el payload resuelve `ExitProcess` dinámicamente (`GetProcAddress`), la interceptación de la IAT no lo cubre. Kagemusha lo resuelve con un hilo "hold" + `NtContinue`/entryspoof; aquí basta con saber que existe el agujero.
+En un loader de producción se puede usar `NtTerminateThread` para no depender del CRT, pero la idea es la misma. **Limitación:** si el payload resuelve `ExitProcess` dinámicamente (`GetProcAddress`), la interceptación de la IAT no lo cubre; el repo mínimo no lo resuelve.
 
-**Compruébalo:** ejecuta `mini_loader.exe pe_hello.exe`. Debe aparecer el MessageBox y luego:
+**Compruébalo:** con el payload `silent.exe` del repo:
 
 ```text
-[map] base = 00007FF6A1230000 (SizeOfImage = 0x5000)
-[map] relocations aplicadas: 12 (delta=0x...)
-[map] .pdata registrado: ok (4 entradas)
+[parse] MZ ok; PE64 ok; secciones=6; ImageBase=0x140000000; SizeOfImage=0x1E000; entry RVA=0x1280
+[map] base=00000233A6310000 (SizeOfImage=0x1E000)
+[relocs] aplicadas: 775 (delta=0x...)
+[imports] resueltos: 70
+[pdata] RtlAddFunctionTable: ok (339 entradas)
+[pdata] lookup del entry: encontrado
+[protect] secciones protegidas (RX/RW/RO)
 [run] payload exit=7
 ```
 
@@ -645,7 +649,7 @@ En un loader de producción se usa `NtTerminateThread` (indirecto, como Kagemush
 
 **Qué buscamos:** poder decir, con evidencia, que el PE se mapeó y ejecutó de verdad (no que "parece que sí").
 
-La secuencia de verificación que usamos en Kagemusha:
+La secuencia de verificación:
 
 1. **Estática:** `dumpbin /headers pe_hello.exe` → compara `SizeOfImage`, `AddressOfEntryPoint`, número de secciones y `.pdata` con lo que imprime tu loader.
 2. **Imports:** `dumpbin /imports pe_hello.exe` → el total debe coincidir con tu contador; cada `dps` de la IAT debe apuntar a un módulo real.
@@ -678,7 +682,7 @@ cdb -o mini_loader.exe pe_hello.exe
 
 La lección de método: **no adivines**. Cada fila de esa tabla se responde con una consulta al depurador o a `dumpbin`. Si un paso no tiene oráculo, invéntalo: imprime el valor, compáralo con `dumpbin`, o detén el proceso y mira la memoria.
 
-## Paso 14 — Cifrar en reposo: que el PE no viaje en claro
+## Paso 14 — Cifrar en reposo: que el PE no viaje en claro (extensión)
 
 **Qué buscamos:** que el fichero que llevas de un sitio a otro no contenga un PE reconocible, y que el loader lo descifre **solo en memoria**.
 
@@ -688,28 +692,28 @@ Motivación medida en el proyecto: Defender caza el PE en claro en disco por con
 
 No inventes criptografía. Usa un esquema **AEAD** (*Authenticated Encryption with Associated Data*): cifra y autentica en una sola operación. En Windows, la vía nativa es **CNG/BCrypt** con **AES-256-GCM**.
 
-- **Clave:** 32 bytes para AES-256. El usuario aporta un secreto de 16 bytes (32 hex) y se deriva la clave con HMAC-SHA256: `AesKey = HMAC-SHA256(UserKey, "KAGE-AEAD-v3" || Salt[8])`. La KDF **no** añade fuerza (sigue mandando el secreto del usuario); solo adapta longitud y diversifica por artefacto.
+- **Clave:** 32 bytes para AES-256. El usuario aporta un secreto de 16 bytes (32 hex) y se deriva la clave con HMAC-SHA256: `AesKey = HMAC-SHA256(UserKey, "tutorial-aead-v1" || Salt[8])`. La KDF **no** añade fuerza (sigue mandando el secreto del usuario); solo adapta longitud y diversifica por artefacto.
 - **Nonce:** 12 bytes **únicos por blob**. Reutilizar nonce con la misma clave rompe GCM por completo.
 - **Tag:** 16 bytes. Se verifica **antes** de usar el plaintext; si no coincide, abortas (no hay "descifrado a medias").
 - **AAD:** la cabecera del contenedor (magic, longitudes, salt, nonce). Así un atacante no puede cambiar metadatos sin invalidar el tag.
 
-El contenedor de Kagemusha, a grandes rasgos:
+Un contenedor AEAD de ejemplo:
 
 ```text
-KGC3 = [magic derivado por HMAC] [salt 8] [nonce 12] [longitudes] [CRC]
+TUT1 = [magic derivado por HMAC] [salt 8] [nonce 12] [longitudes] [CRC]
        [payload cifrado (LZNT1 opcional)] [tag 16] [padding variable]
 ```
 
-La versión 3 deriva el **magic** con HMAC (no hay una constante `"KGC3"` en el binario), usa padding variable y no lleva trailer. La versión 2 (`KGC2`) usa AES-256-GCM + LZNT1 + CRC y un magic fijo; ambas se despachan por magic.
+Una versión más elaborada puede derivar el **magic** con HMAC, usar padding variable y no llevar trailer; una versión simple usa AES-256-GCM + LZNT1 + CRC y un magic fijo.
 
 ### El flujo del loader
 
 ```c
 // 1) Leer el blob entero (nunca a un fichero temporal en claro).
-ReadFileAll("payload.kc3", &blob);
+ReadFileAll("payload.tut", &blob);
 
 // 2) Derivar la clave (HMAC-SHA256) y descifrar en memoria.
-//    Pseudocodigo con CNG: la implementacion real esta en src/core/crypt2.c
+//    Pseudocodigo con CNG: el repo minimo no incluye esta extension.
 BCryptOpenAlgorithmProvider(&hAes, BCRYPT_AES_ALGORITHM, NULL, 0);
 BCryptSetProperty(hAes, BCRYPT_CHAINING_MODE,
                   BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM));
@@ -743,7 +747,7 @@ Reglas:
 
 **Compruébalo:** `strings payload.kc3` no debe mostrar `MZ`, nombres de DLL ni strings del payload. El loader debe imprimir el mismo `exit=7` que con el PE en claro. Y si cambias un byte del blob, debe **fallar ruidosamente** (tag inválido), no ejecutar basura.
 
-## Paso 15 — Borrar cabeceras y medir lo que queda
+## Paso 15 — Borrar cabeceras y medir lo que queda (extensión)
 
 **Qué buscamos:** quitar la firma "esto es un PE" de la memoria y, sobre todo, **medir** qué ve un escáner externo.
 
@@ -765,18 +769,18 @@ static void ZeroHeaders(PVOID base, SIZE_T headersSize)
 
 Dos avisos que el proyecto aprendió a golpes:
 
-1. **Borra después de proteger las secciones y de usar las cabeceras.** `KageMapPeProtect` lee los `SectionHeader` para saber qué proteger; si los has zerado antes, lee ceros y el payload muere con un fallo de ejecución (NX fault). Orden correcto: mapear → resolver → proteger secciones → **zerar cabeceras**.
-2. **Esto no borra el código ni los datos.** El payload sigue ahí, ejecutable. Un escáner que no dependa de las cabeceras (firmas de código, strings, secciones) puede seguir viéndolo. La medición es la que manda: en Kagemusha, `anon + zerohdr` bajó pe-sieve de **1 señal (Implanted PE) a 0**, pero la pila seguía mostrando frames privados.
+1. **Borra después de proteger las secciones y de usar las cabeceras.** El loader necesita los `SectionHeader` para saber qué proteger; si los has zerado antes, lee ceros y el payload muere con un fallo de ejecución (NX fault). Orden correcto: mapear → resolver → proteger secciones → **zerar cabeceras**.
+2. **Esto no borra el código ni los datos.** El payload sigue ahí, ejecutable. Un escáner que no dependa de las cabeceras (firmas de código, strings, secciones) puede seguir viéndolo. La medición es la que manda: en el laboratorio, `anon + zerohdr` bajó pe-sieve de **1 señal (Implanted PE) a 0**, pero la pila seguía mostrando frames privados.
 
 ### Tres formas de vivir en memoria (y su trade-off)
 
 | Modo | Qué hace | Ventaja | Señal que deja |
 |---|---|---|---|
 | **anon** | `VirtualAlloc` privado RW→RX | Simple; no toca ninguna DLL | Frames de pila privados (medido: **24.5 %** de syscalls en el sensor de pila); pe-sieve con zerohdr: 0 |
-| **mapped** | PE en una sección pagefile, `MEM_MAPPED`, headers a cero | `Type=MEM_MAPPED` en vez de privado; con `entryspoof`+`stackwatch` bajó a **0/400 frames privados** | La sección en sí; el contenido sigue siendo tuyo |
+| **mapped** | PE en una sección pagefile, `MEM_MAPPED`, headers a cero | `Type=MEM_MAPPED` en vez de privado; con la cadena completa del laboratorio bajó a **0/400 frames privados** | La sección en sí; el contenido sigue siendo tuyo |
 | **image** | Sobrescribe la `.text` de una DLL firmada (module stomping) | `MEM_IMAGE`, pila 100 % con nombre | Imagen modificada: pe-sieve ve **46 183 patches** en `msi.dll`; 2 protects |
 
-No hay un "mejor" universal: hay que elegir según el sensor que te importe. Esa frase, que suena a excusa, es en realidad el resultado central de la fase F19 del proyecto: **el artefacto se mueve, no desaparece**.
+No hay un "mejor" universal: hay que elegir según el sensor que te importe. Esa frase, que suena a excusa, es en realidad el resultado central de la experimentación: **el artefacto se mueve, no desaparece**.
 
 ### La medición final
 
@@ -790,15 +794,15 @@ Ojo con la sintaxis: pe-sieve usa `/shellc` (no `/shellcode`) y admite `/pid`, `
 
 - **anon sin zerohdr:** **1 `Implanted PE` + 1 shc**. Las cabeceras intactas delatan un PE; el código mapeado también parece shellcode por estadística.
 - **anon + zerohdr:** **0 `Implanted PE` + 2 shc**. Has quitado la firma de PE, pero no la señal de "código ejecutable no respaldado por módulo": la pila sigue teniendo frames privados.
-- **mapped + zerohdr + entryspoof + stackwatch:** 0 implantados y 0 frames privados (medido en Kagemusha con un payload KGC3).
+- **mapped + zerohdr + la cadena completa:** 0 implantados y 0 frames privados (medido en el laboratorio con un payload cifrado).
 - **image (stomp):** 0 frames privados, pero la imagen queda modificada mientras corre (el modo efímero la restaura al terminar).
 
 Y lo que **ningún** modo de esta lista resuelve:
 
-- **TLS callbacks:** si el PE los necesita y no los llamas, puede fallar. Kagemusha elige candidatas sin TLS (`HasTls == 0`) o ejecuta en un worker preexistente.
+- **TLS callbacks:** si el PE los necesita y no los llamas, puede fallar. El repo mínimo no ejecuta TLS: si el PE los necesita, elige uno sin TLS o añade el soporte.
 - **CFG (Control Flow Guard):** las llamadas indirectas a funciones no registradas pueden fallar; un loader casero no registra el payload como destino válido.
-- **CET/IBT:** si el sistema exige `endbr64` en los destinos de llamada indirecta, el código compilado sin esa instrucción puede fallar. Kagemusha lo trata como gate (rechazo ruidoso) en los modos cubiertos.
-- **ETW-TI y sensores de kernel:** ven los mapeos/allocaciones ejecutables aunque las cabeceras estén a cero. El proyecto lo midió: el staging deja **2 eventos TI por run**; el stomp desde imagen, **0**; pero el sensor existe.
+- **CET/IBT:** si el sistema exige `endbr64` en los destinos de llamada indirecta, el código compilado sin esa instrucción puede fallar. El repo mínimo no lo cubre; es un límite conocido.
+- **ETW-TI y sensores de kernel:** ven los mapeos/allocaciones ejecutables aunque las cabeceras estén a cero. El laboratorio lo midió: depende de cómo se mapee el payload; el sensor existe.
 - **Conducta:** qué hace el payload después (tocar LSASS, lanzar procesos, escribir ficheros) es otra capa, y la más decisiva.
 
 ### Checklist final del mini-loader
@@ -814,24 +818,27 @@ Y lo que **ningún** modo de esta lista resuelve:
 9. ¿Cifré el blob con AEAD, nonce único y borré clave/plaintext?
 10. ¿Medí con `pe-sieve`/ETW y sé qué señal deja mi modo elegido?
 
-## Réplica verificada: qué se probó (y qué falló de verdad)
+## Réplica verificada: qué se probó
 
-Este tutorial no se publicó sin ejecutarlo. Se compiló con MSVC x64 (`/W4 /O2 /MT`) y se probó con cuatro payloads: `pe_silent` (devuelve 7), `pe_sleep` (duerme 20 s), `pe_seh` (excepción capturada) y el mismo PE empaquetado. Resultados reales:
+**Núcleo (repo público).** Clonado desde GitHub y compilado con MSVC x64 (`/W4 /O2 /MT`); payloads `silent`, `seh` y `hello`. Resultados reales:
 
 | Prueba | Resultado |
 |---|---|
-| `mini_loader.exe pe_silent.exe` | **exit 7**; 775 relocations; 70 imports; 339 entradas `.pdata`; lookup del entry encontrado |
-| `mini_loader.exe pe_silent.exe zerohdr` | **exit 7**; 1 024 bytes de cabeceras a cero y en RO |
-| `mini_loader.exe pe_seh.exe` | **exit 7**: la excepción se captura (el `.pdata` registrado funciona) |
-| `mini_loader.exe pe_seh.exe nopdata` | **0xE0000001**: sin `.pdata`, el unwind no encuentra el `__except` y el proceso muere |
-| `--pack` / `--run` (MGT1 + AES-GCM) | **exit 7**; el blob empieza por `MGT1`, no contiene el patrón del PE; clave mala o byte alterado → **tag inválido** (exit 1); clave en `@fichero` OK |
-| `pe-sieve /pid ... /shellc 3 /data 3` sin zerohdr | **Implanted PE 1 · shc 1** |
-| `pe-sieve ...` con zerohdr | **Implanted PE 0 · shc 2** |
-| `pe-sieve ...` con blob cifrado + zerohdr | **Implanted PE 0 · shc 2** (el PE no quedó en el heap) |
+| `bin\miniload.exe bin\silent.exe` | **exit 7**; 775 relocations; 70 imports; 339 entradas `.pdata`; lookup del entry encontrado |
+| `bin\miniload.exe bin\seh.exe` | **exit 7**: la excepción se captura (el `.pdata` registrado funciona) |
+| `bin\miniload.exe bin\hello.exe` | MessageBox; `exit 0` al cerrar |
+
+**Extensiones (pasos 14-15, fuera del repo mínimo).** En el laboratorio se probaron además el contenedor AEAD y el borrado de cabeceras:
+
+| Prueba | Resultado |
+|---|---|
+| `--pack` / `--run` (AEAD) | exit 7; blob sin el patrón del PE; clave mala o byte alterado → tag inválido |
+| `silent.exe zerohdr` | exit 7; 1 024 bytes de cabeceras a cero y en RO |
+| `pe-sieve ...` sin/con zerohdr | Implanted PE 1 → 0; el código sigue marcándose como shellcode (shc 2) |
 
 **Dos erratas encontradas al replicar** (ya corregidas arriba): (1) `RtlLookupFunctionEntry` con `NULL` en el tercer argumento **revienta** en esta build; hay que pasar una tabla de historial a cero. (2) La opción de pe-sieve es **`/shellc`**, no `/shellcode`.
 
-**Y una precisión importante:** `zerohdr` elimina la señal de **PE implantado**, pero **no** la de *shellcode*: el código mapeado sigue pareciendo código ejecutable sin módulo (2 shc en la réplica). Cuando en Kagemusha se habla de "0 señales" con `mapped + zerohdr + entryspoof + stackwatch`, significa **0 PE + 0 frames privados en el sensor de pila**, no "0 señales de cualquier tipo". La distinción es la diferencia entre una medida y un eslogan.
+**Y una precisión importante:** `zerohdr` elimina la señal de **PE implantado**, pero **no** la de *shellcode*: el código mapeado sigue pareciendo código ejecutable sin módulo (2 shc en la réplica). Cuando se habla de "0 señales" con la cadena completa del laboratorio, significa **0 PE + 0 frames privados en el sensor de pila**, no "0 señales de cualquier tipo". La distinción es la diferencia entre una medida y un eslogan.
 
 ## Cinco ideas que conviene desmontar
 
@@ -843,35 +850,33 @@ Antes de cerrar, cinco frases que se leen mucho y que este tutorial debería hab
 
 **3. "Si ejecuta, el loader está bien."** Ejecutar solo demuestra que el *happy path* de un payload concreto funciona. No demuestra que las páginas tengan la protección correcta (RWX es una señal), que la pila esté limpia, que las excepciones se puedan desenvolver, que TLS esté atendido, que CFG no bloquee una llamada indirecta o que el payload no se lleve el proceso por delante con `ExitProcess`. La mitad de los bugs de un loader aparecen en la segunda ejecución, con otro payload, o bajo un depurador.
 
-**4. "Evitar `LoadLibrary` es evadir."** No exactamente. Al evitar el cargador cambias **qué señal** dejas: desaparece el evento de carga de imagen (EID 7) y aparecen mapeos de sección, protects, páginas privadas y un entry que no pertenece a ningún módulo. La invisibilidad no existe; existe un **presupuesto de señales** y cada técnica mueve el gasto de un sensor a otro. Ese es el hilo conductor de toda la serie de Kagemusha.
+**4. "Evitar `LoadLibrary` es evadir."** No exactamente. Al evitar el cargador cambias **qué señal** dejas: desaparece el evento de carga de imagen (EID 7) y aparecen mapeos de sección, protects, páginas privadas y un entry que no pertenece a ningún módulo. La invisibilidad no existe; existe un **presupuesto de señales** y cada técnica mueve el gasto de un sensor a otro. Ese es el hilo conductor de este tutorial.
 
 **5. "Cifrar el PE lo hace indetectable."** Cifrar protege el **transporte y el almacenamiento**: en disco no hay `MZ` ni strings reconocibles. Pero al ejecutar, el PE está en claro en memoria, y los sensores de memoria, pila y kernel siguen ahí. Además, si no borras la clave y el buffer descifrado, el "cifrado" deja el payload entero en el heap. La capa criptográfica es necesaria, no suficiente.
 
 Y una sexta, que resume el método: **"pe-sieve no encontró nada, luego soy invisible."** `pe-sieve` es **un** oráculo, no el veredicto final. ETW-TI ve los mapeos; un stack walk ve los frames; un EDR comercial puede ver más. La única afirmación honesta es la que se midió: "con este payload, en esta build, contra este sensor, la señal fue X". Todo lo demás es fe.
 
-## Lo que acabas de construir (y lo que le falta para ser Kagemusha)
+## Lo que acabas de construir (y lo que queda fuera)
 
-El mini-loader de este tutorial ejecuta un PE real sin `LoadLibrary`, con imports, relocations y excepciones. Es el esqueleto exacto de `KageMapPe`. La diferencia con el proyecto completo es de **profundidad y medición**, no de magia:
+El repo `mini-pe-loader` implementa este esqueleto en C: parseo, mapeo, relocations, imports, `.pdata`, protecciones y ejecución. Lo que sigue son extensiones o límites que la versión mínima no incluye:
 
-| Tutorial | Kagemusha (F16–F19) |
+| Incluido en el repo | Fuera del repo (extensiones o límites) |
 |---|---|
-| `LoadLibrary` para dependencias | Imports por hash en módulos ya cargados (F19.3) y **manual load** de 10 DLLs sin Ldr/EID 7 (F19.6) |
-| IAT normal | `iatspoof`: trampolines de 112 B con guarda anti-recursión (F19.5) |
-| Entry por hilo | `entryspoof`: `NtContinue` + pila sintética, walk limpio (F19.1) |
-| AES-GCM + wipe | KGC2/KGC3 con KDF, LZNT1, magic derivado y padding (F16/F19.4) |
-| `zerohdr` | `mapped`, `stackwatch`, 5 flags combinables y gates fail-loud (F19.2) |
-| "Funciona en mi máquina" | **687/624 checks**, pe-sieve, ETW-TI, cdb y Ghidra como oráculos |
+| Lectura y validación del PE | Callbacks TLS |
+| Mapeo, BSS y relocations `DIR64` | Delay imports y bound imports |
+| Imports por nombre y ordinal | CFG / CET / IBT |
+| `.pdata`, unwind y protecciones | Cifrado y borrado de cabeceras (pasos 14-15) |
+| Ejecución con `ExitProcess` interceptado | Medición con sensores externos |
 
 ### Tres ejercicios para seguir
 
-1. **TLS:** localiza `DataDirectory[9]`, recorre los callbacks y llámalos con `DLL_PROCESS_ATTACH` antes del entry. Prueba con una DLL que los use (`dbghelp`) y verás por qué Kagemusha las evita.
+1. **TLS:** localiza `DataDirectory[9]`, recorre los callbacks y llámalos con `DLL_PROCESS_ATTACH` antes del entry. Prueba con una DLL que los use (`dbghelp`) y verás por qué conviene elegir payloads sin TLS.
 2. **Delay imports:** implementa la resolución de `DataDirectory[13]` y compárala con dejar que el helper del payload lo haga.
 3. **CFG/IBT:** compila el payload con `/guard:cf` y `/CETCOMPAT`, ejecútalo en los tres modos y mide qué falla. Es el tipo de límite que no se arregla con un `memset`.
 
 ## Referencias
 
-- Código real del loader: `Kagemusha/src/core/pemap.c` (`KageMapPe`, relocs, imports, `.pdata`, zerohdr), `src/core/crypt2.c` y `src/core/crypt3.c` (contenedores), `tests/run_tests.c` (T69–T81).
-- Documentación del proyecto: `docs/research/e16-crypter-diseno.md`, `docs/research/f19.2-option-matrix.md`, `docs/research/f19-refuerzo-debilidades.md`.
+- Código del tutorial: repo [`mini-pe-loader`](https://github.com/juanbarrero-art/mini-pe-loader) — `src/miniload.c`, `payloads/` y `docs/testing.md`.
 - Microsoft Learn — *PE Format*, *Import Table*, *Base Relocations*, *RtlAddFunctionTable*, *BCrypt AES-GCM*, *Thread Local Storage*.
 - `pe-sieve` (hasherezade) como oráculo de artefactos en memoria; `dumpbin` y `cdb` como oráculos estático y dinámico.
 - Entradas relacionadas de la serie: [F10 — Contra-instrumentación](/blog/kagemusha-fase-10-contrainstrumentacion-callback.html), [F11–F13 — Del staging al full-stack](/blog/kagemusha-f11-f13-staging-correlacion-mimikatz-fullstack.html), [F14–F15 — El módulo prestado](/blog/kagemusha-f14-f15-modulo-prestado-etwti.html) y [Por qué la evasión es en capas](/blog/kagemusha-articulo-por-que-evasion-capas.html).
