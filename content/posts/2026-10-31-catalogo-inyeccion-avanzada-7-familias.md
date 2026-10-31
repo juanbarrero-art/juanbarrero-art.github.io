@@ -85,11 +85,21 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** Cargar una DLL firmada y legítima, y **sobrescribir toda su sección `.text`** con tu payload. La ejecución ocurre desde una región que el sistema considera imagen de un módulo firmado.
 
-**Cómo funciona.** Localizas la base del módulo, cambias la protección de `.text` a escritura, copias el shellcode encima y restauras la protección. Después desvías la ejecución a esa dirección. La DLL original queda destruida: si alguien llama a una de sus funciones, el proceso probablemente muera.
+**Cómo funciona.** Localizas la base del módulo (`GetModuleHandle` o recorriendo el PEB), lees su cabecera PE para encontrar la sección `.text` y su tamaño, cambias la protección a escritura, copias el shellcode y restauras la protección. Después desvías la ejecución a esa dirección. La DLL original queda destruida: si alguien llama a una de sus funciones, el proceso probablemente muera.
+
+**Paso a paso mental.**
+1. Elegir una DLL firmada ya cargada y **prescindible** (una que el proceso no vaya a volver a usar).
+2. Calcular `base + RVA` de `.text` y comprobar que el payload cabe en su `SizeOfRawData`.
+3. Cambiar la protección de esa sección a `PAGE_READWRITE`.
+4. Copiar el payload.
+5. Restaurar `PAGE_EXECUTE_READ` (o dejar la vista con la protección original).
+6. Arrancar la ejecución con cualquier técnica de la Familia 2.
+
+**Variantes.** *Self-stomping* (en el propio proceso) o *remote* (abriendo el proceso objetivo). La variante limpia es la **efímera**: al terminar el trabajo, restaurar el `.text` original desde el archivo en disco. En Kagemusha F14 se hizo exactamente eso, y `pe-sieve` no encontró parches en `msi.dll` porque la sección volvió a su contenido legítimo.
 
 **Qué gana.** Mata de raíz la heurística de "memoria ejecutable no respaldada": el sensor ve `MEM_IMAGE` y un módulo con firma válida.
 
-**Qué cuesta.** La integridad del módulo deja de coincidir con el archivo en disco. Un EDR que compare el hash de las páginas con el `.text` original lo detecta; y la DLL rota es una bomba de relojería.
+**Qué cuesta.** La integridad del módulo deja de coincidir con el archivo en disco. Un EDR que compare el hash de las páginas con el `.text` original lo detecta; y la DLL rota es una bomba de relojería: cualquier llamada a sus funciones revienta.
 
 **Qué ve el sensor.** Comparación hash memoria vs. disco, protección de páginas dentro de una imagen, y el hecho de que el hilo ejecute en una zona que no es el entry point del módulo.
 
@@ -97,23 +107,31 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** La versión elegante del anterior: en vez de pisar todo el `.text`, usar solo el **espacio muerto** —slack entre funciones, padding de alineación, secciones que no se usan en runtime—.
 
-**Cómo funciona.** Se parsean las funciones y se buscan huecos contiguos lo bastante grandes. El payload se escribe en esos huecos y se ejecuta desde ahí. La DLL sigue funcionando porque su código real no se toca.
+**Cómo se encuentran los huecos.** Hay tres fuentes típicas: el **padding de alineación** entre funciones (las funciones suelen alinearse a 16 bytes y sobra relleno), las **regiones de relleno** (`0xCC` o `0x00` repetidos) que el compilador deja entre bloques, y las **secciones que dejan de usarse** tras la carga (por ejemplo, `.reloc` una vez aplicadas las relocaciones). Se localizan parseando la tabla de exports, el directorio de excepciones (`.pdata`) o simplemente buscando runs de relleno lo bastante largos.
+
+**Cómo funciona.** El payload se escribe en esos huecos y se ejecuta desde ahí, normalmente con un pequeño stub que salta de hueco en hueco si el payload está partido. La DLL sigue funcionando porque su código real no se toca.
+
+**Variante por etapas.** Si el payload no cabe de una pieza, se parte en trozos, se colocan en varios huecos y un stub de pocos bytes los encadena. Es más trabajo, pero permite meter un beacon que no cabría en un solo gap.
 
 **Qué gana.** La DLL mantiene su funcionalidad y su integridad aparente mucho mejor. Es la variante más limpia para un beacon pequeño.
 
-**Qué cuesta.** Necesitas espacio contiguo suficiente o un payload más pequeño; el placement es más complejo y frágil entre versiones de la DLL.
+**Qué cuesta.** Necesitas espacio contiguo suficiente o un payload más pequeño; el placement es más complejo y frágil entre versiones de la DLL. Un EDR que hashee **por páginas** (no por módulo entero) sigue viendo las páginas modificadas.
 
-**Qué ve el sensor.** Páginas ejecutables dentro de una imagen con contenido que no coincide con el archivo; pero sin el destrozo burdo del stomping completo. Es más difícil de arbitrar.
+**Qué ve el sensor.** Páginas ejecutables dentro de una imagen con contenido que no coincide con el archivo; pero sin el destrozo burdo del stomping completo. Es más difícil de arbitrar porque la mayor parte del `.text` sigue intacta.
 
 ### 1.3 Phantom DLL hollowing
 
-**Qué es.** Crear una **entrada falsa de módulo** en las listas del PEB (`InLoadOrderModuleList`, `InMemoryOrderModuleList`, `InInitializationOrderModuleList`) que apunta a tu propia memoria, sin archivo en disco.
+**Qué es.** Crear una **entrada falsa de módulo** en las listas del PEB que apunta a tu propia memoria, sin archivo en disco. El PEB mantiene tres listas enlazadas de módulos cargados: `InLoadOrderModuleList` (orden de carga), `InMemoryOrderModuleList` (orden en memoria) e `InInitializationOrderModuleList` (orden de inicialización), todas colgando de `PEB->Ldr`.
 
-**Cómo funciona.** Se construye un `LDR_DATA_TABLE_ENTRY` plausible —nombre, `DllBase`, `SizeOfImage`, `EntryPoint`— y se enlaza en las tres listas. Los enumeradores de módulos, y muchos EDR que construyen su inventario desde el PEB, la ven como un módulo legítimo más.
+**Cómo funciona.** Se construye un `LDR_DATA_TABLE_ENTRY` plausible: los tres pares de enlaces (`Flink`/`Blink`), `DllBase`, `EntryPoint`, `SizeOfImage`, `FullDllName` y `BaseDllName` como `UNICODE_STRING` cuyos buffers viven en tu propia memoria. Después se enlaza en las tres listas ajustando los enlaces de los vecinos. Los enumeradores de módulos, y muchos EDR que construyen su inventario desde el PEB, la ven como un módulo legítimo más.
 
-**Qué gana.** Disfraza el **inventario**: tu memoria aparece como si fuera una DLL cargada.
+**Por qué "hollowing".** Porque creas el **caparazón** de un módulo (solo los metadatos) sin el contenido real respaldado por un archivo: el nombre y la estructura están, la imagen no.
 
-**Qué cuesta.** Ojo con el matiz que casi nadie explica: **el tipo de memoria sigue siendo `MEM_PRIVATE`**. Quien mire `MEMORY_BASIC_INFORMATION` verá memoria privada, no imagen. Es un disfraz del inventario, no del tipo de página. Las reglas que miran allocation-type pueden seguir viendo ejecución unbacked.
+**El detalle que casi nadie explica.** El tipo de memoria **sigue siendo `MEM_PRIVATE`**. Quien mire `MEMORY_BASIC_INFORMATION` verá memoria privada, no imagen. Es un disfraz del inventario, no del tipo de página. Las reglas que miran allocation-type pueden seguir viendo ejecución unbacked, así que esta técnica se combina muy bien con la 1.6: la entrada fantasma da el nombre y la sección mapeada da un tipo menos sospechoso. Aun así, solo una sección de imagen real produce `MEM_IMAGE`.
+
+**Qué gana.** Disfraza el **inventario**: tu memoria aparece como si fuera una DLL cargada, y los enumeradores que solo miran el PEB se lo creen.
+
+**Qué cuesta.** Hay que mantener vivos los buffers de los nombres y la propia entrada mientras dure el disfraz; si el proceso recorre las listas mientras las modificas, puedes corromper el recorrido. Y no engaña a quien compare con el kernel.
 
 **Qué ve el sensor.** El `Type` real de la región y el contraste entre el PEB y las estructuras del kernel (VAD, lista de módulos cargados).
 
@@ -121,11 +139,13 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** Lo contrario del anterior: **quitar** módulos reales de las listas del PEB para que no aparezcan. Se usa para ocultar los propios, no para ejecutar.
 
-**Cómo funciona.** Se desenlaza el `LDR_DATA_TABLE_ENTRY` ajustando `Blink` y `Flink` en las tres listas. El módulo sigue mapeado, pero invisible para quien enumere solo el PEB.
+**Cómo funciona.** Cada entrada es un nodo de una lista doblemente enlazada. Desenlazarla consiste en hacer que el `Flink` del nodo anterior apunte al `Blink` del siguiente y viceversa, y repetir en las tres listas. El módulo sigue mapeado, pero invisible para quien enumere solo el PEB.
+
+**El peligro del desenlace.** Si desenlazas mientras otro hilo recorre la lista, el recorrido puede caer en un puntero muerto. Por eso se hace con cuidado y, si el proceso va a seguir vivo, conviene **restaurar** los enlaces antes de terminar.
 
 **Qué gana.** Oculta módulos de los recorridos clásicos del PEB.
 
-**Qué cuesta.** Rompe supuestos del propio proceso y no engaña a quien enumere por VAD, handles de sección o la lista de kernel. Es una técnica de ocultación, no de ejecución.
+**Qué cuesta.** Rompe supuestos del propio proceso y no engaña a quien enumere por VAD, handles de sección o la lista de kernel. Es una técnica de ocultación, no de ejecución: no aporta nada si el payload no está ya colocado.
 
 **Qué ve el sensor.** La incoherencia entre lo que dice el PEB y lo que dice el kernel: módulos mapeados que no están en las listas, o viceversa.
 
@@ -133,11 +153,13 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** Crear una **sección de imagen** (`SEC_IMAGE`) sobre un archivo legítimo, mapearla y después pisar sus páginas con el payload.
 
-**Cómo funciona.** `NtCreateSection` con `SEC_IMAGE` sobre el archivo, `NtMapViewOfSection` para obtener la vista, y una primitiva de escritura para sobrescribir el contenido. La región resultante es `MEM_IMAGE`.
+**Cómo funciona.** `NtCreateSection` con `SEC_IMAGE` sobre el archivo, `NtMapViewOfSection` para obtener la vista, y una primitiva de escritura para sobrescribir el contenido. La región resultante es `MEM_IMAGE`, con las secciones del PE ya mapeadas por el gestor de memoria.
 
-**Qué gana.** El tipo de memoria es imagen, con el respaldo de un archivo real.
+**El muro de VBS/HVCI.** Las secciones de imagen suelen ser **no escribibles** cuando la integridad de código está activa: el sistema bloquea las vistas escribibles de imágenes y el overwrite falla con `STATUS_INVALID_PARAMETER` o `ACCESS_DENIED`. Por eso esta técnica se apoya a menudo en una segunda vista o en un archivo que no esté bajo esa política. Existe además `SEC_IMAGE_NO_EXECUTE`, pensada para mapear sin ejecutar (la usan los antivirus), que no sirve para este fin.
 
-**Qué cuesta.** Las secciones de imagen suelen ser **no escribibles** en sistemas con VBS/HVCI; el overwrite puede fallar. Y un path raro o un módulo sin firma levanta la heurística contraria.
+**Qué gana.** El tipo de memoria es imagen, con el respaldo de un archivo real y una ruta que puede ser perfectamente legítima.
+
+**Qué cuesta.** El muro de VBS/HVCI, el riesgo de que el path o el módulo no estén firmados, y que el hash de la imagen deje de coincidir con el fichero.
 
 **Qué ve el sensor.** La ruta del archivo, su firma, el hash de la imagen y si la vista mapeada coincide con el fichero.
 
@@ -145,11 +167,15 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** En vez de memoria anónima `MEM_PRIVATE`, usar una **sección respaldada por pagefile** con dos vistas: una `RW` para escribir y cifrar, otra `RX` para ejecutar. El tipo pasa a ser `MEM_MAPPED`.
 
-**Cómo funciona.** `NtCreateSection` sobre pagefile, y dos `NtMapViewOfSection` de la misma sección con protecciones distintas: escribes por la vista RW, ejecutas por la vista RX. Nunca hay una vista RWX.
+**Cómo funciona.** `NtCreateSection` sobre pagefile (sin archivo detrás), y dos `NtMapViewOfSection` de la **misma** sección con protecciones distintas: escribes por la vista RW, ejecutas por la vista RX. Las dos vistas apuntan a las mismas páginas físicas, así que lo que escribes por una se ve por la otra.
 
-**Qué gana.** Evita las reglas de "private RWX" y mantiene W^X. Es exactamente la arquitectura de **Okugi**: la sección es `MAPPED`, no `PRIVATE`, y por eso algunas reglas de memoria privada no la tocan.
+**Por qué W^X sin RWX.** Ninguna vista es escribible y ejecutable a la vez: la de escritura no ejecuta y la de ejecución no escribe. El clásico `PAGE_EXECUTE_READWRITE` desaparece del mapa, y con él la regla más simple de todas.
 
-**Qué cuesta.** Sigue siendo memoria ejecutable sin archivo detrás; los handles de sección y las dos vistas son visibles. Durante el sueño conviene desmapear (Familia 7).
+**El detalle de Okugi.** Esta es exactamente la arquitectura del loader: la sección es `MAPPED`, no `PRIVATE`, con vista RW para descifrar y vista RX para ejecutar. Por eso algunas reglas de "private RWX" no la tocan. El precio es que los handles de sección y las dos vistas son objetos visibles.
+
+**Qué gana.** Evita las reglas de "private RWX" y mantiene W^X de forma estructural.
+
+**Qué cuesta.** Sigue siendo memoria ejecutable sin archivo detrás; los handles de sección y las dos vistas son visibles, y cada map/unmap deja su evento. Durante el sueño conviene desmapear (Familia 7).
 
 **Qué ve el sensor.** `MEM_MAPPED` ejecutable, el handle de la sección, dos vistas de la misma sección y los eventos de map/unmap.
 
@@ -157,9 +183,11 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** Duplicar el proceso actual con `RtlCloneUserProcess` **después** de colocar el payload, de modo que el clon "nazca" ya con el código dentro.
 
-**Cómo funciona.** La API crea un proceso clon tipo fork: comparte o duplica el espacio de direcciones y el hilo continúa en el hijo con el payload ya presente. No hay inyección clásica: el código estaba ahí desde el nacimiento del clon.
+**Cómo funciona.** `RtlCloneUserProcess` con la bandera de crear el clon suspendido devuelve handles al proceso y al hilo clonados. El espacio de direcciones se copia, y el hilo clonado continúa —tras reanudarlo— con el payload ya presente. No hay inyección clásica: el código estaba ahí desde el nacimiento del clon.
 
-**Qué gana.** Elimina las primitivas de inyección tradicionales y le da al clon un linaje de proceso legítimo.
+**Qué copia y qué no.** No es un `fork` de POSIX: se duplica el llamador y su contexto, no todos los hilos, y los handles y objetos del kernel tienen su propia semántica. Ese matiz es la fuente de la mayoría de los fallos al usarlo.
+
+**Qué gana.** Elimina las primitivas de inyección tradicionales y le da al clon un linaje de proceso legítimo: el payload no llega "después", nace con el proceso.
 
 **Qué cuesta.** Es **muy ruidosa** en telemetría de procesos: la creación del clon, la API en sí y los handles duplicados son eventos poco comunes y muy accionables.
 
@@ -169,11 +197,15 @@ Cada técnica de esta familia miente en una de esas cuatro respuestas.
 
 **Qué es.** Ejecutar el stager **entero por ROP**, usando gadgets de módulos firmados. Cero memoria ejecutable propia: el contador de regiones ejecutables nuevas es cero absoluto.
 
-**Cómo funciona.** Se construye una cadena ROP en la pila; cada gadget realiza un paso —llamar a una API, escribir memoria, saltar—. La ejecución salta de gadget en gadget dentro de código legítimo. Es la escuela de SysWhispers-ROP y SilentMoonwalk.
+**Cómo funciona.** Un gadget es una secuencia corta de instrucciones que termina en `ret` (por ejemplo, `pop rcx; ret`). La cadena ROP es una lista de direcciones en la pila: cada `ret` salta al siguiente gadget. Con suficientes gadgets se monta una llamada a API: se cargan los argumentos en `RCX`, `RDX`, `R8` y `R9` con gadgets `pop`, se salta a la función y se continúa la cadena con el valor de retorno. La ejecución salta de gadget en gadget dentro de código legítimo.
 
-**Qué gana.** No hay región ejecutable propia que clasificar.
+**Variantes.** ROP clásico (ret), JOP (saltos indirectos) y COP (llamadas). La escuela de SysWhispers-ROP genera cadenas para syscalls; SilentMoonwalk se centra en la pila y el stack walk.
 
-**Qué cuesta.** Fragilidad extrema: depende de la build exacta de Windows. Solo sirve para el **stager corto**, no para el beacon completo.
+**Por qué solo el stager.** Una cadena ROP es enormemente frágil: depende de la build exacta de Windows, de los offsets de cada gadget y de la disposición de la pila. Sirve para un stager corto que coloca algo más, no para un beacon completo con su lógica.
+
+**Qué gana.** No hay región ejecutable propia que clasificar: la ejecución vive en código firmado.
+
+**Qué cuesta.** Fragilidad extrema y dependencia de la build; además, CET y el *shadow stack* rompen el ROP clásico cuando están activos.
 
 **Qué ve el sensor.** Pilas con cadenas de retorno improbables, saltos entre gadgets y un stack walk que no cuadra con ninguna función real.
 
@@ -357,23 +389,118 @@ Aquí hay muchas variantes porque Windows ofrece muchas formas de "llámame lueg
 
 Aquí el sistema no te llama por un callback de API, sino porque **te registraste como proveedor de un objeto**. La ejecución la dispara el mecanismo de activación del propio Windows.
 
-| Técnica | Qué es | Cómo funciona | Coste |
-|---|---|---|---|
-| **COM in-proc en memoria** | Servidor COM sin archivo | `CoRegisterClassObject` con tu `IClassFactory`, luego `CoCreateInstance` del propio CLSID | Registro de clase y CLSID visibles |
-| **COM surrogate hijack** | Servidor out-of-proc en `dllhost` | Registrar/abusar de un servidor fuera de proceso | Requiere registro en disco o registry: rompe el fileless |
-| **ShellExt / verbos de shell** | Activación desde Explorer | Extensión o comando de shell que Explorer invoca | Ruidoso y con sabor a persistencia |
-| **WerNotify / SilentProcessExit** | Activación al morir un proceso | Callbacks de Windows Error Reporting | Persistencia vía WER, muy visible |
-| **IFEO / AEDebug** | Secuestro del debugger | Image File Execution Options apunta a tu binario | Disco + registry, muy telemetrizado |
+La diferencia mental es importante. En la Familia 2 tú **empujas** ejecución: creas un hilo, encolas un APC, secuestras un contexto. Aquí haces lo contrario: te das de alta en un registro del sistema y dejas que el sistema **tire de ti** cuando ocurra el evento. Es un modelo *pull*.
+
+Y eso cambia por completo el perfil de la señal:
+
+- **Ganas** un origen de ejecución que el sistema considera suyo: el activador de COM, Explorer, WER, el debugger del sistema.
+- **Pagas** con un **registro**. Y el registro es el ancla: vive en el proceso, en el registry o en disco.
+
+### Cuadro comparativo
+
+| Técnica | Modelo | Dónde corre | Registro necesario | Rompe fileless | Señal principal |
+|---|---|---|---|---|---|
+| **COM in-proc en memoria** | Objeto COM local | Tu proceso | Tabla de clases del proceso | **No** | CLSID y clase registrada |
+| **COM surrogate hijack** | Servidor COM fuera de proceso | `dllhost.exe` | Registry (AppID / LocalServer32) y DLL | **Sí** | `dllhost` lanzado por COM |
+| **ShellExt / verbos de shell** | Extensión de Explorer | `explorer.exe` | Registry + DLL en disco | **Sí** | Explorer cargando DLL sin firma |
+| **WerNotify / SilentProcessExit** | Callback de WER o monitor de salida | WER o proceso monitor | Registry (IFEO) | **Sí** | Proceso lanzado al morir otro |
+| **IFEO / AEDebug** | Secuestro del debugger | Debugger del sistema | Registry | **Sí** | Debugger adjuntado o lanzado |
+
+> 📌 **Regla de esta familia:** solo la variante **in-proc en memoria** conserva el fileless. Todo lo que necesite registry o disco deja de ser "sin archivo" y pasa a ser **persistencia**, con otro perfil de detección.
+
+### 3.0 In-proc vs. out-of-proc
+
+Antes de las fichas, fija la diferencia, porque decide casi todo:
+
+- **In-proc**: el servidor vive **dentro de tu proceso**. COM lo activa en tu propio espacio de direcciones. No hay archivo, no hay registry, no hay proceso nuevo. Es la variante limpia.
+- **Out-of-proc**: el servidor vive **fuera**, en otro proceso (a menudo `dllhost.exe` o `svchost.exe`). COM lo lanza a través de RPC, y para encontrarlo necesita una entrada en el registry. Ganas aislamiento y supervivencia, pero pierdes el fileless.
+- **Persistencia**: las variantes de shell, WER e IFEO no buscan ejecutar "ya", sino **volver a ejecutar** cuando ocurra un evento. Son otra categoría aunque compartan mecanismo.
 
 ### 3.1 COM in-proc en memoria
 
-**Qué es.** La versión limpia y local de "inyección por activación": un servidor COM **en memoria**, sin DLL en disco.
+**Qué es.** La versión limpia y local de "inyección por activación": un servidor COM **en memoria**, sin DLL en disco, dentro de tu propio proceso.
 
-**Cómo funciona.** Implementas una `IClassFactory` y la registras con `CoRegisterClassObject` para un CLSID. Cuando alguien —tú mismo— llama a `CoCreateInstance` sobre ese CLSID, el activador de COM invoca tu `CreateInstance`: ejecución disparada por el mecanismo de objetos, no por una inyección.
+**Cómo funciona.** Implementas una `IClassFactory` —con `QueryInterface`, `AddRef`, `Release`, `CreateInstance` y `LockServer`— y la registras con `CoRegisterClassObject` para un CLSID, indicando `CLSCTX_INPROC_SERVER` y un modo como `REGCLS_MULTIPLEUSE`. Cuando alguien llama a `CoCreateInstance` sobre ese CLSID, COM busca primero en su tabla de clases del proceso, encuentra tu factoría y te invoca `CreateInstance`. Ahí empieza tu código.
 
-**Qué gana.** El hilo entra por el activador de COM, con una ruta de sistema perfectamente documentada.
+**Paso a paso mental.**
+1. `CoInitializeEx` para entrar en el modelo de apartamentos (STA o MTA).
+2. Crear tu objeto y su `IClassFactory`.
+3. `CoRegisterClassObject` con el CLSID elegido y el contexto in-proc.
+4. `CoCreateInstance` sobre ese mismo CLSID.
+5. COM llama a tu `CreateInstance`: ejecución disparada por el mecanismo de objetos.
+6. Al terminar, `CoRevokeClassObject` y `CoUninitialize`.
 
-**Qué cuesta.** El registro de clase es visible y el CLSID es un ancla; COM tiene telemetría propia.
+**El matiz de los apartamentos.** En un apartamento *single-threaded* (STA), COM puede **marshaling** la llamada al hilo del apartamento en vez de ejecutarla en el llamador. Eso significa que el hilo que acaba ejecutando tu `CreateInstance` puede no ser el que llamó a `CoCreateInstance`. No es un problema, pero explica por qué a veces el stack no es el que esperabas.
+
+**Qué gana.** El hilo entra por el activador de COM, con una ruta de sistema perfectamente documentada, sin crear hilos, sin escribir contexto y sin archivo en disco. Es la forma más limpia de "ejecutar por activación".
+
+**Qué cuesta.** El registro de clase es visible y el CLSID es un ancla: un CLSID raro o una clase in-proc que no corresponde a ninguna DLL registrada es una señal fuerte. COM tiene telemetría propia, y tu factoría debe responder correctamente a las expectativas de COM o la activación falla.
+
+**Qué ve el sensor.** La tabla de objetos de clase del proceso, el CLSID registrado, y el contraste entre "clase in-proc registrada" y "no hay DLL en disco que la respalde". También el origen COM del hilo que ejecuta.
+
+### 3.2 COM surrogate hijack (dllhost)
+
+**Qué es.** Registrar o abusar de un servidor COM **fuera de proceso** para que COM lo lance en un proceso surrogate, típicamente `dllhost.exe`.
+
+**Cómo funciona.** Se declara un `AppID` con `DllSurrogate` o un `LocalServer32` en el registry, y se activa con `CLSCTX_LOCAL_SERVER`. COM arranca `dllhost.exe /Processid:{AppID}` y carga allí el servidor. El código corre fuera de tu proceso, con la identidad y el ciclo de vida que COM decida.
+
+**Qué gana.** Aislamiento y supervivencia: el servidor puede seguir vivo aunque tu proceso muera, y el proceso anfitrión es uno de sistema.
+
+**Qué cuesta.** **Rompe el fileless**: necesita registry y, casi siempre, una DLL en disco. Añade RPC, permisos y una cadena de activación larga y visible.
+
+**Qué ve el sensor.** El lanzamiento de `dllhost` por COM, las claves `AppID`/`LocalServer32`, las escrituras en registry y el tráfico RPC de activación.
+
+### 3.3 ShellExt / IInitializeCommand / verbos de shell
+
+**Qué es.** Registrarse como **extensión del shell** o como **verbo de comando** para que Explorer te cargue o te invoque cuando el usuario interactúe.
+
+**Cómo funciona.** Las extensiones de shell son servidores COM in-proc que Explorer carga en su propio proceso; se registran bajo `InprocServer32` de un CLSID. Los verbos (`shell\open\command`, menús contextuales) se declaran en el registry y Explorer los ejecuta. `IInitializeCommand` es la interfaz que implementa un manejador de comandos de línea para inicializarse con el verbo.
+
+**Qué gana.** La activación la hace Explorer, un proceso de confianza, y el disparo es natural: abrir un archivo, hacer clic derecho.
+
+**Qué cuesta.** Es **persistencia con disfraz de activación**: requiere registry y DLL en disco, depende de la interacción del usuario y es ruidosa. Explorer cargando una DLL sin firma es una de las señales más viejas del catálogo.
+
+**Qué ve el sensor.** Explorer cargando una DLL no firmada, las claves de registro de la extensión y la enumeración de extensiones del shell.
+
+### 3.4 WerNotify / SilentProcessExit
+
+**Qué es.** Hacer que **Windows Error Reporting** o el mecanismo de **salida silenciosa** invoquen tu código cuando un proceso muera o falle.
+
+**Cómo funciona.** `SilentProcessExit` usa claves de IFEO con `GlobalFlag` y un proceso monitor (`MonitorProcess`): cuando el proceso objetivo termina, el sistema lanza el monitor. Las variantes de WER registran módulos o callbacks que se invocan durante la recolección de un crash (`WerRegisterRuntimeExceptionModule` y familia). En ambos casos, el disparador es la **muerte** de otro proceso.
+
+**Qué gana.** Activación diferida y contextual: no ejecutas al arrancar, sino cuando ocurre el evento que te interesa.
+
+**Qué cuesta.** Requiere registry, es **persistencia** y deja un proceso nuevo justo cuando otro muere: una correlación muy visible.
+
+**Qué ve el sensor.** Las claves de IFEO, el lanzamiento del proceso monitor y la telemetría de WER.
+
+### 3.5 IFEO / AEDebug
+
+**Qué es.** Secuestrar el **debugger** que Windows asocia a un ejecutable, mediante *Image File Execution Options* o la clave `AeDebug`.
+
+**Cómo funciona.** Bajo `Image File Execution Options\<ejecutable>` se pone un valor `Debugger`: cuando ese ejecutable arranque, Windows lanzará tu binario como su debugger. `AeDebug` define el debugger **postmortem** que se lanza cuando un proceso falla.
+
+**Qué gana.** El sistema te entrega el control de otro proceso con una ruta de depuración legítima y, en el caso de `AeDebug`, en el momento del crash.
+
+**Qué cuesta.** Disco más registry, y es una de las técnicas **más telemetrizadas** que existen: los EDR vigilan IFEO y `AeDebug` desde hace años.
+
+**Qué ve el sensor.** Escrituras en las claves de IFEO o `AeDebug`, el lanzamiento del debugger y su adjunción al proceso objetivo.
+
+### 3.6 Cómo se encadena con las otras familias
+
+La Familia 3 resuelve la **pregunta del hilo** ("¿quién me arranca?") sin tocar la memoria. Por eso se combina de forma natural:
+
+```text
+[REGIÓN]   sección mapeada o módulo stompeado   (Familia 1)
+   ↓
+[OBJETO]   IClassFactory registrada en memoria  (Familia 3.1)
+   ↓
+[ACTIVACIÓN] CoCreateInstance -> CreateInstance
+   ↓
+[APARIENCIA] PEB poison + stack spoof           (Familia 4 + 5)
+```
+
+El resultado es un stack en el que la región es legítima, el hilo nace del activador de COM y la biografía del proceso está limpia. El precio sigue siendo el mismo: el CLSID registrado es el hilo del que tirar en un análisis.
 
 ---
 
