@@ -2,7 +2,7 @@
 title: "Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí"
 date: 2026-10-31
 tags: inyeccion, windows internals, evasion, edr, malware analysis, red team, blue team, research
-summary: Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.
+summary: Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes, glosario y bibliografía comentada con fuentes verificadas.
 ---
 
 # Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí
@@ -728,6 +728,65 @@ La lectura defensiva es simple: **no busques una técnica, busca una historia in
 | **PIC / PIM** | Código o módulo *position-independent*, sin base fija. |
 | **UDRL** | *User-Defined Reflective Loader*: loader propio que mapea el payload. |
 | **Stack walk** | Recorrido de la pila usando las tablas de unwind. |
+
+## 📚 Fuentes y lecturas recomendadas
+
+Bibliografía comentada, agrupada por familia. Los enlaces se comprobaron a fecha de publicación; cuando el artículo original de una técnica ya no está disponible, se enlaza el paper de la conferencia o una implementación de referencia.
+
+### General, detección y contexto
+
+- [MITRE ATT&CK — Process Injection (T1055)](https://attack.mitre.org/techniques/T1055/) — el marco de referencia para clasificar inyección y sus sub-técnicas; útil para mapear cada familia a un ID.
+- [Elastic — detection-rules](https://github.com/elastic/detection-rules) — las reglas abiertas del producto contra el que se midió el laboratorio; aquí viven muchas de las señales que cita el artículo.
+- [Checkpoint — Anti-Debugging Reference](https://anti-debug.checkpoint.com/) — referencia práctica de `ThreadHideFromDebugger`, `NtGlobalFlag` y compañía, con ejemplos.
+
+### Familia 1 — Dónde vive el código
+
+- [Module Stomping, DLL Hollowing and PE Image Relocations](https://www.ired.team/offensive-security/code-injection-process-injection/modulestomping-dll-hollowing-shellcode-injection.md) — ired.team; la explicación clásica del stomping y del hollowing de DLL con las relocaciones de imagen.
+- [hasherezade — module_overloading](https://github.com/hasherezade/module_overloading) — el PoC original de la variante que solo usa el espacio muerto del módulo.
+- [hasherezade — 1001 nights](https://hshrzd.wordpress.com/) — el blog de referencia sobre hollowing, overloading y análisis de implantes.
+- [Masking Malicious Memory Artifacts — Part I: Phantom DLL Hollowing](https://www.forrest-orr.net/post/malicious-memory-artifacts-part-i-dll-hollowing) — Forrest Orr; el artículo que define el phantom DLL hollowing, con su [PoC](https://github.com/forrest-orr/phantom-dll-hollower-poc).
+- [Hiding in Plain Sight: Unlinking Malicious DLLs from the PEB](https://blog.christophetd.fr/dll-unlinking/) — Christophe Tafani-Dereeper; las tres listas del PEB, `LDR_DATA_TABLE_ENTRY` y cómo detectar el desenlace por VAD.
+- [Dirty Vanity: A New Approach to Code Injection & EDR Bypass](https://www.deepinstinct.com/blog/dirty-vanity-a-new-approach-to-code-injection-edr-bypass) — Deep Instinct; el paper de Black Hat EU-22 está [aquí](https://i.blackhat.com/EU-22/Thursday-Briefings/EU-22-Nissan-DirtyVanity.pdf) y el [PoC](https://github.com/deepinstinct/Dirty-Vanity) es público.
+- [hasherezade — pe_to_shellcode](https://github.com/hasherezade/pe_to_shellcode) — conversión de PE a shellcode position-independent; la base práctica de la familia PIC.
+
+### Familia 2 — Cómo arranca la ejecución
+
+- [SafeBreach — PoolParty](https://github.com/SafeBreach-Labs/PoolParty) — la investigación sobre inyección abusando de los thread pools de Windows, con las ocho variantes y su [write-up](https://www.safebreach.com/blog/process-injection-using-windows-thread-pools/).
+- [MITRE — Thread Execution Hijacking (T1055.003)](https://attack.mitre.org/techniques/T1055/003/) — la ficha canónica del secuestro de hilo.
+- [MITRE — Asynchronous Procedure Call (T1055.004)](https://attack.mitre.org/techniques/T1055/004/) — la ficha del APC, incluido el Early Bird.
+- [FrankensteinAPCInjection](https://github.com/S12cybersecurity/FrankensteinAPCInjection) — implementación moderna con *special user APC* (`NtQueueApcThreadEx2`), sin allocs ni cambios de protección.
+- [EarlyBird-APC-Injection](https://github.com/Faran-17/EarlyBird-APC-Injection) — PoC mínimo del Early Bird clásico, mapeado a T1055.004.
+- [Executing Shellcode via Callbacks](https://osandamalith.com/2021/04/01/executing-shellcode-via-callbacks/) — Osanda Malith; la idea de usar APIs de enumeración como disparadoras.
+- [AlternativeShellcodeExec](https://github.com/aahmad097/AlternativeShellcodeExec) — el catálogo de APIs callback (`CertEnumSystemStoreLocation`, `EnumWindows`, etc.) con sus PoCs.
+- [Weaponizing Mapping Injection with Instrumentation Callback](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html) — splinter_code; el uso del instrumentation callback como dispatcher de ejecución.
+- [Windows Instrumentation Callbacks — Part 1](https://cirosec.de/en/news/windows-instrumentation-callbacks/) — cirosec; la serie técnica moderna sobre el mecanismo y sus usos.
+
+### Familia 3 — Activación por objetos
+
+- [CoRegisterClassObject — Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-coregisterclassobject) — el contrato oficial para registrar una factoría de clases en el proceso.
+- [CoCreateInstance — Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/api/combaseapi/nf-combaseapi-cocreateinstance) — el camino de activación que termina llamando a tu `CreateInstance`.
+- [DllSurrogate — Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/com/dllsurrogate) — cómo COM hospeda un servidor out-of-proc en `dllhost.exe`.
+- [IInitializeCommand — Microsoft Learn](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-iinitializecommand) — la interfaz de los manejadores de verbos de shell.
+- [MITRE — COM Hijacking (T1546.015)](https://attack.mitre.org/techniques/T1546/015/) — la ficha de persistencia/ejecución vía objetos COM.
+- [MITRE — Image File Execution Options Injection (T1546.012)](https://attack.mitre.org/techniques/T1546/012/) — la ficha del secuestro vía IFEO y debugger.
+
+### Familias 4 y 5 — Apariencia y pila
+
+- [Process Parameter Poisoning (P³) — SensePost](https://sensepost.com/blog/2026/process-parameter-poisoning/) — el artículo que da nombre a la técnica y explica el uso de `CommandLine`, `Environment` y `ShellInfo` del PEB; [loader](https://github.com/Orange-Cyberdefense/p3-loader).
+- [MITRE — Parent PID Spoofing (T1134.004)](https://attack.mitre.org/techniques/T1134/004/) — la ficha del PPID falso.
+- [Hell's Gate](https://github.com/am0nsec/HellsGate) — la implementación original de resolución dinámica de SSN.
+- [SysWhispers2](https://github.com/jthuraisamy/SysWhispers2), [SysWhispers3](https://github.com/klezVirus/SysWhispers3) y [SysWhispers4](https://github.com/JoasASantos/SysWhispers4) — la evolución de las syscalls directas/indirectas.
+- [FreshyCalls](https://github.com/crummie5/FreshyCalls) — resolución de SSN por orden de export, sin leer los stubs.
+- [SilentMoonwalk](https://github.com/klezVirus/SilentMoonwalk) — el call stack spoofer dinámico que cierra el frame no respaldado.
+
+### Familias 6 y 7 — Post-explotación y reposo
+
+- [TrustedSec — COFFLoader](https://github.com/trustedsec/COFFLoader) — ejecución de COFF/BOF en memoria; la pieza que permite el runner dentro del módulo.
+- [TheWover — Donut](https://github.com/TheWover/donut) — generación de shellcode position-independent para PE y .NET; referencia obligada de PIC/PIM.
+- [Ekko](https://github.com/Cracked5pider/Ekko) — el sleep obfuscation que popularizó el cifrado y el cambio de protección durante el sueño.
+- [Cronos](https://github.com/Idov31/Cronos) — la variante con waitable timers, coautoría de Idov31 y YXEL.
+- [DeathSleep](https://github.com/janoglezcampos/DeathSleep) — terminar el hilo y restaurarlo al despertar, con cambios de protección durante la no-ejecución.
+- [Havoc — Obf.c](https://github.com/HavocFramework/Havoc/blob/main/payloads/Demon/src/core/Obf.c) — implementación de referencia de varias familias de sleep obfuscation (Foliage, Zilean y compañía) en un C2 real.
 
 ## Cierre
 

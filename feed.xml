@@ -5,13 +5,13 @@
   <link>https://juanbarrero-art.github.io</link>
   <description>Blog personal de ciberseguridad: notas, writeups y laboratorio.</description>
   <language>es</language>
-  <lastBuildDate>Sat, 31 Oct 2026 18:22:33 +0000</lastBuildDate>
+  <lastBuildDate>Sat, 31 Oct 2026 19:12:28 +0000</lastBuildDate>
   <item>
     <title>Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí</title>
     <link>https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html</link>
     <guid isPermaLink="true">https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html</guid>
     <pubDate>Sat, 31 Oct 2026 00:00:00 +0000</pubDate>
-    <description>Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.</description>
+    <description>Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes, glosario y bibliografía comentada con fuentes verificadas.</description>
   </item>
   <item>
     <title>Mini-loader en 15 pasos: ejecuta un PE sin LoadLibrary (desde cero)</title>
