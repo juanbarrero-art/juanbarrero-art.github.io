@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.">
+  <meta name="theme-color" content="#060810">
+  <title>Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí | KANON UFO</title>
+  <link rel="alternate" type="application/rss+xml" title="KANON UFO" href="https://juanbarrero-art.github.io/feed.xml">
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+  <meta name="author" content="Juan Barrero (KANON UFO)">
+  <meta name="keywords" content="windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, inyeccion, evasion, edr, research">
+  <link rel="canonical" href="https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí">
+  <meta property="og:description" content="Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.">
+  <meta property="og:url" content="https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html">
+  <meta property="og:image" content="https://juanbarrero-art.github.io/assets/og/catalogo-inyeccion-avanzada-7-familias.png">
+  <meta property="og:site_name" content="KANON UFO">
+  <meta property="og:locale" content="es_ES">
+  <meta property="article:published_time" content="2026-10-31">
+  <meta property="article:author" content="Juan Barrero">
+  <meta property="article:tag" content="inyeccion">
+  <meta property="article:tag" content="windows internals">
+  <meta property="article:tag" content="evasion">
+  <meta property="article:tag" content="edr">
+  <meta property="article:tag" content="malware analysis">
+  <meta property="article:tag" content="red team">
+  <meta property="article:tag" content="blue team">
+  <meta property="article:tag" content="research">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí">
+  <meta name="twitter:description" content="Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.">
+  <meta name="twitter:image" content="https://juanbarrero-art.github.io/assets/og/catalogo-inyeccion-avanzada-7-familias.png">
+
+  <!-- Datos estructurados -->
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí",
+  "description": "Un mapa didáctico de 40 técnicas de inyección y ejecución avanzada agrupadas en 7 familias. Para cada una: qué es, cómo funciona por dentro y qué señal deja. Con el triángulo de legitimidad (región, hilo, apariencia), tablas comparativas, mitos frecuentes y un glosario para quien empieza.",
+  "datePublished": "2026-10-31",
+  "dateModified": "2026-10-31",
+  "author": {
+    "@type": "Person",
+    "name": "Juan Barrero",
+    "alternateName": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "publisher": {
+    "@type": "Person",
+    "name": "KANON UFO",
+    "url": "https://github.com/juanbarrero-art"
+  },
+  "image": "https://juanbarrero-art.github.io/assets/og/catalogo-inyeccion-avanzada-7-familias.png",
+  "keywords": "windows internals, syscalls, indirect syscalls, malware analysis, red team, blue team, EDR, ntdll, Windows kernel, FreshyCalls, reverse engineering, offensive security, ciberseguridad, seguridad informatica, Windows x64, MASM, inyeccion, evasion, edr, research",
+  "articleSection": "Blog",
+  "inLanguage": "es",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html"
+  },
+  "url": "https://juanbarrero-art.github.io/blog/catalogo-inyeccion-avanzada-7-familias.html"
+}
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css?v=10">
+  <link rel="stylesheet" href="../assets/wild.css?v=10">
+  <link rel="stylesheet" href="../assets/rootkit.css?v=10">
+  <script src="../assets/wild.js?v=10" defer></script>
+</head>
+<body>
+  <canvas id="wild-fondo" aria-hidden="true"></canvas>
+  <button class="wild-toggle" type="button">efectos: ON</button>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="cabecera">
+    <div class="contenedor cabecera__interior">
+      <a class="marca" href="../index.html" aria-label="KANON UFO, inicio">
+        <img class="marca__logo" src="../assets/favicon.svg" alt="" width="34" height="34" aria-hidden="true">
+        <span class="marca__texto">KANON<span class="marca__acento">_UFO</span></span>
+      </a>
+      <nav class="nav" aria-label="Navegación principal">
+        <ul class="nav__lista">
+          <li class="nav__item"><a class="nav__enlace" href="../index.html">Inicio</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="index.html">Blog</a></li>
+          <li class="nav__item"><a class="nav__enlace" href="../index.html#sobre-mi">Sobre mí</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="contenido" tabindex="-1">
+    <article class="post contenedor">
+      <p class="post__volver"><a href="index.html">&larr; Todas las entradas</a></p>
+      <header class="post__cabecera">
+        <p class="post__meta">31 oct 2026 &middot; 29 min de lectura</p>
+        
+        <h1 class="post__titulo">Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí</h1>
+        <p class="post__tags"><span class="tag">#inyeccion</span> <span class="tag">#windows internals</span> <span class="tag">#evasion</span> <span class="tag">#edr</span> <span class="tag">#malware analysis</span> <span class="tag">#red team</span> <span class="tag">#blue team</span> <span class="tag">#research</span></p>
+      </header>
+      <div class="post__cuerpo"><h1>Catálogo de inyección avanzada: las 7 familias del código que no debería estar ahí</h1>
+<p>Hay una pregunta que separa el juego de verdad de la nostalgia: <strong>¿por qué un EDR ve lo que ve?</strong></p>
+<p>No ve "malware". Ve objetos. Ve una región de memoria con un tipo (<code>MEM_IMAGE</code>, <code>MEM_MAPPED</code>, <code>MEM_PRIVATE</code>), una protección (<code>RX</code>, <code>RWX</code>), un módulo que la respalda —o ninguno— y un hilo que empieza a ejecutar en una dirección concreta. A partir de esos objetos reconstruye una historia. Si la historia no cuadra, salta la regla.</p>
+<p>Toda la inyección avanzada, desde el thread hijacking de manual hasta el module overloading de hasherezade, se reduce a <strong>cambiar uno de esos objetos para que la historia cuadre</strong>.</p>
+<p>Este artículo es un catálogo. No es un tutorial de "copia y pega": es el mapa mental de las técnicas, con <strong>qué es</strong>, <strong>cómo funciona por dentro</strong> y <strong>qué señal deja</strong>. Al final deberías poder mirar cualquier técnica nueva y ubicarla en una de las siete familias sin perderte.</p>
+<blockquote><p><strong>Regla de oro:</strong> ninguna técnica es invisible. Cada una no elimina la señal: la <strong>mueve de sitio</strong>. La pregunta correcta nunca es "¿me ven?", sino "¿qué ven ahora, y eso es consistente con lo que este proceso debería ser?".</p></blockquote>
+<h2>🧭 El triángulo de legitimidad</h2>
+<p>Antes de la primera técnica, fija el modelo. Un proceso que ejecuta código ajeno tiene que responder tres preguntas simultáneas:</p>
+<pre><code class="lang-text">                 ¿QUIÉN SOY?
+          (región de memoria e inventario)
+                    /\
+                   /  \
+                  /    \
+     ¿DÓNDE VIVO? ----- ¿QUIÉN ME ARRANCA?
+       (memoria)           (hilo, objeto, callback)</code></pre>
+<ul><li><strong>Dónde vive el código</strong> (Familia 1): ¿la región es imagen, mapeada o privada? ¿Tiene un archivo detrás? ¿Está firmada?</li><li><strong>Quién arranca la ejecución</strong> (Familia 2 y 3): ¿el hilo nació en <code>ntdll</code>, en una API legítima, en un callback, en un objeto COM?</li><li><strong>Cómo se ve el proceso</strong> (Familia 4, 5 y 6): ¿la línea de comandos, el padre, los flags del PEB, la pila y el módulo cuentan una historia coherente?</li></ul>
+<p>Y una cuarta dimensión transversal: <strong>qué queda en reposo</strong> (Familia 7), porque el payload pasa más tiempo dormido que ejecutando.</p>
+<blockquote><p>💡 <strong>Truco didáctico:</strong> cuando veas una técnica nueva, pregúntate qué casilla del triángulo mueve. Si mueve dos o tres a la vez, es de las caras. Si mueve una sola, probablemente necesites combinarla con otra.</p></blockquote>
+<h2>🗺️ Las siete familias de un vistazo</h2>
+<table><thead><tr><th>Familia</th><th>Pregunta que responde</th><th>Qué cambia</th><th>Nº de técnicas</th></tr></thead><tbody><tr><td><strong>1. Dónde vive</strong></td><td>¿Qué tipo de región soy?</td><td>Tipo, respaldo, integridad del módulo</td><td>8</td></tr><tr><td><strong>2. Cómo arranca</strong></td><td>¿Quién crea el hilo?</td><td>Origen del hilo, pila, API de disparo</td><td>16</td></tr><tr><td><strong>3. Activación por objetos</strong></td><td>¿Quién me llama?</td><td>Registro COM, shell, WER, IFEO</td><td>5</td></tr><tr><td><strong>4. Cómo se ve el proceso</strong></td><td>¿Qué dice mi biografía?</td><td>Línea de comandos, padre, flags</td><td>4</td></tr><tr><td><strong>5. Higiene de API y pila</strong></td><td>¿Cómo llamo al kernel?</td><td>Syscalls, gadgets, stack walk</td><td>3</td></tr><tr><td><strong>6. Post-explotación</strong></td><td>¿Dónde corre mi post-ex?</td><td>COFF/PIC dentro del módulo</td><td>2</td></tr><tr><td><strong>7. En reposo</strong></td><td>¿Qué ven mientras duermo?</td><td>Cifrado, desmapeo, timers</td><td>2</td></tr></tbody></table>
+<h2>📖 Cómo leer las fichas</h2>
+<p>Cada técnica sigue el mismo formato: <strong>qué es</strong>, <strong>cómo funciona</strong>, <strong>qué gana</strong>, <strong>qué cuesta</strong> y <strong>qué ve el sensor</strong>. Los nombres de API son los del contrato real de Windows; no hace falta memorizarlos, están para que puedas buscarlos y verificar lo que lees.</p>
+<hr>
+<h2>🧬 Familia 1 — Dónde vive el código</h2>
+<p>Esta familia ataca la primera casilla: la <strong>legitimidad de la región</strong>. Un clasificador de memoria hace cuatro preguntas sobre una página ejecutable:</p>
+<ol><li>¿Cuál es su <code>Type</code>? (<code>MEM_IMAGE</code>, <code>MEM_MAPPED</code>, <code>MEM_PRIVATE</code>)</li><li>¿Qué <code>Protection</code> tiene? (<code>RX</code>, <code>RWX</code>, <code>EXECUTE_WRITECOPY</code>…)</li><li>¿Qué archivo o sección la respalda?</li><li>¿El contenido coincide con lo que ese archivo debería tener?</li></ol>
+<p>Cada técnica de esta familia miente en una de esas cuatro respuestas.</p>
+<h3>Cuadro comparativo</h3>
+<table><thead><tr><th>Técnica</th><th>Tipo que aparenta</th><th>Cómo se consigue</th><th>Señal residual</th></tr></thead><tbody><tr><td><strong>Module stomping (full)</strong></td><td><code>MEM_IMAGE</code></td><td>Sobrescribir todo el <code>.text</code> de una DLL firmada</td><td>Hash del módulo alterado; páginas escribibles dentro de imagen</td></tr><tr><td><strong>Module overloading</strong></td><td><code>MEM_IMAGE</code></td><td>Sobrescribir solo huecos muertos entre funciones</td><td>Integridad casi intacta; placement complejo</td></tr><tr><td><strong>Phantom DLL hollowing</strong></td><td>Módulo en el PEB</td><td>Entradas falsas en las listas del PEB</td><td>La memoria sigue siendo <code>MEM_PRIVATE</code></td></tr><tr><td><strong>Unlinking</strong></td><td>Módulo oculto</td><td>Deslinkear entradas reales del PEB</td><td>Inconsistencia entre enumeradores</td></tr><tr><td><strong>SEC_IMAGE + overwrite</strong></td><td><code>MEM_IMAGE</code></td><td>Sección de imagen sobre archivo legítimo y pisarla</td><td>Path raro o módulo no firmado</td></tr><tr><td><strong>Section aliasing</strong></td><td><code>MEM_MAPPED</code></td><td>Sección pagefile con vistas RW y RX</td><td>Dos vistas de la misma sección</td></tr><tr><td><strong>Dirty Vanity (fork)</strong></td><td>Clon de proceso</td><td><code>RtlCloneUserProcess</code></td><td>Telemetría de creación de proceso</td></tr><tr><td><strong>Data-only (ROP puro)</strong></td><td>Ninguna región nueva</td><td>Gadgets de módulos firmados</td><td>Cadenas de gadgets y pilas raras</td></tr></tbody></table>
+<h3>1.1 Module stomping (completo)</h3>
+<p><strong>Qué es.</strong> Cargar una DLL firmada y legítima, y <strong>sobrescribir toda su sección <code>.text</code></strong> con tu payload. La ejecución ocurre desde una región que el sistema considera imagen de un módulo firmado.</p>
+<p><strong>Cómo funciona.</strong> Localizas la base del módulo, cambias la protección de <code>.text</code> a escritura, copias el shellcode encima y restauras la protección. Después desvías la ejecución a esa dirección. La DLL original queda destruida: si alguien llama a una de sus funciones, el proceso probablemente muera.</p>
+<p><strong>Qué gana.</strong> Mata de raíz la heurística de "memoria ejecutable no respaldada": el sensor ve <code>MEM_IMAGE</code> y un módulo con firma válida.</p>
+<p><strong>Qué cuesta.</strong> La integridad del módulo deja de coincidir con el archivo en disco. Un EDR que compare el hash de las páginas con el <code>.text</code> original lo detecta; y la DLL rota es una bomba de relojería.</p>
+<p><strong>Qué ve el sensor.</strong> Comparación hash memoria vs. disco, protección de páginas dentro de una imagen, y el hecho de que el hilo ejecute en una zona que no es el entry point del módulo.</p>
+<h3>1.2 Module overloading (hasherezade)</h3>
+<p><strong>Qué es.</strong> La versión elegante del anterior: en vez de pisar todo el <code>.text</code>, usar solo el <strong>espacio muerto</strong> —slack entre funciones, padding de alineación, secciones que no se usan en runtime—.</p>
+<p><strong>Cómo funciona.</strong> Se parsean las funciones y se buscan huecos contiguos lo bastante grandes. El payload se escribe en esos huecos y se ejecuta desde ahí. La DLL sigue funcionando porque su código real no se toca.</p>
+<p><strong>Qué gana.</strong> La DLL mantiene su funcionalidad y su integridad aparente mucho mejor. Es la variante más limpia para un beacon pequeño.</p>
+<p><strong>Qué cuesta.</strong> Necesitas espacio contiguo suficiente o un payload más pequeño; el placement es más complejo y frágil entre versiones de la DLL.</p>
+<p><strong>Qué ve el sensor.</strong> Páginas ejecutables dentro de una imagen con contenido que no coincide con el archivo; pero sin el destrozo burdo del stomping completo. Es más difícil de arbitrar.</p>
+<h3>1.3 Phantom DLL hollowing</h3>
+<p><strong>Qué es.</strong> Crear una <strong>entrada falsa de módulo</strong> en las listas del PEB (<code>InLoadOrderModuleList</code>, <code>InMemoryOrderModuleList</code>, <code>InInitializationOrderModuleList</code>) que apunta a tu propia memoria, sin archivo en disco.</p>
+<p><strong>Cómo funciona.</strong> Se construye un <code>LDR_DATA_TABLE_ENTRY</code> plausible —nombre, <code>DllBase</code>, <code>SizeOfImage</code>, <code>EntryPoint</code>— y se enlaza en las tres listas. Los enumeradores de módulos, y muchos EDR que construyen su inventario desde el PEB, la ven como un módulo legítimo más.</p>
+<p><strong>Qué gana.</strong> Disfraza el <strong>inventario</strong>: tu memoria aparece como si fuera una DLL cargada.</p>
+<p><strong>Qué cuesta.</strong> Ojo con el matiz que casi nadie explica: <strong>el tipo de memoria sigue siendo <code>MEM_PRIVATE</code></strong>. Quien mire <code>MEMORY_BASIC_INFORMATION</code> verá memoria privada, no imagen. Es un disfraz del inventario, no del tipo de página. Las reglas que miran allocation-type pueden seguir viendo ejecución unbacked.</p>
+<p><strong>Qué ve el sensor.</strong> El <code>Type</code> real de la región y el contraste entre el PEB y las estructuras del kernel (VAD, lista de módulos cargados).</p>
+<h3>1.4 PEB masquerading inverso (unlinking)</h3>
+<p><strong>Qué es.</strong> Lo contrario del anterior: <strong>quitar</strong> módulos reales de las listas del PEB para que no aparezcan. Se usa para ocultar los propios, no para ejecutar.</p>
+<p><strong>Cómo funciona.</strong> Se desenlaza el <code>LDR_DATA_TABLE_ENTRY</code> ajustando <code>Blink</code> y <code>Flink</code> en las tres listas. El módulo sigue mapeado, pero invisible para quien enumere solo el PEB.</p>
+<p><strong>Qué gana.</strong> Oculta módulos de los recorridos clásicos del PEB.</p>
+<p><strong>Qué cuesta.</strong> Rompe supuestos del propio proceso y no engaña a quien enumere por VAD, handles de sección o la lista de kernel. Es una técnica de ocultación, no de ejecución.</p>
+<p><strong>Qué ve el sensor.</strong> La incoherencia entre lo que dice el PEB y lo que dice el kernel: módulos mapeados que no están en las listas, o viceversa.</p>
+<h3>1.5 SEC_IMAGE con overwriting</h3>
+<p><strong>Qué es.</strong> Crear una <strong>sección de imagen</strong> (<code>SEC_IMAGE</code>) sobre un archivo legítimo, mapearla y después pisar sus páginas con el payload.</p>
+<p><strong>Cómo funciona.</strong> <code>NtCreateSection</code> con <code>SEC_IMAGE</code> sobre el archivo, <code>NtMapViewOfSection</code> para obtener la vista, y una primitiva de escritura para sobrescribir el contenido. La región resultante es <code>MEM_IMAGE</code>.</p>
+<p><strong>Qué gana.</strong> El tipo de memoria es imagen, con el respaldo de un archivo real.</p>
+<p><strong>Qué cuesta.</strong> Las secciones de imagen suelen ser <strong>no escribibles</strong> en sistemas con VBS/HVCI; el overwrite puede fallar. Y un path raro o un módulo sin firma levanta la heurística contraria.</p>
+<p><strong>Qué ve el sensor.</strong> La ruta del archivo, su firma, el hash de la imagen y si la vista mapeada coincide con el fichero.</p>
+<h3>1.6 Section aliasing / allocation-type masquerading</h3>
+<p><strong>Qué es.</strong> En vez de memoria anónima <code>MEM_PRIVATE</code>, usar una <strong>sección respaldada por pagefile</strong> con dos vistas: una <code>RW</code> para escribir y cifrar, otra <code>RX</code> para ejecutar. El tipo pasa a ser <code>MEM_MAPPED</code>.</p>
+<p><strong>Cómo funciona.</strong> <code>NtCreateSection</code> sobre pagefile, y dos <code>NtMapViewOfSection</code> de la misma sección con protecciones distintas: escribes por la vista RW, ejecutas por la vista RX. Nunca hay una vista RWX.</p>
+<p><strong>Qué gana.</strong> Evita las reglas de "private RWX" y mantiene W^X. Es exactamente la arquitectura de <strong>Okugi</strong>: la sección es <code>MAPPED</code>, no <code>PRIVATE</code>, y por eso algunas reglas de memoria privada no la tocan.</p>
+<p><strong>Qué cuesta.</strong> Sigue siendo memoria ejecutable sin archivo detrás; los handles de sección y las dos vistas son visibles. Durante el sueño conviene desmapear (Familia 7).</p>
+<p><strong>Qué ve el sensor.</strong> <code>MEM_MAPPED</code> ejecutable, el handle de la sección, dos vistas de la misma sección y los eventos de map/unmap.</p>
+<h3>1.7 Dirty Vanity (forking)</h3>
+<p><strong>Qué es.</strong> Duplicar el proceso actual con <code>RtlCloneUserProcess</code> <strong>después</strong> de colocar el payload, de modo que el clon "nazca" ya con el código dentro.</p>
+<p><strong>Cómo funciona.</strong> La API crea un proceso clon tipo fork: comparte o duplica el espacio de direcciones y el hilo continúa en el hijo con el payload ya presente. No hay inyección clásica: el código estaba ahí desde el nacimiento del clon.</p>
+<p><strong>Qué gana.</strong> Elimina las primitivas de inyección tradicionales y le da al clon un linaje de proceso legítimo.</p>
+<p><strong>Qué cuesta.</strong> Es <strong>muy ruidosa</strong> en telemetría de procesos: la creación del clon, la API en sí y los handles duplicados son eventos poco comunes y muy accionables.</p>
+<p><strong>Qué ve el sensor.</strong> El evento de creación de proceso, la llamada a <code>RtlCloneUserProcess</code> y la relación padre-hijo.</p>
+<h3>1.8 Data-only execution (ROP puro)</h3>
+<p><strong>Qué es.</strong> Ejecutar el stager <strong>entero por ROP</strong>, usando gadgets de módulos firmados. Cero memoria ejecutable propia: el contador de regiones ejecutables nuevas es cero absoluto.</p>
+<p><strong>Cómo funciona.</strong> Se construye una cadena ROP en la pila; cada gadget realiza un paso —llamar a una API, escribir memoria, saltar—. La ejecución salta de gadget en gadget dentro de código legítimo. Es la escuela de SysWhispers-ROP y SilentMoonwalk.</p>
+<p><strong>Qué gana.</strong> No hay región ejecutable propia que clasificar.</p>
+<p><strong>Qué cuesta.</strong> Fragilidad extrema: depende de la build exacta de Windows. Solo sirve para el <strong>stager corto</strong>, no para el beacon completo.</p>
+<p><strong>Qué ve el sensor.</strong> Pilas con cadenas de retorno improbables, saltos entre gadgets y un stack walk que no cuadra con ninguna función real.</p>
+<hr>
+<h2>🧵 Familia 2 — Cómo arranca la ejecución</h2>
+<p>La segunda casilla es la <strong>legitimidad del hilo</strong>. Al sensor le importa:</p>
+<ul><li>¿En qué dirección <strong>empieza</strong> el hilo?</li><li>¿Qué <strong>pila</strong> tiene en el momento de crear?</li><li>¿Nació de una API legítima o de una escritura de contexto?</li><li>¿Es un hilo nuevo, un worker del pool, o un hilo secuestrado?</li></ul>
+<p>Aquí hay muchas variantes porque Windows ofrece muchas formas de "llámame luego".</p>
+<h3>Cuadro comparativo</h3>
+<table><thead><tr><th>Técnica</th><th>Qué es</th><th>Cómo arranca</th></tr></thead><tbody><tr><td><strong>Thread pool work items</strong></td><td>Trabajo encolado en el pool</td><td><code>TpAllocWork</code> + <code>TpPostWork</code>; lo ejecuta un worker de <code>ntdll</code></td></tr><tr><td><strong>Thread pool timers / waits</strong></td><td>Disparo diferido o por evento</td><td><code>CreateThreadpoolTimer</code>, <code>TpAllocWait</code>, <code>RegisterWaitForSingleObject</code></td></tr><tr><td><strong>Thread hijacking</strong></td><td>Secuestro de un hilo vivo</td><td><code>SuspendThread</code> + <code>SetThreadContext</code> (RIP) + <code>ResumeThread</code></td></tr><tr><td><strong>Special user APC</strong></td><td>APC que corre sin alertable</td><td><code>NtQueueApcThreadEx</code> con <code>SPECIAL_USER_APC</code></td></tr><tr><td><strong>Early Bird</strong></td><td>APC antes de que el hilo arranque</td><td>Proceso suspendido + APC + <code>ResumeThread</code></td></tr><tr><td><strong>Fibers</strong></td><td>Contexto de ejecución propio</td><td><code>ConvertThreadToFiber</code> + <code>CreateFiber</code> + <code>SwitchToFiber</code></td></tr><tr><td><strong>Thread start spoofing</strong></td><td>Start address falsa</td><td><code>NtCreateThreadEx</code> en un thunk de <code>ntdll</code>, entry real por parámetro</td></tr><tr><td><strong>Callback overloading</strong></td><td>Ser el callback de una API</td><td>Registrar payload como callback y disparar la API</td></tr><tr><td><strong>Loader notifications</strong></td><td>Aviso de carga de DLL</td><td><code>LdrRegisterDllNotification</code></td></tr><tr><td><strong>WinEvent hook in-context</strong></td><td>Callback de eventos de ventana</td><td><code>SetWinEventHook</code> en el propio hilo</td></tr><tr><td><strong><code>SetWindowsHookEx</code> local</strong></td><td>Hook sin DLL global</td><td>Hook in-context a un hilo propio</td></tr><tr><td><strong>Exception dispatch</strong></td><td>Dispatcher de excepciones</td><td>VEH / <code>SetUnhandledExceptionFilter</code> + <code>RaiseException</code></td></tr><tr><td><strong>Instrumentation callback</strong></td><td>Callback por syscall</td><td><code>ProcessInstrumentationCallback</code></td></tr><tr><td><strong>Console ctrl handler</strong></td><td>Callback de consola</td><td><code>SetConsoleCtrlHandler</code></td></tr><tr><td><strong>Job / completion port</strong></td><td>Callback de ciclo de vida</td><td><code>JobObjectAssociateCompletionPortInformation</code></td></tr><tr><td><strong>Timer queue legacy</strong></td><td>Timer con hilo del sistema</td><td><code>RtlCreateTimerQueue</code> + <code>RtlCreateTimerQueueTimer</code></td></tr></tbody></table>
+<h3>2.1 Thread pool work items</h3>
+<p><strong>Qué es.</strong> Encolar tu payload como un <em>work item</em> del pool de hilos. El hilo que lo ejecuta es un <strong>worker de <code>ntdll</code></strong>, no un hilo nuevo tuyo.</p>
+<p><strong>Cómo funciona.</strong> <code>TpAllocWork</code> reserva la estructura, <code>TpPostWork</code> la encola. Cuando un worker queda libre, ejecuta el callback. La pila muestra frames del pool (<code>TppWorkerThread</code>) y el hilo existe desde antes.</p>
+<p><strong>Qué gana.</strong> No creas hilos y el origen del hilo es legítimo. Es una de las formas más limpias de "ejecutar sin hilo propio".</p>
+<p><strong>Qué cuesta.</strong> Las estructuras de work item y los eventos de thread pool son visibles; el callback apunta a memoria que puede no estar respaldada.</p>
+<p><strong>Qué ve el sensor.</strong> Eventos ETW de thread pool, el callback registrado y la dirección de ejecución.</p>
+<h3>2.2 Thread pool timers y wait callbacks</h3>
+<p><strong>Qué es.</strong> Variantes con <strong>disparo</strong>: el payload no corre al encolarse, sino cuando vence un timer o se cumple una espera.</p>
+<p><strong>Cómo funciona.</strong> <code>CreateThreadpoolTimer</code> ejecuta el callback al vencer; <code>TpAllocWait</code> y <code>RegisterWaitForSingleObject</code> lo ejecutan cuando un objeto se señaliza. Igual que el work item, lo corre un worker del sistema.</p>
+<p><strong>Qué gana.</strong> Añade una condición de activación natural y separa el "arma" del "disparo".</p>
+<p><strong>Qué cuesta.</strong> Deja objetos de timer o de espera registrados, y el callback sigue siendo una dirección a inspeccionar.</p>
+<h3>2.3 Thread hijacking</h3>
+<p><strong>Qué es.</strong> <strong>Secuestrar un hilo que ya existe</strong>: suspenderlo, cambiar su <code>RIP</code> para que apunte al payload y reanudarlo.</p>
+<p><strong>Cómo funciona.</strong> <code>SuspendThread</code>, <code>GetThreadContext</code>, se reescribe el registro de instrucción, <code>SetThreadContext</code>, <code>ResumeThread</code>. La escuela de BumbleBee y Pikabot.</p>
+<p><strong>Qué gana.</strong> No creas hilo: el sensor ve un hilo que ya estaba vivo.</p>
+<p><strong>Qué cuesta.</strong> La pila del hilo no corresponde con la nueva dirección de ejecución; el hilo puede estar en kernel y no aceptar el cambio; y los eventos de contexto de hilo son sospechosos.</p>
+<p><strong>Qué ve el sensor.</strong> Cambios de contexto, <code>RIP</code> fuera de cualquier función conocida y una pila que no encaja.</p>
+<h3>2.4 Special user APC</h3>
+<p><strong>Qué es.</strong> Encolar un <strong>APC especial</strong> que se ejecuta aunque el hilo no esté en estado alertable.</p>
+<p><strong>Cómo funciona.</strong> <code>NtQueueApcThreadEx</code> con la bandera <code>QUEUE_USER_APC_FLAGS_SPECIAL_USER_APC</code> sobre un hilo existente. El kernel entrega la rutina en el siguiente punto seguro.</p>
+<p><strong>Qué gana.</strong> Técnica moderna y poco instrumentada; no depende de que el hilo esté esperando.</p>
+<p><strong>Qué cuesta.</strong> Necesitas un hilo objetivo válido, y la cola de APC deja rastro en telemetría.</p>
+<p><strong>Qué ve el sensor.</strong> Encolado de APC, dirección de la rutina y el hecho de que el hilo ejecute código que no pidió.</p>
+<h3>2.5 Early Bird</h3>
+<p><strong>Qué es.</strong> Encolar un APC a un hilo <strong>antes de que empiece a ejecutar</strong>.</p>
+<p><strong>Cómo funciona.</strong> Se crea el proceso suspendido, se encola el APC sobre su hilo principal y se reanuda. El APC corre antes que el entry point real.</p>
+<p><strong>Qué gana.</strong> El payload ejecuta antes de que el proceso "arranque", con un hilo legítimo.</p>
+<p><strong>Qué cuesta.</strong> Es la variante <strong>más firmada</strong> de la familia: herramientas y EDR llevan años detectando exactamente esta secuencia.</p>
+<p><strong>Qué ve el sensor.</strong> Proceso creado suspendido, APC encolado antes de la reanudación y ejecución previa al entry point.</p>
+<h3>2.6 Fibers</h3>
+<p><strong>Qué es.</strong> Convertir el hilo actual en un <strong>fiber</strong> y crear otro fiber para el payload.</p>
+<p><strong>Cómo funciona.</strong> <code>ConvertThreadToFiber</code> convierte el hilo en anfitrión; <code>CreateFiber</code> crea el contexto del payload; <code>SwitchToFiber</code> salta a él. El hilo original sigue siendo "legítimo".</p>
+<p><strong>Qué gana.</strong> El hilo del sistema no cambia; la ejecución ocurre en un contexto de fiber gestionado por user-mode.</p>
+<p><strong>Qué cuesta.</strong> Las APIs de fiber son poco comunes y el cambio de pila es visible.</p>
+<h3>2.7 Thread start spoofing</h3>
+<p><strong>Qué es.</strong> Crear un hilo cuya <strong>dirección de inicio parece legítima</strong> —un thunk de <code>ntdll</code>— pero cuyo entry real llega por parámetro o contexto.</p>
+<p><strong>Cómo funciona.</strong> <code>NtCreateThreadEx</code> con un start address que es un stub legítimo; el payload se pasa como argumento y el stub lo desvía. Nivel Nighthawk.</p>
+<p><strong>Qué gana.</strong> El sensor que solo mira el start address ve <code>ntdll</code>.</p>
+<p><strong>Qué cuesta.</strong> El contexto del hilo y el parámetro no cuadran; es una técnica de estado del arte que exige mucho control.</p>
+<h3>2.8 Callback overloading</h3>
+<p><strong>Qué es.</strong> <strong>Ser el callback</strong> de una API legítima: registras tu payload como función de callback y la API lo llama por ti. El hilo entra por una ruta que el sistema considera normal.</p>
+<p><strong>Cómo funciona.</strong> Se elige una API que acepte un callback y se dispara: <code>CertEnumSystemStoreLocation</code>, <code>CryptEnumProviders</code>, <code>EnumWindows</code>/<code>EnumChildWindows</code>, <code>EnumDateFormatsEx</code>, <code>RegisterApplicationRestart</code>, <code>EnumPrinters</code>, <code>SetupDiEnumDriverInfo</code>, <code>EnumFonts</code>, <code>NotifyIpInterfaceChange</code>, <code>EnumSystemLocalesA</code>… La API itera y llama a tu función.</p>
+<p><strong>Qué gana.</strong> El origen de la llamada es una API documentada y el hilo es del sistema.</p>
+<p><strong>Qué cuesta.</strong> La lista de APIs está cada vez más <strong>quemada como IOC</strong>, y suelen ser <em>one-shot</em>: un disparo y ya.</p>
+<p><strong>Qué ve el sensor.</strong> La API disparadora, el callback en memoria no respaldada y el patrón de "API de enumeración que llama a una dirección rara".</p>
+<h3>2.9 Loader notifications</h3>
+<p><strong>Qué es.</strong> Registrar un callback que se dispare la <strong>próxima vez que el proceso cargue cualquier DLL</strong>.</p>
+<p><strong>Cómo funciona.</strong> <code>LdrRegisterDllNotification</code> guarda tu función; el loader la invoca en cada carga de módulo. Es un disparo contextual natural.</p>
+<p><strong>Qué gana.</strong> El momento del disparo es orgánico y poco vigilado; no necesitas una API de enumeración.</p>
+<p><strong>Qué cuesta.</strong> El registro y el callback son inspeccionables, y necesitas que ocurra una carga de DLL.</p>
+<h3>2.10 WinEvent hooks y hooks locales</h3>
+<p><strong>Qué es.</strong> Dos variantes de callback de ventana: <code>SetWinEventHook</code> <strong>in-context</strong> en tu propio hilo, o <code>SetWindowsHookEx</code> in-context a un hilo propio <strong>sin DLL global</strong>.</p>
+<p><strong>Cómo funciona.</strong> Registras el hook y el sistema llama a tu función cuando ocurre el evento o llega el mensaje. Al ser in-context y sobre tu hilo, no necesitas inyectar una DLL.</p>
+<p><strong>Qué gana.</strong> Callback legítimo, sin archivo en disco y sin inyección global.</p>
+<p><strong>Qué cuesta.</strong> Depende de que haya eventos o mensajes, y los hooks son estructuras visibles.</p>
+<h3>2.11 Exception dispatch</h3>
+<p><strong>Qué es.</strong> Usar el <strong>dispatcher de excepciones</strong> como punto de entrada: registras un handler y provocas una excepción; la ejecución empieza desde el camino kernel → <code>ntdll</code>.</p>
+<p><strong>Cómo funciona.</strong> <code>AddVectoredExceptionHandler</code>, <code>AddVectoredContinueHandler</code> o <code>SetUnhandledExceptionFilter</code>, y después <code>RaiseException</code>. El dispatcher llama a tu handler. Es la escuela de <em>ghostwrap</em>.</p>
+<p><strong>Qué gana.</strong> El origen es el mecanismo de excepciones del sistema, no una llamada directa.</p>
+<p><strong>Qué cuesta.</strong> Genera telemetría de excepciones y los handlers registrados son enumerables.</p>
+<h3>2.12 Instrumentation callback</h3>
+<p><strong>Qué es.</strong> Registrar un callback que el kernel invoca en <strong>cada retorno de syscall</strong> del proceso.</p>
+<p><strong>Cómo funciona.</strong> <code>NtSetInformationProcess</code> con <code>ProcessInstrumentationCallback</code> instala la rutina. Se usa para observar syscalls (como hace Okugi en E1), pero también puede servir de dispatcher de ejecución.</p>
+<p><strong>Qué gana.</strong> Es un mecanismo del propio sistema, con cobertura total.</p>
+<p><strong>Qué cuesta.</strong> Es <strong>muy</strong> inusual: un solo callback por proceso y una señal fortísima para cualquier sensor que lo consulte.</p>
+<h3>2.13 Console, jobs y timer queue</h3>
+<p><strong>Qué es.</strong> Callbacks de infraestructura: eventos de consola (<code>SetConsoleCtrlHandler</code>), mensajes de completion port asociados a un job (<code>JobObjectAssociateCompletionPortInformation</code>) y timers legacy (<code>RtlCreateTimerQueue</code>).</p>
+<p><strong>Cómo funciona.</strong> Registras el callback y el sistema lo invoca cuando ocurre el evento: Ctrl+C o cierre de consola, cambio de estado del job, o vencimiento del timer en un hilo del sistema.</p>
+<p><strong>Qué gana.</strong> Disparos diferidos y de bajo perfil, con hilos del sistema.</p>
+<p><strong>Qué cuesta.</strong> Requieren que ocurra el evento y dejan objetos registrados.</p>
+<hr>
+<h2>🧩 Familia 3 — Activación por objetos</h2>
+<p>Aquí el sistema no te llama por un callback de API, sino porque <strong>te registraste como proveedor de un objeto</strong>. La ejecución la dispara el mecanismo de activación del propio Windows.</p>
+<table><thead><tr><th>Técnica</th><th>Qué es</th><th>Cómo funciona</th><th>Coste</th></tr></thead><tbody><tr><td><strong>COM in-proc en memoria</strong></td><td>Servidor COM sin archivo</td><td><code>CoRegisterClassObject</code> con tu <code>IClassFactory</code>, luego <code>CoCreateInstance</code> del propio CLSID</td><td>Registro de clase y CLSID visibles</td></tr><tr><td><strong>COM surrogate hijack</strong></td><td>Servidor out-of-proc en <code>dllhost</code></td><td>Registrar/abusar de un servidor fuera de proceso</td><td>Requiere registro en disco o registry: rompe el fileless</td></tr><tr><td><strong>ShellExt / verbos de shell</strong></td><td>Activación desde Explorer</td><td>Extensión o comando de shell que Explorer invoca</td><td>Ruidoso y con sabor a persistencia</td></tr><tr><td><strong>WerNotify / SilentProcessExit</strong></td><td>Activación al morir un proceso</td><td>Callbacks de Windows Error Reporting</td><td>Persistencia vía WER, muy visible</td></tr><tr><td><strong>IFEO / AEDebug</strong></td><td>Secuestro del debugger</td><td>Image File Execution Options apunta a tu binario</td><td>Disco + registry, muy telemetrizado</td></tr></tbody></table>
+<h3>3.1 COM in-proc en memoria</h3>
+<p><strong>Qué es.</strong> La versión limpia y local de "inyección por activación": un servidor COM <strong>en memoria</strong>, sin DLL en disco.</p>
+<p><strong>Cómo funciona.</strong> Implementas una <code>IClassFactory</code> y la registras con <code>CoRegisterClassObject</code> para un CLSID. Cuando alguien —tú mismo— llama a <code>CoCreateInstance</code> sobre ese CLSID, el activador de COM invoca tu <code>CreateInstance</code>: ejecución disparada por el mecanismo de objetos, no por una inyección.</p>
+<p><strong>Qué gana.</strong> El hilo entra por el activador de COM, con una ruta de sistema perfectamente documentada.</p>
+<p><strong>Qué cuesta.</strong> El registro de clase es visible y el CLSID es un ancla; COM tiene telemetría propia.</p>
+<hr>
+<h2>🎭 Familia 4 — Cómo se ve el proceso</h2>
+<p>La cuarta casilla es la <strong>biografía</strong>: lo que la telemetría y el forense leen sobre quién eres. Y aquí hay una verdad incómoda: <strong>leen el PEB, no la copia real del bloque de parámetros</strong>.</p>
+<table><thead><tr><th>Técnica</th><th>Qué es</th><th>Cómo funciona</th></tr></thead><tbody><tr><td><strong>Process Parameter Poisoning</strong></td><td>Reescribir la línea de comandos</td><td>Modificar <code>PEB-&amp;gt;ProcessParameters</code> después del arranque</td></tr><tr><td><strong>PPID spoofing</strong></td><td>Padre falso</td><td><code>UpdateProcThreadAttribute</code> + <code>PROC_THREAD_ATTRIBUTE_PARENT_PROCESS</code></td></tr><tr><td><strong>Thread hiding</strong></td><td>Ocultar hilos</td><td><code>NtSetInformationThread</code> con <code>ThreadHideFromDebugger</code></td></tr><tr><td><strong>Flags del PEB</strong></td><td>Higiene del proceso</td><td>Limpiar <code>NtGlobalFlag</code>, flags del LDR y <code>ProcessFlags</code></td></tr></tbody></table>
+<h3>4.1 Process Parameter Poisoning</h3>
+<p><strong>Qué es.</strong> Reescribir <code>PEB-&amp;gt;ProcessParameters</code> —<code>CommandLine</code>, <code>ImagePathName</code>, incluso <code>CurrentDirectory</code>— <strong>después</strong> de que el proceso arranque, para que la telemetría vea un comando inocuo.</p>
+<p><strong>Cómo funciona.</strong> Se llega al PEB por <code>NtCurrentTeb()-&amp;gt;ProcessEnvironmentBlock</code>, se localiza <code>ProcessParameters</code> y se reemplaza el <code>UNICODE_STRING</code> de la línea de comandos: nuevo buffer, <code>Length</code> y <code>MaximumLength</code> coherentes. La copia original que queda en el heap del proceso puede seguir existiendo, así que hay que decidir cuál se pisa y cuál se deja.</p>
+<p><strong>Por qué importa en el laboratorio.</strong> En Okugi la clave RC4 del <code>.kc3</code> viajaba en la línea de comandos, y se vio en Elastic. El arreglo correcto es doble: <strong>(a)</strong> mover la clave al blob (cabecera) y <strong>(b)</strong> envenenar los parámetros para que la telemetría muestre un comando aburrido.</p>
+<p><strong>Qué ve el sensor.</strong> La línea de comandos del PEB, su longitud, y la posible discrepancia con la copia original o con el binario en disco.</p>
+<h3>4.2 PPID spoofing</h3>
+<p><strong>Qué es.</strong> Hacer que un proceso que lanzas parezca hijo de otro proceso legítimo.</p>
+<p><strong>Cómo funciona.</strong> <code>UpdateProcThreadAttribute</code> con <code>PROC_THREAD_ATTRIBUTE_PARENT_PROCESS</code> antes de <code>CreateProcess</code>. El campo de proceso padre se rellena con el PID elegido.</p>
+<p><strong>Qué gana.</strong> Rompe la correlación padre-hijo que usan muchos EDR.</p>
+<p><strong>Qué cuesta.</strong> El padre declarado puede no haber creado realmente el proceso; la telemetría de linaje lo delata.</p>
+<h3>4.3 Thread hiding</h3>
+<p><strong>Qué es.</strong> Ocultar un hilo de debuggers e introspección basada en ALPC.</p>
+<p><strong>Cómo funciona.</strong> <code>NtSetInformationThread</code> con <code>ThreadHideFromDebugger</code> sobre el hilo del payload.</p>
+<p><strong>Qué gana.</strong> El hilo desaparece de varias vistas de depuración.</p>
+<p><strong>Qué cuesta.</strong> La propia llamada y el flag son consultables; no oculta el hilo de todos los sensores.</p>
+<h3>4.4 Higiene de flags del PEB</h3>
+<p><strong>Qué es.</strong> Limpiar las marcas que delatan que el proceso está depurado o que se creó en condiciones raras: <code>NtGlobalFlag</code>, flags del LDR y <code>ProcessFlags</code>.</p>
+<p><strong>Cómo funciona.</strong> Se localiza el campo en el PEB o en el heap y se pone a cero el valor esperado para un proceso normal.</p>
+<p><strong>Qué gana.</strong> Elimina indicadores clásicos de "este proceso está siendo analizado o nació mal".</p>
+<p><strong>Qué cuesta.</strong> Es higiene, no invisibilidad: no cambia la memoria ni el hilo.</p>
+<hr>
+<h2>🪄 Familia 5 — Higiene de API y pila</h2>
+<p>Esta familia no cambia dónde vives ni quién te arranca: cambia <strong>cómo llamas al kernel</strong> y <strong>qué pila muestras</strong> cuando lo haces.</p>
+<h3>5.1 Indirect syscalls + rotación de gadgets</h3>
+<p><strong>Qué es.</strong> En vez de tener la instrucción <code>syscall</code> en tu propio código, saltar al gadget <code>syscall; ret</code> que ya existe en <code>ntdll</code>.</p>
+<p><strong>Cómo funciona.</strong> Se resuelve el SSN en runtime (por orden de export, estilo FreshyCalls), se elige un gadget de <code>ntdll</code> y se salta a él con los argumentos preparados. La <strong>rotación</strong> consiste en no usar siempre el mismo gadget, para no dejar una firma fija.</p>
+<p><strong>Qué gana.</strong> El <code>syscall</code> ocurre en memoria de <code>ntdll</code>, y el call stack parece más legítimo. Es la base de Okugi.</p>
+<p><strong>Qué cuesta.</strong> Elegir gadgets por build y mantener la coherencia de la pila; un gadget equivocado rompe todo.</p>
+<h3>5.2 Call stack spoofing</h3>
+<p><strong>Qué es.</strong> Construir una <strong>pila plausible</strong> con <code>push</code>/<code>ret</code> sobre direcciones de módulos reales, para que el stack walk no vea un frame inicial no respaldado.</p>
+<p><strong>Cómo funciona.</strong> Se encadenan direcciones de retorno de funciones firmadas y se ajusta la pila para que el unwinder recorra una historia creíble. Escuela SilentMoonwalk / Nighthawk.</p>
+<p><strong>Qué gana.</strong> Cierra el <code>frame[0]</code> unbacked, que es una de las señales más usadas.</p>
+<p><strong>Qué cuesta.</strong> <strong>Frágil por build de Windows</strong>: los offsets y las tablas de unwind cambian. Requiere mantenimiento.</p>
+<h3>5.3 Return-address spoofing puntual</h3>
+<p><strong>Qué es.</strong> La variante ligera de lo anterior: falsear solo la dirección de retorno en callbacks concretos usando gadgets <code>pop</code>.</p>
+<p><strong>Cómo funciona.</strong> Antes de llamar a la API, se prepara la pila para que el retorno apunte a un sitio legítimo y se restaura después.</p>
+<p><strong>Qué gana.</strong> Menos coste que un spoofing completo, suficiente para un callback puntual.</p>
+<p><strong>Qué cuesta.</strong> No arregla pilas profundas; solo el frame inmediato.</p>
+<hr>
+<h2>🧱 Familia 6 — COFF/PIC en post-explotación</h2>
+<p>Una vez que el beacon corre, el siguiente problema es <strong>dónde ejecuta el post-explotación</strong>. La respuesta elegante: dentro del mismo módulo firmado que ya aloja al beacon.</p>
+<h3>6.1 Stomped module + COFF runner</h3>
+<p><strong>Qué es.</strong> El módulo sacrificial no solo aloja el beacon: también aloja el <strong>runner de BOFs</strong> (COFFs position-independent). Todo el post-explotación corre dentro del módulo firmado.</p>
+<p><strong>Cómo funciona.</strong> Se reserva espacio en el módulo (por stomping u overloading), se coloca allí el loader de COFF y se ejecutan los BOFs en ese contexto, con las APIs resueltas desde el propio módulo.</p>
+<p><strong>Qué gana.</strong> Los BOFs quedan blindados igual que el beacon: dejan de ser memoria anónima ejecutable.</p>
+<p><strong>Qué cuesta.</strong> Requiere un runner de COFF propio y espacio suficiente en el módulo; la gestión de relocaciones y símbolos del COFF es trabajo real.</p>
+<p><strong>Contexto.</strong> Es la arquitectura de Havoc/Demon para post-explotación. En Okugi, con E6b ya hay UDRL propio; añadir el runner de COFFs al UDRL es el paso natural: los BOFs que hoy corren in-process pasarían al módulo stompeado.</p>
+<h3>6.2 PIM (Position-Independent Modules)</h3>
+<p><strong>Qué es.</strong> Módulos completos <strong>PIC</strong> cargados sin el loader del sistema operativo.</p>
+<p><strong>Cómo funciona.</strong> El módulo se compila para no depender de una base fija ni de un loader; se mapea y se resuelven sus dependencias a mano.</p>
+<p><strong>Qué gana.</strong> Portabilidad y control total del mapeo, sin depender de <code>LoadLibrary</code>.</p>
+<p><strong>Qué cuesta.</strong> Compilar y mantener PIC real es delicado; no todos los módulos se prestan a ello.</p>
+<hr>
+<h2>🧊 Familia 7 — En reposo</h2>
+<p>El payload pasa la mayor parte del tiempo dormido. Lo que se ve en reposo importa tanto como lo que se ve ejecutando.</p>
+<h3>7.1 Ekko, Zilean, Foliage, DeathSleep, Cronos</h3>
+<p><strong>Qué es.</strong> La familia de <strong>sleep obfuscation</strong>: cifrar el payload y/o desmapear sus vistas mientras duerme, y restaurarlo al despertar.</p>
+<p><strong>Cómo funciona.</strong> Antes de dormir se cifra la región ejecutable y se cambia su protección; al despertar se descifra y se ejecuta un pequeño stub. Cada variante cambia el mecanismo (timers, APC, ROP, callbacks) para que el "dormir" no dependa de una sola primitiva.</p>
+<p><strong>Qué gana.</strong> Reduce a casi cero la ventana en la que el payload está en claro y ejecutable. Es la línea que en el laboratorio cubren E2 + Etapa B.</p>
+<p><strong>Qué cuesta.</strong> El stub de despertar es código propio y hay que protegerlo también; el ciclo de cifrado/descifrado deja eventos.</p>
+<h3>7.2 Desmapear durante el sueño</h3>
+<p><strong>Qué es.</strong> Un paso más: <strong>desmapear las vistas</strong> y dejar solo la sección respaldada por pagefile mientras el payload duerme.</p>
+<p><strong>Cómo funciona.</strong> Se conserva la sección, se desmapean las vistas RW y RX, y se vuelven a mapear al despertar. Compatible con la doble vista de Okugi: es un upgrade natural de E2 —dormir con las vistas desmapeadas—.</p>
+<p><strong>Qué gana.</strong> Durante el sueño no hay región ejecutable que clasificar, solo una sección sin vistas.</p>
+<p><strong>Qué cuesta.</strong> Más eventos de map/unmap y una ventana de re-mapeo que hay que coordinar con el despertar.</p>
+<hr>
+<h2>🧠 Cómo se combinan (el stack completo)</h2>
+<p>Las familias no compiten: se <strong>apilan</strong>. Un stack coherente podría verse así:</p>
+<pre><code class="lang-text">[REGIÓN]    sección pagefile con vistas RW/RX  (Familia 1.6)
+   ↓
+[HILO]      work item del thread pool           (Familia 2.1)
+   ↓
+[DISPARO]   loader notification o callback      (Familia 2.8/2.9)
+   ↓
+[APARIENCIA] PEB poison + stack spoof           (Familia 4.1 + 5.2)
+   ↓
+[POST-EX]   COFF runner en módulo stompeado     (Familia 6.1)
+   ↓
+[REPOSO]    cifrado + desmapeo de vistas        (Familia 7.1/7.2)</code></pre>
+<p>Cada capa mueve una señal distinta. El error clásico es apilar <strong>dos técnicas que mueven la misma señal</strong> y dejar las otras tres intactas: el sensor sigue teniendo una historia que contar.</p>
+<blockquote><p>🎯 <strong>La pregunta de diseño:</strong> no "¿cuál es la técnica más moderna?", sino "¿qué señal me queda descubierta y cuál es la técnica más barata que la tapa?".</p></blockquote>
+<h2>📋 Matriz de decisión rápida</h2>
+<table><thead><tr><th>Si necesito…</th><th>Técnica razonable</th><th>Coste principal</th></tr></thead><tbody><tr><td>Quitar la memoria unbacked</td><td>Section aliasing o module overloading</td><td>Dual view / placement</td></tr><tr><td>No crear hilos</td><td>Thread pool work items</td><td>Callback visible</td></tr><tr><td>Un disparo natural y diferido</td><td>Timer del pool o loader notification</td><td>Objeto registrado</td></tr><tr><td>Un hilo con origen legítimo</td><td>Thread start spoofing</td><td>Contexto incoherente</td></tr><tr><td>Ocultar el inventario</td><td>Phantom DLL hollowing</td><td>Sigue siendo privada</td></tr><tr><td>Tapar el post-ex</td><td>COFF runner en módulo stompeado</td><td>Runner propio</td></tr><tr><td>Dormir sin payload en claro</td><td>Sleep obfuscation + desmapeo</td><td>Stub de despertar</td></tr></tbody></table>
+<h2>🛡️ Cómo lo mira el defensor</h2>
+<p>Este es el otro lado del catálogo, y el que conviene tener siempre presente:</p>
+<table><thead><tr><th>Artefacto que se inspecciona</th><th>Qué delata</th><th>Familia que lo mueve</th></tr></thead><tbody><tr><td><code>Type</code> y <code>Protection</code> de la región</td><td>Memoria privada ejecutable, RWX</td><td>1.6, 1.8</td></tr><tr><td>Hash del módulo vs. archivo</td><td>Stomping, overloading</td><td>1.1, 1.2</td></tr><tr><td>Listas del PEB vs. kernel</td><td>Phantom entries, unlinking</td><td>1.3, 1.4</td></tr><tr><td>Start address del hilo</td><td>Hilos que nacen en memoria rara</td><td>2.3, 2.7</td></tr><tr><td>Call stack</td><td>Frame[0] unbacked</td><td>5.2, 5.3</td></tr><tr><td>Cola de APC / thread pool</td><td>Disparos artificiales</td><td>2.1, 2.4, 2.5</td></tr><tr><td>Creación de proceso y linaje</td><td>Clones, PPID falso</td><td>1.7, 4.2</td></tr><tr><td>Línea de comandos del PEB</td><td>Secretos en <code>argv</code></td><td>4.1</td></tr><tr><td>Handles de sección y map/unmap</td><td>Vistas de la misma sección</td><td>1.6, 7.2</td></tr><tr><td>Instrumentation callback</td><td>Un callback por proceso</td><td>2.12</td></tr></tbody></table>
+<p>La lectura defensiva es simple: <strong>no busques una técnica, busca una historia incoherente</strong>. Una región <code>MEM_IMAGE</code> cuyo hash no coincide, un hilo que empieza en <code>ntdll</code> pero cuya pila no tiene sentido, una línea de comandos que no corresponde con el binario. La incoherencia es la señal.</p>
+<h2>⚠️ Mitos frecuentes</h2>
+<ul><li><strong>"Phantom DLL hollowing hace que mi memoria sea legítima."</strong> No. Disfraza el inventario; el <code>Type</code> sigue siendo <code>MEM_PRIVATE</code>. Quien mire allocation-type te sigue viendo.</li><li><strong>"Module stomping es indetectable."</strong> El hash del módulo deja de coincidir con el archivo. Es una señal clara, aunque hoy no todos los productos la consulten.</li><li><strong>"Los callbacks son la técnica nueva."</strong> La lista de APIs está quemada como IOC desde hace años, y casi todas son <em>one-shot</em>.</li><li><strong>"Early Bird sigue siendo top."</strong> Es de las secuencias más firmadas que existen.</li><li><strong>"El stack spoofing es universal."</strong> Depende de la build exacta de Windows; es frágil y hay que mantenerlo.</li><li><strong>"Fileless significa sin disco."</strong> Registrar un servidor COM surrogate o un IFEO implica registry o disco: eso ya no es fileless.</li></ul>
+<h2>📚 Glosario mínimo</h2>
+<table><thead><tr><th>Término</th><th>En una frase</th></tr></thead><tbody><tr><td><strong>PEB</strong></td><td><em>Process Environment Block</em>: estructura de user-mode con la información del proceso.</td></tr><tr><td><strong>LDR</strong></td><td>El cargador de Windows y sus listas de módulos.</td></tr><tr><td><strong>APC</strong></td><td><em>Asynchronous Procedure Call</em>: rutina que el kernel entrega a un hilo.</td></tr><tr><td><strong>VAD</strong></td><td><em>Virtual Address Descriptor</em>: el árbol del kernel que describe las regiones de memoria.</td></tr><tr><td><strong><code>MEM_IMAGE</code></strong></td><td>Región respaldada por una sección de imagen (un PE).</td></tr><tr><td><strong><code>MEM_MAPPED</code></strong></td><td>Región respaldada por una sección (por ejemplo, pagefile).</td></tr><tr><td><strong><code>MEM_PRIVATE</code></strong></td><td>Región anónima, sin archivo ni sección detrás.</td></tr><tr><td><strong>W^X</strong></td><td>Nunca escribible y ejecutable a la vez; se usan dos vistas.</td></tr><tr><td><strong>ETW-TI</strong></td><td><em>Threat Intelligence</em>: ETW de kernel con eventos de operaciones sensibles.</td></tr><tr><td><strong>SSN</strong></td><td><em>System Service Number</em>: el número de una syscall.</td></tr><tr><td><strong>Gadget</strong></td><td>Secuencia de instrucciones que termina en <code>ret</code>, usada en ROP.</td></tr><tr><td><strong>BOF / COFF</strong></td><td><em>Beacon Object File</em>: código PIC que se ejecuta en el proceso del beacon.</td></tr><tr><td><strong>PIC / PIM</strong></td><td>Código o módulo <em>position-independent</em>, sin base fija.</td></tr><tr><td><strong>UDRL</strong></td><td><em>User-Defined Reflective Loader</em>: loader propio que mapea el payload.</td></tr><tr><td><strong>Stack walk</strong></td><td>Recorrido de la pila usando las tablas de unwind.</td></tr></tbody></table>
+<h2>Cierre</h2>
+<p>Este catálogo no es una lista de recetas: es un <strong>mapa de señales</strong>. Cada técnica existe porque hay un sensor mirando algo concreto, y cada una funciona hasta que ese sensor cambia de pregunta.</p>
+<p>La lección que deja el laboratorio es siempre la misma: medir, no creer. Una técnica que "en teoría" tapa una señal puede dejar otra abierta, y una que parece ruidosa puede ser invisible para el producto que tienes delante. La diferencia entre un payload y un payload que aguanta no es la técnica más exótica: es <strong>saber qué historia está contando tu proceso</strong> en cada una de las cuatro casillas.</p>
+<p>Si algo de esto te sirve, el siguiente paso natural es leer cómo se midió en el laboratorio: <a href="/blog/kagemusha-f14-f15-modulo-prestado-etwti.html">Kagemusha F14–F15 — el módulo prestado</a> y el <a href="/blog/mini-loader-15-pasos-pe-sin-loadlibrary.html">mini-loader en 15 pasos</a> para entender el mapeo que hay debajo de casi todas estas familias.</p></div>
+    </article>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor pie__interior">
+      <p class="pie__marca">KANON<span class="pie__acento">_UFO</span></p>
+      <p class="pie__copy">&copy; <span id="anio">2026</span> KANON UFO &middot; hecho con GitHub Pages</p>
+    </div>
+  </footer>
+  <script>document.getElementById('anio').textContent=new Date().getFullYear()</script>
+</body>
+</html>
